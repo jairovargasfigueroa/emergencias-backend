@@ -17,4 +17,14 @@ public enum EstadoAtencion {
 		return ACTIVOS.contains(this);
 	}
 
+	/** Siguiente hito de ME-1 ({@code null} en los estados finales). */
+	public EstadoAtencion siguienteHito() {
+		return switch (this) {
+			case EN_CAMINO -> EN_EL_LUGAR;
+			case EN_EL_LUGAR -> PACIENTE_RECOGIDO;
+			case PACIENTE_RECOGIDO -> PACIENTE_ENTREGADO;
+			case PACIENTE_ENTREGADO, CANCELADA -> null;
+		};
+	}
+
 }
