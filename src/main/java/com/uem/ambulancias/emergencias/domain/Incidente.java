@@ -56,4 +56,27 @@ public class Incidente {
 	@JoinColumn(name = "cerrado_por_id")
 	private Usuario cerradoPor;
 
+	/** ME-1 I0: nace ACTIVO con la ubicación efectiva y los afectados de su primera alerta. */
+	public static Incidente crear(Point ubicacion, Integer cantidadAfectados, Instant fechaHoraCreacion) {
+		Incidente incidente = new Incidente();
+		incidente.ubicacion = ubicacion;
+		incidente.cantidadAfectados = cantidadAfectados;
+		incidente.fechaHoraCreacion = fechaHoraCreacion;
+		incidente.estado = EstadoIncidente.ACTIVO;
+		return incidente;
+	}
+
+	/**
+	 * Afectados consolidados: el máximo de lo reportado, nunca la suma, porque cada emisor estima la escena
+	 * completa. Una cantidad {@code null} no cambia nada.
+	 */
+	public void consolidarAfectados(Integer cantidad) {
+		if (cantidad == null) {
+			return;
+		}
+		if (cantidadAfectados == null || cantidad > cantidadAfectados) {
+			cantidadAfectados = cantidad;
+		}
+	}
+
 }
