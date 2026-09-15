@@ -1,3 +1,4 @@
+# Plantilla: copiar como application.properties (ese archivo no se versiona) y completar.
 spring.application.name=ambulancias-backend
 
 # PostgreSQL con la extensión PostGIS habilitada. Completar con los datos locales.
