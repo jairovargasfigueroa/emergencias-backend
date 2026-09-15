@@ -24,8 +24,6 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 
 	boolean existsByIncidenteIdAndEstadoIn(Long incidenteId, Collection<EstadoAtencion> estados);
 
-	long countByIncidenteIdAndEstadoIn(Long incidenteId, Collection<EstadoAtencion> estados);
-
 	@Query("""
 			select a from Atencion a join fetch a.ambulancia
 			where a.incidente.id = :incidenteId and a.estado in :estados

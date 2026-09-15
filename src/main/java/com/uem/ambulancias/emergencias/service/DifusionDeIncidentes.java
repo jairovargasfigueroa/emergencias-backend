@@ -5,7 +5,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import com.uem.ambulancias.emergencias.domain.EstadoAtencion;
+import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.Incidente;
 import com.uem.ambulancias.emergencias.repository.AlertaRepository;
 import com.uem.ambulancias.emergencias.repository.AtencionRepository;
@@ -54,7 +54,11 @@ public class DifusionDeIncidentes {
 	}
 
 	private void publicar(Incidente incidente, boolean nuevo) {
-		if (!incidente.getEstado().isAbierto()) {
+		boolean abierto = incidente.getEstado().isAbierto();
+		List<Atencion> activas = abierto ? atenciones.buscarActivasPorIncidente(incidente.getId()) : List.of();
+		publicador.publicarSeguimiento(seguimiento(incidente, activas));
+
+		if (!abierto) {
 			publicador.retirarIncidente(incidente.getId());
 			return;
 		}
@@ -74,12 +78,29 @@ public class DifusionDeIncidentes {
 				incidente.getFechaHoraCreacion(),
 				incidente.getCantidadAfectados(),
 				alertas.buscarDescripciones(incidente.getId()),
-				atenciones.countByIncidenteIdAndEstadoIn(incidente.getId(), EstadoAtencion.ACTIVOS));
+				activas.size());
 		publicador.publicarIncidenteAbierto(publicado);
 
 		if (nuevo) {
 			notificador.notificarNuevoIncidente(tokensPorCercania(disponiblesPorCercania), publicado);
 		}
+	}
+
+	private static SeguimientoPublicado seguimiento(Incidente incidente, List<Atencion> activas) {
+		List<SeguimientoPublicado.Unidad> unidades = activas.stream()
+				.map(atencion -> {
+					Ambulancia ambulancia = atencion.getAmbulancia();
+					Point posicion = ambulancia.getUltimaPosicion();
+					return new SeguimientoPublicado.Unidad(
+							ambulancia.getId(),
+							ambulancia.getPlaca(),
+							atencion.getEstado(),
+							posicion == null ? null : posicion.getY(),
+							posicion == null ? null : posicion.getX(),
+							ambulancia.getUltimaPosicionEn());
+				})
+				.toList();
+		return new SeguimientoPublicado(incidente.getId(), incidente.getEstado(), unidades);
 	}
 
 	/** Tokens push de los paramédicos en servicio en esas ambulancias, respetando el orden por cercanía. */

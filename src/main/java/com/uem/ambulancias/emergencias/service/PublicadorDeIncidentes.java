@@ -6,10 +6,13 @@ package com.uem.ambulancias.emergencias.service;
  */
 public interface PublicadorDeIncidentes {
 
-	/** Crea o reemplaza el incidente en el nodo de incidentes abiertos. */
+	/** Crea o reemplaza el incidente en el nodo de incidentes abiertos, que escuchan los paramédicos. */
 	void publicarIncidenteAbierto(IncidentePublicado incidente);
 
 	/** Quita el incidente de los abiertos cuando pasa a un estado final. */
 	void retirarIncidente(Long incidenteId);
+
+	/** Crea o reemplaza el seguimiento del incidente, que escucha la app del ciudadano. */
+	void publicarSeguimiento(SeguimientoPublicado seguimiento);
 
 }

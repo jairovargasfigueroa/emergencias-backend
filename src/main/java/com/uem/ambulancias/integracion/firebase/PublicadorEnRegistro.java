@@ -5,6 +5,7 @@ import java.util.List;
 import com.uem.ambulancias.emergencias.service.IncidentePublicado;
 import com.uem.ambulancias.emergencias.service.NotificadorPush;
 import com.uem.ambulancias.emergencias.service.PublicadorDeIncidentes;
+import com.uem.ambulancias.emergencias.service.SeguimientoPublicado;
 import com.uem.ambulancias.flota.service.PosicionActualizada;
 import com.uem.ambulancias.flota.service.PublicadorDePosiciones;
 
@@ -24,6 +25,12 @@ public class PublicadorEnRegistro implements PublicadorDeIncidentes, PublicadorD
 	@Override
 	public void retirarIncidente(Long incidenteId) {
 		log.info("Firebase apagado: no se retira el incidente {}.", incidenteId);
+	}
+
+	@Override
+	public void publicarSeguimiento(SeguimientoPublicado seguimiento) {
+		log.info("Firebase apagado: no se publica el seguimiento del incidente {} ({}, {} unidades).",
+				seguimiento.incidenteId(), seguimiento.estado(), seguimiento.unidades().size());
 	}
 
 	@Override
