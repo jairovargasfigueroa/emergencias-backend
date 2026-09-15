@@ -34,6 +34,12 @@ public class PublicadorEnRegistro implements PublicadorDeIncidentes, PublicadorD
 	}
 
 	@Override
+	public void publicarPosicionEnSeguimiento(Long incidenteId, PosicionActualizada posicion) {
+		log.debug("Firebase apagado: no se copia al seguimiento del incidente {} la posición de la ambulancia {}.",
+				incidenteId, posicion.ambulanciaId());
+	}
+
+	@Override
 	public void publicarPosicion(PosicionActualizada posicion) {
 		log.debug("Firebase apagado: no se publica la posición de la ambulancia {}.", posicion.ambulanciaId());
 	}

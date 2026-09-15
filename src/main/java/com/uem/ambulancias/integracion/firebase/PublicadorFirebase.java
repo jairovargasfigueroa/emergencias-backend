@@ -87,6 +87,18 @@ public class PublicadorFirebase implements PublicadorDeIncidentes, PublicadorDeP
 				"publicar la posición de la ambulancia " + posicion.ambulanciaId());
 	}
 
+	@Override
+	public void publicarPosicionEnSeguimiento(Long incidenteId, PosicionActualizada posicion) {
+		DatabaseReference nodoPosicion = nodo(SEGUIMIENTO, incidenteId)
+				.child("unidades")
+				.child(String.valueOf(posicion.ambulanciaId()))
+				.child("posicion");
+		EscriturasFirebase.registrarFallo(
+				nodoPosicion.setValueAsync(posicion(posicion.latitud(), posicion.longitud(), posicion.momento())),
+				"copiar al seguimiento del incidente " + incidenteId + " la posición de la ambulancia "
+						+ posicion.ambulanciaId());
+	}
+
 	private DatabaseReference nodo(String raiz, Long id) {
 		return baseDatos.getReference(raiz).child(String.valueOf(id));
 	}
