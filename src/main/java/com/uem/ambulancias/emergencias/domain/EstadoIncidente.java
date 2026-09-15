@@ -1,5 +1,7 @@
 package com.uem.ambulancias.emergencias.domain;
 
+import java.util.Set;
+
 public enum EstadoIncidente {
 
 	ACTIVO,
@@ -7,6 +9,13 @@ public enum EstadoIncidente {
 	ATENDIDO,
 	FALSA_ALARMA,
 	ATENDIDO_EXTERNAMENTE,
-	CANCELADO
+	CANCELADO;
+
+	/** Estados abiertos: el incidente se muestra y admite tomas. Los demás son finales. */
+	public static final Set<EstadoIncidente> ABIERTOS = Set.of(ACTIVO, EN_ATENCION);
+
+	public boolean isAbierto() {
+		return ABIERTOS.contains(this);
+	}
 
 }
