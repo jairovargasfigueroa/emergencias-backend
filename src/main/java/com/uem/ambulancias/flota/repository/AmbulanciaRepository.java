@@ -1,13 +1,16 @@
 package com.uem.ambulancias.flota.repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
 import com.uem.ambulancias.flota.domain.Ambulancia;
 
 import jakarta.persistence.LockModeType;
+import org.locationtech.jts.geom.Point;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -33,5 +36,17 @@ public interface AmbulanciaRepository extends JpaRepository<Ambulancia, Long> {
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select a from Ambulancia a where a.id = :id")
 	Optional<Ambulancia> buscarParaActualizar(@Param("id") Long id);
+
+	/**
+	 * Guarda la última posición solo si la anterior se guardó antes de {@code guardadaAntesDe}. Actualiza únicamente
+	 * esas dos columnas, así nunca pisa un cambio de estado hecho a la vez por otra transacción.
+	 */
+	@Modifying
+	@Query("""
+			update Ambulancia a set a.ultimaPosicion = :posicion, a.ultimaPosicionEn = :momento
+			where a.id = :id and (a.ultimaPosicionEn is null or a.ultimaPosicionEn <= :guardadaAntesDe)
+			""")
+	int guardarUltimaPosicion(@Param("id") Long id, @Param("posicion") Point posicion,
+			@Param("momento") Instant momento, @Param("guardadaAntesDe") Instant guardadaAntesDe);
 
 }

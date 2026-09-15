@@ -32,7 +32,7 @@ public class DifusionDeIncidentes {
 	private final AlertaRepository alertas;
 	private final AtencionRepository atenciones;
 	private final AmbulanciaRepository ambulancias;
-	private final PublicadorTiempoReal publicador;
+	private final PublicadorDeIncidentes publicador;
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	@Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
