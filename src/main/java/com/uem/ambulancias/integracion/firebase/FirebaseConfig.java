@@ -9,6 +9,7 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -32,6 +33,11 @@ public class FirebaseConfig {
 	@Bean
 	PublicadorFirebase publicadorFirebase(FirebaseApp firebaseApp) {
 		return new PublicadorFirebase(FirebaseDatabase.getInstance(firebaseApp));
+	}
+
+	@Bean
+	NotificadorFcm notificadorFcm(FirebaseApp firebaseApp) {
+		return new NotificadorFcm(FirebaseMessaging.getInstance(firebaseApp));
 	}
 
 }

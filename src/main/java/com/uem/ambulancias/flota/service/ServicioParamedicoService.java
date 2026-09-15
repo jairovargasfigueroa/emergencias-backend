@@ -33,6 +33,12 @@ public class ServicioParamedicoService {
 		return conAsignacionVigente(buscarParamedicoActivo(paramedicoId));
 	}
 
+	/** PB-03 R3: token para recibir push de incidentes nuevos con la app cerrada. */
+	@Transactional
+	public void registrarDispositivo(Long paramedicoId, String tokenPush) {
+		buscarParamedicoActivo(paramedicoId).registrarDispositivo(tokenPush.trim());
+	}
+
 	public Usuario buscarParamedicoActivo(Long paramedicoId) {
 		return usuarios.findByIdAndRol(paramedicoId, RolUsuario.PARAMEDICO)
 				.filter(Usuario::isActivo)

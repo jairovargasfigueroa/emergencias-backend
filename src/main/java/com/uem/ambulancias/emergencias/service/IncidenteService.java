@@ -35,7 +35,8 @@ public class IncidenteService {
 		Incidente incidente = incidentes
 				.buscarActivoCercano(ubicacion, agrupacion.radioM(), agrupacion.ventanaMin())
 				.orElse(null);
-		if (incidente == null) {
+		boolean nuevo = incidente == null;
+		if (nuevo) {
 			incidente = Incidente.crear((Point) ubicacion.copy(), alerta.getCantidadAfectados(), alerta.getFechaHora());
 		} else {
 			incidente.consolidarAfectados(alerta.getCantidadAfectados());
@@ -45,7 +46,7 @@ public class IncidenteService {
 		alerta.vincular(incidente);
 		alertas.save(alerta);
 
-		eventos.publishEvent(new IncidenteActualizado(incidente.getId()));
+		eventos.publishEvent(new IncidenteActualizado(incidente.getId(), nuevo));
 		return incidente;
 	}
 

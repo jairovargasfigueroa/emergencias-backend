@@ -3,17 +3,20 @@ package com.uem.ambulancias.flota.controller;
 import com.uem.ambulancias.comun.web.Cabeceras;
 import com.uem.ambulancias.flota.dto.IdentificarParamedicoRequest;
 import com.uem.ambulancias.flota.dto.ParamedicoResponse;
+import com.uem.ambulancias.flota.dto.RegistrarDispositivoRequest;
 import com.uem.ambulancias.flota.dto.ServicioActualResponse;
 import com.uem.ambulancias.flota.service.ParamedicoConAsignacion;
 import com.uem.ambulancias.flota.service.ServicioParamedicoService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -37,6 +40,13 @@ public class ServicioParamedicoController {
 	public ServicioActualResponse servicioActual(@RequestHeader(Cabeceras.USUARIO_ID) Long paramedicoId) {
 		ParamedicoConAsignacion servicio = servicioParamedicoService.servicioActual(paramedicoId);
 		return ServicioActualResponse.de(servicio.paramedico(), servicio.asignacionVigente());
+	}
+
+	@PostMapping("/actual/dispositivo")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void registrarDispositivo(@RequestHeader(Cabeceras.USUARIO_ID) Long paramedicoId,
+			@Valid @RequestBody RegistrarDispositivoRequest request) {
+		servicioParamedicoService.registrarDispositivo(paramedicoId, request.tokenPush());
 	}
 
 }
