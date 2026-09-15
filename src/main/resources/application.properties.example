@@ -9,3 +9,7 @@ spring.datasource.password=
 
 # Hibernate crea y actualiza las tablas a partir de las entidades.
 spring.jpa.hibernate.ddl-auto=update
+
+# Agrupación de alertas en incidentes (PB-02). Si se omiten, se usan estos valores.
+sga.agrupacion.radio-m=150
+sga.agrupacion.ventana-min=30
