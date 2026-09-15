@@ -2,6 +2,8 @@ package com.uem.ambulancias.emergencias.domain;
 
 import java.time.Instant;
 
+import com.uem.ambulancias.comun.error.CodigoError;
+import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.geo.Geo;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 
@@ -76,6 +78,21 @@ public class Incidente {
 		}
 		if (cantidadAfectados == null || cantidad > cantidadAfectados) {
 			cantidadAfectados = cantidad;
+		}
+	}
+
+	/**
+	 * Aplica una transición de ME-1. Si no es válida desde el estado actual, la rechaza y nada cambia. Al pasar a un
+	 * estado final queda fijada {@code fechaHoraCierre}.
+	 */
+	public void cambiarEstado(EstadoIncidente nuevo) {
+		if (!estado.puedePasarA(nuevo)) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"El incidente " + id + " no puede pasar de " + estado + " a " + nuevo + ".");
+		}
+		estado = nuevo;
+		if (!nuevo.isAbierto()) {
+			fechaHoraCierre = Instant.now();
 		}
 	}
 
