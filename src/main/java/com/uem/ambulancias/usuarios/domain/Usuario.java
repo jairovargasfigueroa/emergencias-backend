@@ -40,10 +40,19 @@ public class Usuario {
 
 	/** Personal registrado por el administrador: nace activo con rol PARAMEDICO. */
 	public static Usuario registrarParamedico(String nombreCompleto, String telefono) {
+		return nuevo(nombreCompleto, telefono, RolUsuario.PARAMEDICO);
+	}
+
+	/** Registro ligero desde la app: nace activo con rol CIUDADANO. */
+	public static Usuario registrarCiudadano(String nombreCompleto, String telefono) {
+		return nuevo(nombreCompleto, telefono, RolUsuario.CIUDADANO);
+	}
+
+	private static Usuario nuevo(String nombreCompleto, String telefono, RolUsuario rol) {
 		Usuario usuario = new Usuario();
 		usuario.nombreCompleto = nombreCompleto;
 		usuario.telefono = telefono;
-		usuario.rol = RolUsuario.PARAMEDICO;
+		usuario.rol = rol;
 		usuario.activo = true;
 		return usuario;
 	}
