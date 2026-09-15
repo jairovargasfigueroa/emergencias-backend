@@ -13,3 +13,10 @@ spring.jpa.hibernate.ddl-auto=update
 # Agrupación de alertas en incidentes (PB-02). Si se omiten, se usan estos valores.
 sga.agrupacion.radio-m=150
 sga.agrupacion.ventana-min=30
+
+# Firebase Realtime Database. Apagado hasta configurar la cuenta de servicio.
+sga.firebase.habilitado=false
+# Ruta al JSON de la cuenta de servicio, fuera del repositorio.
+sga.firebase.credenciales=
+# Ejemplo: https://mi-proyecto-default-rtdb.firebaseio.com
+sga.firebase.url-base-datos=
