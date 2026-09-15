@@ -1,10 +1,23 @@
 package com.uem.ambulancias.emergencias.service;
 
+import java.time.Instant;
+import java.util.List;
+
+import com.uem.ambulancias.comun.error.CodigoError;
+import com.uem.ambulancias.comun.error.ConflictoException;
+import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.emergencias.domain.Alerta;
+import com.uem.ambulancias.emergencias.domain.Atencion;
+import com.uem.ambulancias.emergencias.domain.EstadoIncidente;
 import com.uem.ambulancias.emergencias.domain.Incidente;
+import com.uem.ambulancias.emergencias.exception.IncidenteYaTomadoException;
 import com.uem.ambulancias.emergencias.repository.AlertaRepository;
+import com.uem.ambulancias.emergencias.repository.AtencionRepository;
 import com.uem.ambulancias.emergencias.repository.BloqueoDeAgrupacion;
 import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
+import com.uem.ambulancias.flota.domain.Ambulancia;
+import com.uem.ambulancias.flota.domain.EstadoAmbulancia;
+import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Point;
@@ -18,6 +31,8 @@ public class IncidenteService {
 
 	private final IncidenteRepository incidentes;
 	private final AlertaRepository alertas;
+	private final AtencionRepository atenciones;
+	private final AmbulanciaRepository ambulancias;
 	private final BloqueoDeAgrupacion bloqueoDeAgrupacion;
 	private final AgrupacionProperties agrupacion;
 	private final ApplicationEventPublisher eventos;
@@ -48,6 +63,60 @@ public class IncidenteService {
 
 		eventos.publishEvent(new IncidenteActualizado(incidente.getId(), nuevo));
 		return incidente;
+	}
+
+	/**
+	 * SEC-B.1. La primera unidad toma el incidente. Si ya hay una atención activa, lanza
+	 * {@link IncidenteYaTomadoException} y no crea nada.
+	 */
+	@Transactional
+	public Atencion tomar(Long idIncidente, Long idAmbulancia) {
+		return crearAtencion(idIncidente, idAmbulancia, true);
+	}
+
+	/** SEC-B.1. Mismo camino que {@link #tomar} sin verificar si ya hay atenciones activas. */
+	@Transactional
+	public Atencion sumarse(Long idIncidente, Long idAmbulancia) {
+		return crearAtencion(idIncidente, idAmbulancia, false);
+	}
+
+	/** Ambulancias que acuden al incidente (atenciones activas), para el contexto del 409. */
+	@Transactional(readOnly = true)
+	public List<Ambulancia> unidadesAcudiendo(Long idIncidente) {
+		return atenciones.buscarActivasPorIncidente(idIncidente).stream().map(Atencion::getAmbulancia).toList();
+	}
+
+	/**
+	 * Acceso exclusivo: se bloquea primero el incidente y después la ambulancia, siempre en ese orden. Las validaciones
+	 * ocurren antes de crear la atención; si alguna falla, no se crea nada. Cascada de ME-1 en la misma transacción:
+	 * A0, I1 (si el incidente estaba ACTIVO) y M1.
+	 */
+	private Atencion crearAtencion(Long idIncidente, Long idAmbulancia, boolean esToma) {
+		Incidente incidente = incidentes.buscarParaActualizar(idIncidente)
+				.orElseThrow(() -> new NoEncontradoException("No existe el incidente " + idIncidente + "."));
+		Ambulancia ambulancia = ambulancias.buscarParaActualizar(idAmbulancia)
+				.orElseThrow(() -> new NoEncontradoException("No existe la ambulancia " + idAmbulancia + "."));
+
+		if (!incidente.getEstado().isAbierto()) {
+			throw new ConflictoException(CodigoError.INCIDENTE_CERRADO, "El incidente " + idIncidente + " ya está cerrado.");
+		}
+		if (!ambulancia.puedeAtender()) {
+			throw new ConflictoException(CodigoError.AMBULANCIA_NO_DISPONIBLE,
+					"La ambulancia " + ambulancia.getPlaca() + " no está disponible.");
+		}
+		if (esToma && atenciones.existeActivaPorIncidente(idIncidente)) {
+			throw new IncidenteYaTomadoException(incidente);
+		}
+
+		Atencion atencion = atenciones.save(Atencion.iniciar(incidente, ambulancia, Instant.now()));
+		if (incidente.getEstado() == EstadoIncidente.ACTIVO) {
+			incidente.cambiarEstado(EstadoIncidente.EN_ATENCION);
+			incidentes.save(incidente);
+		}
+		ambulancias.actualizarEstado(idAmbulancia, EstadoAmbulancia.EN_ATENCION);
+
+		eventos.publishEvent(new IncidenteActualizado(idIncidente, false));
+		return atencion;
 	}
 
 }

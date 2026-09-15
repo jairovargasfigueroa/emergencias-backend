@@ -1,5 +1,7 @@
 package com.uem.ambulancias.flota.service;
 
+import com.uem.ambulancias.comun.error.CodigoError;
+import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.flota.repository.AsignacionRepository;
 import com.uem.ambulancias.usuarios.domain.RolUsuario;
@@ -37,6 +39,15 @@ public class ServicioParamedicoService {
 	@Transactional
 	public void registrarDispositivo(Long paramedicoId, String tokenPush) {
 		buscarParamedicoActivo(paramedicoId).registrarDispositivo(tokenPush.trim());
+	}
+
+	/** PB-04 R6: la ambulancia es la de la asignación vigente del paramédico, nunca viaja en la petición. */
+	public Long ambulanciaAsignada(Long paramedicoId) {
+		buscarParamedicoActivo(paramedicoId);
+		return asignaciones.buscarVigentePorParamedico(paramedicoId)
+				.map(asignacion -> asignacion.getAmbulancia().getId())
+				.orElseThrow(() -> new ConflictoException(CodigoError.SIN_SERVICIO,
+						"El paramédico no tiene una ambulancia asignada."));
 	}
 
 	public Usuario buscarParamedicoActivo(Long paramedicoId) {
