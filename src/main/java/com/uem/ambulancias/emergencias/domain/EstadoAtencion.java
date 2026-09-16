@@ -13,6 +13,9 @@ public enum EstadoAtencion {
 	/** Atención activa: la unidad sigue trabajando en el incidente. */
 	public static final Set<EstadoAtencion> ACTIVOS = Set.of(EN_CAMINO, EN_EL_LUGAR, PACIENTE_RECOGIDO);
 
+	/** La unidad ya llegó al lugar: lo que reporte el ciudadano desde la app ya no cambia lo que encuentra allí. */
+	public static final Set<EstadoAtencion> EN_ESCENA = Set.of(EN_EL_LUGAR, PACIENTE_RECOGIDO);
+
 	public boolean isActiva() {
 		return ACTIVOS.contains(this);
 	}
