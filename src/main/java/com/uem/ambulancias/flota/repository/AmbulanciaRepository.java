@@ -4,7 +4,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.flota.domain.Ambulancia;
+import com.uem.ambulancias.flota.domain.EstadoAmbulancia;
 
 import jakarta.persistence.LockModeType;
 import org.locationtech.jts.geom.Point;
@@ -36,6 +38,13 @@ public interface AmbulanciaRepository extends JpaRepository<Ambulancia, Long> {
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select a from Ambulancia a where a.id = :id")
 	Optional<Ambulancia> buscarParaActualizar(@Param("id") Long id);
+
+	/** SEC-B.1: transición de ME-1 de la ambulancia sobre su fila bloqueada. */
+	default void actualizarEstado(Long idAmbulancia, EstadoAmbulancia estado) {
+		buscarParaActualizar(idAmbulancia)
+				.orElseThrow(() -> new NoEncontradoException("No existe la ambulancia " + idAmbulancia + "."))
+				.cambiarEstado(estado);
+	}
 
 	/**
 	 * Guarda la última posición solo si la anterior se guardó antes de {@code guardadaAntesDe}. Actualiza únicamente

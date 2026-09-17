@@ -81,4 +81,14 @@ public class Atencion {
 	@JoinColumn(name = "centro_salud_id")
 	private CentroSalud centroSalud;
 
+	/** ME-1 A0: la atención nace EN_CAMINO cuando la unidad toma o se suma al incidente. */
+	public static Atencion iniciar(Incidente incidente, Ambulancia ambulancia, Instant horaToma) {
+		Atencion atencion = new Atencion();
+		atencion.incidente = incidente;
+		atencion.ambulancia = ambulancia;
+		atencion.horaToma = horaToma;
+		atencion.estado = EstadoAtencion.EN_CAMINO;
+		return atencion;
+	}
+
 }

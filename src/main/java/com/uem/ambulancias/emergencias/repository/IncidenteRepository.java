@@ -6,12 +6,19 @@ import java.util.Optional;
 
 import com.uem.ambulancias.emergencias.domain.Incidente;
 
+import jakarta.persistence.LockModeType;
 import org.locationtech.jts.geom.Point;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 public interface IncidenteRepository extends JpaRepository<Incidente, Long> {
+
+	/** SEC-B.1: lectura con bloqueo pesimista de la fila del incidente. Serializa tomas, entregas y cancelaciones. */
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("select i from Incidente i where i.id = :id")
+	Optional<Incidente> buscarParaActualizar(@Param("id") Long id);
 
 	/**
 	 * SEC-A.1: incidente ACTIVO o EN_ATENCION a menos de {@code radioM} metros del punto y creado hace menos de

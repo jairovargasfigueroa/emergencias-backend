@@ -62,17 +62,19 @@ public class Ambulancia {
 		return ambulancia;
 	}
 
-	/** ME-1 M4. Regla de integridad: con una atención activa no puede salir de servicio. */
+	/** ME-1 M4, por el administrador. Regla de integridad: con una atención activa no puede salir de servicio. */
 	public void marcarFueraDeServicio() {
 		if (estado == EstadoAmbulancia.EN_ATENCION) {
 			throw enAtencion();
 		}
-		cambiarEstado(EstadoAmbulancia.DISPONIBLE, EstadoAmbulancia.FUERA_DE_SERVICIO);
+		exigirEstado(EstadoAmbulancia.DISPONIBLE, EstadoAmbulancia.FUERA_DE_SERVICIO);
+		estado = EstadoAmbulancia.FUERA_DE_SERVICIO;
 	}
 
-	/** ME-1 M5. */
+	/** ME-1 M5, por el paramédico o el administrador. */
 	public void reactivar() {
-		cambiarEstado(EstadoAmbulancia.FUERA_DE_SERVICIO, EstadoAmbulancia.DISPONIBLE);
+		exigirEstado(EstadoAmbulancia.FUERA_DE_SERVICIO, EstadoAmbulancia.DISPONIBLE);
+		estado = EstadoAmbulancia.DISPONIBLE;
 	}
 
 	/** Baja lógica. Se rechaza mientras tenga una atención activa. */
@@ -83,13 +85,35 @@ public class Ambulancia {
 		activa = false;
 	}
 
-	/** Aplica una transición de ME-1: solo es válida desde el estado indicado. */
-	private void cambiarEstado(EstadoAmbulancia desde, EstadoAmbulancia hasta) {
-		if (estado != desde) {
-			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
-					"La ambulancia " + placa + " no puede pasar de " + estado + " a " + hasta + ".");
+	/** Puede tomar o sumarse a un incidente: está activa y DISPONIBLE (PB-04 R5). */
+	public boolean puedeAtender() {
+		return activa && estado == EstadoAmbulancia.DISPONIBLE;
+	}
+
+	/**
+	 * Transición de ME-1 que dispara una atención: M1 al tomar o sumarse, M2 al entregar o cancelar, M3 al cancelar
+	 * por avería. Si no es válida desde el estado actual, se rechaza y nada cambia.
+	 */
+	public void cambiarEstado(EstadoAmbulancia nuevo) {
+		if (!estado.puedePasarA(nuevo)) {
+			throw transicionInvalida(nuevo);
 		}
-		estado = hasta;
+		if (nuevo == EstadoAmbulancia.EN_ATENCION && !activa) {
+			throw new ConflictoException(CodigoError.AMBULANCIA_NO_DISPONIBLE,
+					"La ambulancia " + placa + " está desactivada.");
+		}
+		estado = nuevo;
+	}
+
+	private void exigirEstado(EstadoAmbulancia requerido, EstadoAmbulancia destino) {
+		if (estado != requerido) {
+			throw transicionInvalida(destino);
+		}
+	}
+
+	private ConflictoException transicionInvalida(EstadoAmbulancia destino) {
+		return new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+				"La ambulancia " + placa + " no puede pasar de " + estado + " a " + destino + ".");
 	}
 
 	private ConflictoException enAtencion() {
