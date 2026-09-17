@@ -38,3 +38,6 @@ src/main/resources/application.properties
 ### Cuenta de servicio de Firebase (por si alguien la copia dentro del repo) ###
 *firebase-adminsdk*.json
 firebase-credenciales*.json
+
+### Variables del servidor de producción (la plantilla es deploy/.env.example) ###
+deploy/.env
