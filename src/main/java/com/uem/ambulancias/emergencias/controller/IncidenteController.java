@@ -6,10 +6,12 @@ import com.uem.ambulancias.comun.web.PaginaResponse;
 import com.uem.ambulancias.emergencias.domain.Incidente;
 import com.uem.ambulancias.emergencias.dto.AtencionResponse;
 import com.uem.ambulancias.emergencias.dto.FiltroEstadoIncidente;
+import com.uem.ambulancias.emergencias.dto.IncidenteDetalleResponse;
 import com.uem.ambulancias.emergencias.dto.IncidenteResumenResponse;
 import com.uem.ambulancias.emergencias.dto.UnidadAcudiendoResponse;
 import com.uem.ambulancias.emergencias.exception.IncidenteYaTomadoException;
 import com.uem.ambulancias.emergencias.service.ConsultaIncidentesService;
+import com.uem.ambulancias.emergencias.service.IncidenteConAlertasYAtenciones;
 import com.uem.ambulancias.emergencias.service.IncidenteService;
 import com.uem.ambulancias.flota.service.ServicioParamedicoService;
 
@@ -49,6 +51,13 @@ public class IncidenteController {
 		return PaginaResponse.de(consultaIncidentesService.listar(estado.estados(), pagina, tamano)
 				.map(resumen -> IncidenteResumenResponse.de(resumen.incidente(), resumen.cantidadAlertas(),
 						resumen.atenciones())));
+	}
+
+	/** El incidente con sus alertas y sus atenciones. 404 si no existe. */
+	@GetMapping("/{id}")
+	public IncidenteDetalleResponse detalle(@PathVariable("id") Long idIncidente) {
+		IncidenteConAlertasYAtenciones detalle = consultaIncidentesService.detalle(idIncidente);
+		return IncidenteDetalleResponse.de(detalle.incidente(), detalle.alertas(), detalle.atenciones());
 	}
 
 	@PostMapping("/{id}/tomar")

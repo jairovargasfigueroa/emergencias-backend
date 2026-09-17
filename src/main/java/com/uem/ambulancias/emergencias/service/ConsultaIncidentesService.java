@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.EstadoIncidente;
 import com.uem.ambulancias.emergencias.domain.Incidente;
@@ -62,6 +63,14 @@ public class ConsultaIncidentesService {
 				incidente,
 				alertasPorIncidente.getOrDefault(incidente.getId(), 0L),
 				atencionesPorIncidente.getOrDefault(incidente.getId(), List.of())));
+	}
+
+	/** El incidente con todas sus alertas y atenciones. */
+	public IncidenteConAlertasYAtenciones detalle(Long incidenteId) {
+		Incidente incidente = incidentes.findById(incidenteId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el incidente " + incidenteId + "."));
+		return new IncidenteConAlertasYAtenciones(incidente, alertas.buscarPorIncidente(incidenteId),
+				atenciones.buscarPorIncidentes(List.of(incidenteId)));
 	}
 
 }

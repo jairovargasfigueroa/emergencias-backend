@@ -24,6 +24,14 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
 			""")
 	List<String> buscarDescripciones(@Param("incidenteId") Long incidenteId);
 
+	/** Alertas del incidente con su emisor, en orden de emisión. */
+	@Query("""
+			select a from Alerta a join fetch a.emisor
+			where a.incidente.id = :incidenteId
+			order by a.fechaHora, a.id
+			""")
+	List<Alerta> buscarPorIncidente(@Param("incidenteId") Long incidenteId);
+
 	/** Cantidad de alertas de cada uno de esos incidentes, en una sola consulta agrupada. */
 	@Query("""
 			select new com.uem.ambulancias.emergencias.repository.AlertasPorIncidente(a.incidente.id, count(a))
