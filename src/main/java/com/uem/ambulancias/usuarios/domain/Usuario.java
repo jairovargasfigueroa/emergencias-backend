@@ -38,6 +38,10 @@ public class Usuario {
 	@Column(nullable = false)
 	private boolean activo;
 
+	/** Token de notificaciones push del teléfono del paramédico. */
+	@Column(length = 512)
+	private String tokenPush;
+
 	/** Personal registrado por el administrador: nace activo con rol PARAMEDICO. */
 	public static Usuario registrarParamedico(String nombreCompleto, String telefono) {
 		return nuevo(nombreCompleto, telefono, RolUsuario.PARAMEDICO);
@@ -60,6 +64,11 @@ public class Usuario {
 	/** Baja lógica: el usuario y su historial se conservan. */
 	public void desactivar() {
 		activo = false;
+	}
+
+	/** Un dispositivo nuevo reemplaza al anterior. */
+	public void registrarDispositivo(String tokenPush) {
+		this.tokenPush = tokenPush;
 	}
 
 }

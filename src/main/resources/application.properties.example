@@ -14,6 +14,9 @@ spring.jpa.hibernate.ddl-auto=update
 sga.agrupacion.radio-m=150
 sga.agrupacion.ventana-min=30
 
+# Última posición de cada ambulancia (PB-03): se guarda como máximo cada tantos segundos.
+sga.posicion.persistir-cada-seg=30
+
 # Firebase Realtime Database. Apagado hasta configurar la cuenta de servicio.
 sga.firebase.habilitado=false
 # Ruta al JSON de la cuenta de servicio, fuera del repositorio.

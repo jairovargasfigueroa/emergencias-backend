@@ -9,7 +9,7 @@ import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
 import com.google.firebase.database.FirebaseDatabase;
-import com.uem.ambulancias.emergencias.service.PublicadorTiempoReal;
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -20,19 +20,24 @@ import org.springframework.context.annotation.Configuration;
 public class FirebaseConfig {
 
 	@Bean
-	FirebaseDatabase firebaseDatabase(FirebaseProperties propiedades) throws IOException {
+	FirebaseApp firebaseApp(FirebaseProperties propiedades) throws IOException {
 		try (InputStream credenciales = Files.newInputStream(Path.of(propiedades.credenciales()))) {
 			FirebaseOptions opciones = FirebaseOptions.builder()
 					.setCredentials(GoogleCredentials.fromStream(credenciales))
 					.setDatabaseUrl(propiedades.urlBaseDatos())
 					.build();
-			return FirebaseDatabase.getInstance(FirebaseApp.initializeApp(opciones, "sga"));
+			return FirebaseApp.initializeApp(opciones, "sga");
 		}
 	}
 
 	@Bean
-	PublicadorTiempoReal publicadorFirebase(FirebaseDatabase baseDatos) {
-		return new PublicadorFirebase(baseDatos);
+	PublicadorFirebase publicadorFirebase(FirebaseApp firebaseApp) {
+		return new PublicadorFirebase(FirebaseDatabase.getInstance(firebaseApp));
+	}
+
+	@Bean
+	NotificadorFcm notificadorFcm(FirebaseApp firebaseApp) {
+		return new NotificadorFcm(FirebaseMessaging.getInstance(firebaseApp));
 	}
 
 }

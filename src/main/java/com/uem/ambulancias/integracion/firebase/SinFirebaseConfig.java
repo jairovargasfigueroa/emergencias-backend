@@ -1,7 +1,5 @@
 package com.uem.ambulancias.integracion.firebase;
 
-import com.uem.ambulancias.emergencias.service.PublicadorTiempoReal;
-
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 public class SinFirebaseConfig {
 
 	@Bean
-	PublicadorTiempoReal publicadorEnRegistro() {
+	PublicadorEnRegistro publicadorEnRegistro() {
 		return new PublicadorEnRegistro();
 	}
 

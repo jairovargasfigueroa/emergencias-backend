@@ -4,27 +4,27 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-import com.google.api.core.ApiFuture;
-import com.google.api.core.ApiFutureCallback;
-import com.google.api.core.ApiFutures;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.uem.ambulancias.emergencias.service.IncidentePublicado;
-import com.uem.ambulancias.emergencias.service.PublicadorTiempoReal;
+import com.uem.ambulancias.emergencias.service.PublicadorDeIncidentes;
+import com.uem.ambulancias.flota.service.PosicionActualizada;
+import com.uem.ambulancias.flota.service.PublicadorDePosiciones;
 
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 /**
- * Publica en Realtime Database. Las fechas viajan en ISO-8601, igual que en la API REST.
+ * Publica en Realtime Database. Solo el servidor escribe; las apps únicamente escuchan. Las fechas viajan en
+ * ISO-8601, igual que en la API REST.
  */
-@Slf4j
 @RequiredArgsConstructor
-public class PublicadorFirebase implements PublicadorTiempoReal {
+public class PublicadorFirebase implements PublicadorDeIncidentes, PublicadorDePosiciones {
 
-	/** Nodo que escuchan las apps del paramédico: un hijo por incidente abierto, con su id como clave. */
+	/** Un hijo por incidente abierto, con su id como clave. Lo escuchan las apps del paramédico. */
 	static final String INCIDENTES_ABIERTOS = "incidentes-abiertos";
+
+	/** Posición en vivo de cada ambulancia en servicio, con su id como clave. */
+	static final String POSICIONES = "posiciones";
 
 	private final FirebaseDatabase baseDatos;
 
@@ -42,32 +42,28 @@ public class PublicadorFirebase implements PublicadorTiempoReal {
 		valores.put("descripciones", incidente.descripciones());
 		valores.put("unidadesAcudiendo", incidente.unidadesAcudiendo());
 		valores.put("actualizadoEn", Instant.now().toString());
-		registrarFallo(nodoIncidente(incidente.id()).setValueAsync(valores), "publicar", incidente.id());
+		EscriturasFirebase.registrarFallo(nodo(INCIDENTES_ABIERTOS, incidente.id()).setValueAsync(valores),
+				"publicar el incidente " + incidente.id());
 	}
 
 	@Override
 	public void retirarIncidente(Long incidenteId) {
-		registrarFallo(nodoIncidente(incidenteId).removeValueAsync(), "retirar", incidenteId);
+		EscriturasFirebase.registrarFallo(nodo(INCIDENTES_ABIERTOS, incidenteId).removeValueAsync(),
+				"retirar el incidente " + incidenteId);
 	}
 
-	private DatabaseReference nodoIncidente(Long incidenteId) {
-		return baseDatos.getReference(INCIDENTES_ABIERTOS).child(String.valueOf(incidenteId));
+	@Override
+	public void publicarPosicion(PosicionActualizada posicion) {
+		Map<String, Object> valores = Map.of(
+				"latitud", posicion.latitud(),
+				"longitud", posicion.longitud(),
+				"en", posicion.momento().toString());
+		EscriturasFirebase.registrarFallo(nodo(POSICIONES, posicion.ambulanciaId()).setValueAsync(valores),
+				"publicar la posición de la ambulancia " + posicion.ambulanciaId());
 	}
 
-	private static void registrarFallo(ApiFuture<Void> escritura, String accion, Long incidenteId) {
-		ApiFutures.addCallback(escritura, new ApiFutureCallback<>() {
-
-			@Override
-			public void onFailure(Throwable error) {
-				log.error("No se pudo {} el incidente {} en Firebase.", accion, incidenteId, error);
-			}
-
-			@Override
-			public void onSuccess(Void resultado) {
-				// Nada que hacer: las apps reciben el cambio por su listener.
-			}
-
-		}, MoreExecutors.directExecutor());
+	private DatabaseReference nodo(String raiz, Long id) {
+		return baseDatos.getReference(raiz).child(String.valueOf(id));
 	}
 
 }
