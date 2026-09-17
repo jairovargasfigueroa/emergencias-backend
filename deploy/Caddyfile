@@ -1,0 +1,6 @@
+# Caddy recibe el tráfico público, saca y renueva solo el certificado HTTPS de Let's Encrypt,
+# y le pasa las peticiones al backend por la red interna de Docker.
+{$DOMINIO_API} {
+	encode gzip
+	reverse_proxy backend:8080
+}

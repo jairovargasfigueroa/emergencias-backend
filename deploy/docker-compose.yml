@@ -1,0 +1,71 @@
+# Producción en la EC2: base de datos con PostGIS, backend y Caddy (HTTPS).
+# En el servidor, desde esta carpeta y con el .env al lado:  docker compose up -d
+# Solo Caddy publica puertos. La base y el backend quedan dentro de la red interna de Docker.
+
+# Rotación de logs: sin esto crecen sin límite hasta llenar el disco.
+x-registros: &registros
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+services:
+
+  db:
+    image: postgis/postgis:17-3.5
+    <<: *registros
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - datos_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    image: ${IMAGEN_BACKEND}
+    <<: *registros
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      # Hibernate crea y actualiza las tablas a partir de las entidades, igual que en local.
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SGA_FIREBASE_HABILITADO: "true"
+      SGA_FIREBASE_CREDENCIALES: /app/firebase-credenciales.json
+      SGA_FIREBASE_URLBASEDATOS: ${FIREBASE_URL_BASE_DATOS}
+      SGA_CORS_ORIGENESPERMITIDOS: ${ORIGENES_PANEL}
+    volumes:
+      - ${RUTA_FIREBASE_JSON}:/app/firebase-credenciales.json:ro
+
+  caddy:
+    image: caddy:2
+    <<: *registros
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMINIO_API: ${DOMINIO_API}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Certificados. Si se perdieran en cada reinicio, Let's Encrypt terminaría bloqueando los pedidos.
+      - datos_caddy:/data
+      - config_caddy:/config
+
+volumes:
+  datos_db:
+  datos_caddy:
+  config_caddy:

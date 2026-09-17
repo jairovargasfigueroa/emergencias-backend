@@ -1,0 +1,8 @@
+# La imagen solo necesita el pom y el código fuente. Todo lo demás queda afuera,
+# en especial la configuración local con credenciales: la imagen es pública en Docker Hub.
+*
+!pom.xml
+!src
+src/main/resources/application.properties
+**/*firebase-adminsdk*.json
+**/firebase-credenciales*.json
