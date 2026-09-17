@@ -7,8 +7,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Traduce las excepciones a respuestas de error con un mismo formato (Problem Details) y un campo
@@ -40,6 +42,16 @@ public class ManejadorErrores {
 	@ExceptionHandler(HttpMessageNotReadableException.class)
 	ProblemDetail cuerpoInvalido(HttpMessageNotReadableException e) {
 		return problema(HttpStatus.BAD_REQUEST, CodigoError.VALIDACION, "El cuerpo de la petición no es válido.");
+	}
+
+	@ExceptionHandler(MissingRequestHeaderException.class)
+	ProblemDetail cabeceraFaltante(MissingRequestHeaderException e) {
+		return problema(HttpStatus.BAD_REQUEST, CodigoError.VALIDACION, "Falta la cabecera " + e.getHeaderName() + ".");
+	}
+
+	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
+	ProblemDetail tipoInvalido(MethodArgumentTypeMismatchException e) {
+		return problema(HttpStatus.BAD_REQUEST, CodigoError.VALIDACION, "El valor de " + e.getName() + " no es válido.");
 	}
 
 	public static ProblemDetail problema(HttpStatus estado, CodigoError codigo, String detalle) {

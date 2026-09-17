@@ -34,3 +34,7 @@ build/
 
 ### Configuración local con credenciales (la plantilla es application.properties.example) ###
 src/main/resources/application.properties
+
+### Cuenta de servicio de Firebase (por si alguien la copia dentro del repo) ###
+*firebase-adminsdk*.json
+firebase-credenciales*.json

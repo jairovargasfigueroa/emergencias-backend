@@ -67,4 +67,29 @@ public class Alerta {
 	@JoinColumn(name = "incidente_id", nullable = false)
 	private Incidente incidente;
 
+	/** Alerta recién emitida: nace RECIBIDA y se vincula a un incidente en la misma operación. */
+	public static Alerta emitir(Usuario emisor, Point ubicacion, OrigenUbicacion origenUbicacion,
+			Integer cantidadAfectados, String descripcion, Instant fechaHora) {
+		Alerta alerta = new Alerta();
+		alerta.emisor = emisor;
+		alerta.ubicacionOriginal = ubicacion;
+		alerta.origenUbicacion = origenUbicacion;
+		alerta.cantidadAfectados = cantidadAfectados;
+		alerta.descripcion = descripcion;
+		alerta.fechaHora = fechaHora;
+		alerta.estado = EstadoAlerta.RECIBIDA;
+		return alerta;
+	}
+
+	/** Ubicación efectiva: la ajustada si existe; si no, la original. Es la que se usa para agrupar. */
+	public Point getUbicacionEfectiva() {
+		return ubicacionAjustada != null ? ubicacionAjustada : ubicacionOriginal;
+	}
+
+	/** Asocia la alerta al incidente y la deja VINCULADA. */
+	public void vincular(Incidente incidente) {
+		this.incidente = incidente;
+		this.estado = EstadoAlerta.VINCULADA;
+	}
+
 }

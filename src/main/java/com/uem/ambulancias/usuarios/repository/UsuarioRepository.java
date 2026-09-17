@@ -18,6 +18,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
 	Optional<Usuario> findByIdAndRol(Long id, RolUsuario rol);
 
+	Optional<Usuario> findFirstByTelefonoAndRolOrderByIdAsc(String telefono, RolUsuario rol);
+
 	/** Lectura con bloqueo pesimista: serializa las operaciones sobre el mismo usuario. */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select u from Usuario u where u.id = :id and u.rol = :rol")
