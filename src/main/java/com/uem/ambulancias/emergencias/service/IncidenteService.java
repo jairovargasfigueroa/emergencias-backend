@@ -66,6 +66,44 @@ public class IncidenteService {
 	}
 
 	/**
+	 * Completa los datos opcionales de la alerta después de emitirla, mientras el ciudadano espera. Solo se aplican
+	 * los campos que llegan (PB-02 R3) y el consolidado del incidente solo sube, por {@code consolidarAfectados}
+	 * (PB-02 R6). Se hace con acceso exclusivo al incidente y se difunde después del commit, para que al paramédico
+	 * se le actualice el dato sin refrescar.
+	 */
+	@Transactional
+	public Alerta completarDetalles(Long alertaId, Long ciudadanoId, Integer cantidadAfectados, String descripcion) {
+		Long incidenteId = alertas.buscarIncidenteId(alertaId)
+				.orElseThrow(() -> new NoEncontradoException("No existe la alerta " + alertaId + "."));
+		Incidente incidente = incidentes.buscarParaActualizar(incidenteId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el incidente " + incidenteId + "."));
+		Alerta alerta = alertas.findById(alertaId)
+				.orElseThrow(() -> new NoEncontradoException("No existe la alerta " + alertaId + "."));
+
+		if (!alerta.getEmisor().getId().equals(ciudadanoId)) {
+			throw new ConflictoException(CodigoError.ALERTA_AJENA,
+					"La alerta " + alertaId + " no es del ciudadano " + ciudadanoId + ".");
+		}
+		if (!incidente.getEstado().isAbierto()) {
+			throw new ConflictoException(CodigoError.DETALLES_NO_EDITABLES,
+					"El incidente " + incidenteId + " ya está cerrado.");
+		}
+		if (atenciones.existeEnEscenaPorIncidente(incidenteId)) {
+			throw new ConflictoException(CodigoError.DETALLES_NO_EDITABLES,
+					"Una unidad ya llegó al lugar del incidente " + incidenteId + ".");
+		}
+
+		alerta.completarDetalles(cantidadAfectados, descripcion);
+		alertas.save(alerta);
+
+		incidente.consolidarAfectados(cantidadAfectados);
+		incidentes.save(incidente);
+
+		eventos.publishEvent(new IncidenteActualizado(incidenteId, false));
+		return alerta;
+	}
+
+	/**
 	 * SEC-B.1. La primera unidad toma el incidente. Si ya hay una atención activa, lanza
 	 * {@link IncidenteYaTomadoException} y no crea nada.
 	 */

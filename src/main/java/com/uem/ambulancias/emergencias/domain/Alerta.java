@@ -92,4 +92,17 @@ public class Alerta {
 		this.estado = EstadoAlerta.VINCULADA;
 	}
 
+	/**
+	 * Datos opcionales que la app pregunta después de emitir, porque no bloquean la emisión (PB-02 R3). Solo se
+	 * aplican los campos que llegan: uno {@code null} deja el valor anterior sin tocar.
+	 */
+	public void completarDetalles(Integer cantidadAfectados, String descripcion) {
+		if (cantidadAfectados != null) {
+			this.cantidadAfectados = cantidadAfectados;
+		}
+		if (descripcion != null) {
+			this.descripcion = descripcion;
+		}
+	}
+
 }

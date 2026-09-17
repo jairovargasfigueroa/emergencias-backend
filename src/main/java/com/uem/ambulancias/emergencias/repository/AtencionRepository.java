@@ -18,6 +18,11 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 		return existsByIncidenteIdAndEstadoIn(idIncidente, EstadoAtencion.ACTIVOS);
 	}
 
+	/** Alguna unidad del incidente ya llegó al lugar: está EN_EL_LUGAR o con el paciente recogido. */
+	default boolean existeEnEscenaPorIncidente(Long idIncidente) {
+		return existsByIncidenteIdAndEstadoIn(idIncidente, EstadoAtencion.EN_ESCENA);
+	}
+
 	/** Atenciones activas del incidente con su ambulancia, en orden de toma. */
 	default List<Atencion> buscarActivasPorIncidente(Long idIncidente) {
 		return buscarPorIncidenteYEstados(idIncidente, EstadoAtencion.ACTIVOS);
