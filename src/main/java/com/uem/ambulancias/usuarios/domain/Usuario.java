@@ -38,4 +38,19 @@ public class Usuario {
 	@Column(nullable = false)
 	private boolean activo;
 
+	/** Personal registrado por el administrador: nace activo con rol PARAMEDICO. */
+	public static Usuario registrarParamedico(String nombreCompleto, String telefono) {
+		Usuario usuario = new Usuario();
+		usuario.nombreCompleto = nombreCompleto;
+		usuario.telefono = telefono;
+		usuario.rol = RolUsuario.PARAMEDICO;
+		usuario.activo = true;
+		return usuario;
+	}
+
+	/** Baja lógica: el usuario y su historial se conservan. */
+	public void desactivar() {
+		activo = false;
+	}
+
 }

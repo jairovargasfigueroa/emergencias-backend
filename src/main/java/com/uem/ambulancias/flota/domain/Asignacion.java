@@ -44,4 +44,23 @@ public class Asignacion {
 	@JoinColumn(name = "ambulancia_id", nullable = false)
 	private Ambulancia ambulancia;
 
+	public static Asignacion iniciar(Usuario paramedico, Ambulancia ambulancia, Instant inicio) {
+		Asignacion asignacion = new Asignacion();
+		asignacion.paramedico = paramedico;
+		asignacion.ambulancia = ambulancia;
+		asignacion.fechaInicio = inicio;
+		return asignacion;
+	}
+
+	/** Cierra la asignación vigente. Una asignación ya cerrada no cambia. */
+	public void cerrar(Instant fin) {
+		if (fechaFin == null) {
+			fechaFin = fin;
+		}
+	}
+
+	public boolean isVigente() {
+		return fechaFin == null;
+	}
+
 }
