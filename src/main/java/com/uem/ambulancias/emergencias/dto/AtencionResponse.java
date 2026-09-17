@@ -4,6 +4,7 @@ import java.time.Instant;
 
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.EstadoAtencion;
+import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
 
 public record AtencionResponse(
 		Long id,
@@ -11,11 +12,34 @@ public record AtencionResponse(
 		Long ambulanciaId,
 		String placa,
 		EstadoAtencion estado,
-		Instant horaToma) {
+		Instant horaToma,
+		Instant horaLlegada,
+		Instant horaRecogida,
+		Instant horaEntrega,
+		Instant horaCancelacion,
+		MotivoCancelacionAtencion motivoCancelacion,
+		String nombrePaciente,
+		String documentoPaciente,
+		Long centroSaludId,
+		String destinoDescripcion) {
 
 	public static AtencionResponse de(Atencion atencion) {
-		return new AtencionResponse(atencion.getId(), atencion.getIncidente().getId(), atencion.getAmbulancia().getId(),
-				atencion.getAmbulancia().getPlaca(), atencion.getEstado(), atencion.getHoraToma());
+		return new AtencionResponse(
+				atencion.getId(),
+				atencion.getIncidente().getId(),
+				atencion.getAmbulancia().getId(),
+				atencion.getAmbulancia().getPlaca(),
+				atencion.getEstado(),
+				atencion.getHoraToma(),
+				atencion.getHoraLlegada(),
+				atencion.getHoraRecogida(),
+				atencion.getHoraEntrega(),
+				atencion.getHoraCancelacion(),
+				atencion.getMotivoCancelacion(),
+				atencion.getNombrePaciente(),
+				atencion.getDocumentoPaciente(),
+				atencion.getCentroSalud() == null ? null : atencion.getCentroSalud().getId(),
+				atencion.getDestinoDescripcion());
 	}
 
 }

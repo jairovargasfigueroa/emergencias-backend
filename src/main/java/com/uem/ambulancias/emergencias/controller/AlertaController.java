@@ -4,6 +4,7 @@ import java.time.Instant;
 
 import com.uem.ambulancias.comun.geo.Geo;
 import com.uem.ambulancias.comun.web.Cabeceras;
+import com.uem.ambulancias.comun.web.Textos;
 import com.uem.ambulancias.emergencias.domain.Alerta;
 import com.uem.ambulancias.emergencias.domain.Incidente;
 import com.uem.ambulancias.emergencias.dto.AlertaResponse;
@@ -40,14 +41,10 @@ public class AlertaController {
 			@Valid @RequestBody CrearAlertaRequest request) {
 		Usuario emisor = ciudadanoService.buscarCiudadanoActivo(usuarioId);
 		Alerta alerta = Alerta.emitir(emisor, Geo.punto(request.latitud(), request.longitud()),
-				request.origenUbicacion(), request.cantidadAfectados(), textoOpcional(request.descripcion()),
+				request.origenUbicacion(), request.cantidadAfectados(), Textos.opcional(request.descripcion()),
 				Instant.now());
 		Incidente incidente = incidenteService.agruparAlerta(alerta);
 		return AlertaResponse.de(alerta, incidente);
-	}
-
-	private static String textoOpcional(String texto) {
-		return texto == null || texto.isBlank() ? null : texto.trim();
 	}
 
 }

@@ -2,6 +2,8 @@ package com.uem.ambulancias.emergencias.domain;
 
 import java.time.Instant;
 
+import com.uem.ambulancias.comun.error.CodigoError;
+import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.geo.Geo;
 import com.uem.ambulancias.flota.domain.Ambulancia;
 
@@ -89,6 +91,71 @@ public class Atencion {
 		atencion.horaToma = horaToma;
 		atencion.estado = EstadoAtencion.EN_CAMINO;
 		return atencion;
+	}
+
+	/**
+	 * ME-1 A1 a A3: valida que {@code nuevo} sea el siguiente estado y, en la misma operación, congela la hora y la
+	 * ubicación de ese hito. No se saltan estados ni se retrocede, así que un hito congelado nunca se sobrescribe.
+	 */
+	public void marcarHito(EstadoAtencion nuevo, Point ubicacion) {
+		if (estado.siguienteHito() != nuevo) {
+			throw transicionInvalida(nuevo);
+		}
+		Instant ahora = Instant.now();
+		switch (nuevo) {
+			case EN_EL_LUGAR -> {
+				horaLlegada = ahora;
+				ubicacionLlegada = ubicacion;
+			}
+			case PACIENTE_RECOGIDO -> {
+				horaRecogida = ahora;
+				ubicacionRecogida = ubicacion;
+			}
+			case PACIENTE_ENTREGADO -> {
+				horaEntrega = ahora;
+				ubicacionEntrega = ubicacion;
+			}
+			default -> throw transicionInvalida(nuevo);
+		}
+		estado = nuevo;
+	}
+
+	/**
+	 * ME-1 A3 con su destino: la ubicación siempre, el centro del catálogo si se indicó y una descripción libre para
+	 * lo no catalogado. La entrega nunca se bloquea por el catálogo.
+	 */
+	public void entregar(Point ubicacion, CentroSalud centroSalud, String destinoDescripcion) {
+		marcarHito(EstadoAtencion.PACIENTE_ENTREGADO, ubicacion);
+		this.centroSalud = centroSalud;
+		this.destinoDescripcion = destinoDescripcion;
+	}
+
+	/** ME-1 A4: desde cualquier estado activo y con motivo. CANCELADA es terminal: nunca se reabre. */
+	public void cancelar(MotivoCancelacionAtencion motivo) {
+		if (motivo == null) {
+			throw new IllegalArgumentException("El motivo de cancelación es obligatorio.");
+		}
+		if (!estado.isActiva()) {
+			throw transicionInvalida(EstadoAtencion.CANCELADA);
+		}
+		estado = EstadoAtencion.CANCELADA;
+		motivoCancelacion = motivo;
+		horaCancelacion = Instant.now();
+	}
+
+	/** Datos del paciente: opcionales y editables solo mientras la atención esté activa (PB-05 R3). */
+	public void actualizarPaciente(String nombrePaciente, String documentoPaciente) {
+		if (!estado.isActiva()) {
+			throw new ConflictoException(CodigoError.ATENCION_FINALIZADA,
+					"La atención " + id + " ya terminó: no se pueden editar los datos del paciente.");
+		}
+		this.nombrePaciente = nombrePaciente;
+		this.documentoPaciente = documentoPaciente;
+	}
+
+	private ConflictoException transicionInvalida(EstadoAtencion destino) {
+		return new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+				"La atención " + id + " no puede pasar de " + estado + " a " + destino + ".");
 	}
 
 }
