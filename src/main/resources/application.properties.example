@@ -23,3 +23,7 @@ sga.firebase.habilitado=false
 sga.firebase.credenciales=
 # Ejemplo: https://mi-proyecto-default-rtdb.firebaseio.com
 sga.firebase.url-base-datos=
+
+# CORS: orígenes del navegador que pueden llamar a la API, separados por comas.
+# En local no hace falta, porque el panel usa el proxy de Vite. Las apps móviles no pasan por CORS.
+# sga.cors.origenes-permitidos=https://sga-panel.workflow-tramites.site
