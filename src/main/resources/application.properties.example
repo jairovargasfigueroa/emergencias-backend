@@ -1,0 +1,11 @@
+# Plantilla: copiar como application.properties (ese archivo no se versiona) y completar.
+spring.application.name=ambulancias-backend
+
+# PostgreSQL con la extensión PostGIS habilitada. Completar con los datos locales.
+# Ejemplo de URL: jdbc:postgresql://localhost:5432/ambulancias
+spring.datasource.url=
+spring.datasource.username=
+spring.datasource.password=
+
+# Hibernate crea y actualiza las tablas a partir de las entidades.
+spring.jpa.hibernate.ddl-auto=update
