@@ -2,12 +2,16 @@ package com.uem.ambulancias.emergencias.repository;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Collection;
 import java.util.Optional;
 
+import com.uem.ambulancias.emergencias.domain.EstadoIncidente;
 import com.uem.ambulancias.emergencias.domain.Incidente;
 
 import jakarta.persistence.LockModeType;
 import org.locationtech.jts.geom.Point;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -41,5 +45,8 @@ public interface IncidenteRepository extends JpaRepository<Incidente, Long> {
 			""", nativeQuery = true)
 	Optional<Incidente> buscarAbiertoMasCercano(@Param("latitud") double latitud, @Param("longitud") double longitud,
 			@Param("radioM") double radioM, @Param("creadoDesde") Instant creadoDesde);
+
+	/** Consulta del panel: incidentes en alguno de esos estados, con el orden y la página del pedido. */
+	Page<Incidente> findByEstadoIn(Collection<EstadoIncidente> estados, Pageable pageable);
 
 }

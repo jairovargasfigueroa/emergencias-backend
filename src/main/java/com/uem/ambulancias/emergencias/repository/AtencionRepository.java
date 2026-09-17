@@ -56,4 +56,12 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 	List<Atencion> buscarPorAmbulanciaYEstados(@Param("ambulanciaId") Long ambulanciaId,
 			@Param("estados") Collection<EstadoAtencion> estados);
 
+	/** Todas las atenciones de esos incidentes, con su ambulancia y su centro de salud, en orden de toma. */
+	@Query("""
+			select a from Atencion a join fetch a.ambulancia left join fetch a.centroSalud
+			where a.incidente.id in :incidenteIds
+			order by a.horaToma, a.id
+			""")
+	List<Atencion> buscarPorIncidentes(@Param("incidenteIds") Collection<Long> incidenteIds);
+
 }
