@@ -61,6 +61,7 @@ public class IncidenteService {
 		alerta.vincular(incidente);
 		alertas.save(alerta);
 
+		// Un incidente recién creado todavía no tiene unidad en camino: hay que avisar a las disponibles.
 		eventos.publishEvent(new IncidenteActualizado(incidente.getId(), nuevo));
 		return incidente;
 	}
