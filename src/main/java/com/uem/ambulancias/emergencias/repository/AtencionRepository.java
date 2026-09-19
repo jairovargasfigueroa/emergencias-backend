@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.EstadoAtencion;
+import com.uem.ambulancias.emergencias.domain.MotivoSinTraslado;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -32,6 +33,26 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 	default Optional<Atencion> buscarActivaPorAmbulancia(Long ambulanciaId) {
 		return buscarPorAmbulanciaYEstados(ambulanciaId, EstadoAtencion.ACTIVOS).stream().findFirst();
 	}
+
+	/** La atención que tiene tomada a la ambulancia: la que está en curso, o una ya resuelta que no se liberó. */
+	default Optional<Atencion> buscarQueOcupaAmbulancia(Long ambulanciaId) {
+		return buscarOcupandoAmbulancia(ambulanciaId, EstadoAtencion.ACTIVOS, EstadoAtencion.RESUELTOS).stream()
+				.findFirst();
+	}
+
+	@Query("""
+			select a from Atencion a join fetch a.ambulancia left join fetch a.centroSalud
+			where a.ambulancia.id = :ambulanciaId
+			  and (a.estado in :activos or (a.estado in :resueltos and a.horaLiberacion is null))
+			order by a.horaToma desc
+			""")
+	List<Atencion> buscarOcupandoAmbulancia(@Param("ambulanciaId") Long ambulanciaId,
+			@Param("activos") Collection<EstadoAtencion> activos,
+			@Param("resueltos") Collection<EstadoAtencion> resueltos);
+
+	/** Cómo terminaron las salidas del incidente que no trasladaron a nadie: de ahí sale el desenlace del incidente. */
+	@Query("select a.motivoSinTraslado from Atencion a where a.incidente.id = :incidenteId and a.estado = 'SIN_TRASLADO'")
+	List<MotivoSinTraslado> buscarMotivosSinTraslado(@Param("incidenteId") Long incidenteId);
 
 	boolean existsByIncidenteIdAndEstadoIn(Long incidenteId, Collection<EstadoAtencion> estados);
 

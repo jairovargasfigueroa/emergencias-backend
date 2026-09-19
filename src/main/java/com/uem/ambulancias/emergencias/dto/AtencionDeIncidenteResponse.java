@@ -5,6 +5,7 @@ import java.time.Instant;
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.EstadoAtencion;
 import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
+import com.uem.ambulancias.emergencias.domain.MotivoSinTraslado;
 
 /**
  * Atención en el detalle de un incidente: cada hito con su hora y su ubicación ({@code null} si no ocurrió), los datos
@@ -18,12 +19,18 @@ public record AtencionDeIncidenteResponse(
 		Instant horaToma,
 		Instant horaLlegada,
 		Instant horaRecogida,
+		Instant horaLlegadaHospital,
 		Instant horaEntrega,
+		Instant horaSinTraslado,
+		MotivoSinTraslado motivoSinTraslado,
+		Instant horaLiberacion,
 		Instant horaCancelacion,
 		MotivoCancelacionAtencion motivoCancelacion,
 		UbicacionResponse ubicacionLlegada,
 		UbicacionResponse ubicacionRecogida,
+		UbicacionResponse ubicacionLlegadaHospital,
 		UbicacionResponse ubicacionEntrega,
+		UbicacionResponse ubicacionSinTraslado,
 		String nombrePaciente,
 		String documentoPaciente,
 		Centro centroSalud,
@@ -43,12 +50,18 @@ public record AtencionDeIncidenteResponse(
 				atencion.getHoraToma(),
 				atencion.getHoraLlegada(),
 				atencion.getHoraRecogida(),
+				atencion.getHoraLlegadaHospital(),
 				atencion.getHoraEntrega(),
+				atencion.getHoraSinTraslado(),
+				atencion.getMotivoSinTraslado(),
+				atencion.getHoraLiberacion(),
 				atencion.getHoraCancelacion(),
 				atencion.getMotivoCancelacion(),
 				UbicacionResponse.de(atencion.getUbicacionLlegada()),
 				UbicacionResponse.de(atencion.getUbicacionRecogida()),
+				UbicacionResponse.de(atencion.getUbicacionLlegadaHospital()),
 				UbicacionResponse.de(atencion.getUbicacionEntrega()),
+				UbicacionResponse.de(atencion.getUbicacionSinTraslado()),
 				atencion.getNombrePaciente(),
 				atencion.getDocumentoPaciente(),
 				atencion.getCentroSalud() == null ? null

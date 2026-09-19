@@ -8,6 +8,7 @@ import com.uem.ambulancias.emergencias.dto.CancelarAtencionRequest;
 import com.uem.ambulancias.emergencias.dto.DatosPacienteRequest;
 import com.uem.ambulancias.emergencias.dto.EntregaRequest;
 import com.uem.ambulancias.emergencias.dto.RecogidaRequest;
+import com.uem.ambulancias.emergencias.dto.SinTrasladoRequest;
 import com.uem.ambulancias.emergencias.dto.UbicacionRequest;
 import com.uem.ambulancias.emergencias.service.AtencionService;
 
@@ -52,12 +53,33 @@ public class AtencionController {
 				Textos.opcional(request.documentoPaciente())));
 	}
 
+	@PostMapping("/atenciones/{id}/hospital")
+	public AtencionResponse marcarLlegadaAlHospital(@PathVariable Long id, @UsuarioActual Long paramedicoId,
+			@Valid @RequestBody UbicacionRequest request) {
+		return AtencionResponse.de(atencionService.marcarLlegadaAlHospital(id, paramedicoId,
+				Geo.punto(request.latitud(), request.longitud())));
+	}
+
 	@PostMapping("/atenciones/{id}/entrega")
 	public AtencionResponse entregar(@PathVariable Long id, @UsuarioActual Long paramedicoId,
 			@Valid @RequestBody EntregaRequest request) {
 		return AtencionResponse.de(atencionService.entregar(id, paramedicoId,
 				Geo.punto(request.latitud(), request.longitud()), request.centroSaludId(),
 				Textos.opcional(request.destinoDescripcion())));
+	}
+
+	/** La salida que no trasladó a nadie. No es una cancelación: la unidad fue, resolvió y lo reporta. */
+	@PostMapping("/atenciones/{id}/sin-traslado")
+	public AtencionResponse cerrarSinTraslado(@PathVariable Long id, @UsuarioActual Long paramedicoId,
+			@Valid @RequestBody SinTrasladoRequest request) {
+		return AtencionResponse.de(atencionService.cerrarSinTraslado(id, paramedicoId,
+				Geo.punto(request.latitud(), request.longitud()), request.motivo()));
+	}
+
+	/** La unidad queda libre. Hasta acá sigue ocupada, aunque el paciente ya esté entregado. */
+	@PostMapping("/atenciones/{id}/liberacion")
+	public AtencionResponse liberar(@PathVariable Long id, @UsuarioActual Long paramedicoId) {
+		return AtencionResponse.de(atencionService.liberar(id, paramedicoId));
 	}
 
 	@PostMapping("/atenciones/{id}/cancelar")

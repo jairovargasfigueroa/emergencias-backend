@@ -54,10 +54,26 @@ public class Atencion {
 	@Column(columnDefinition = Geo.COLUMNA_PUNTO)
 	private Point ubicacionRecogida;
 
+	private Instant horaLlegadaHospital;
+
+	@Column(columnDefinition = Geo.COLUMNA_PUNTO)
+	private Point ubicacionLlegadaHospital;
+
 	private Instant horaEntrega;
 
 	@Column(columnDefinition = Geo.COLUMNA_PUNTO)
 	private Point ubicacionEntrega;
+
+	@Enumerated(EnumType.STRING)
+	private MotivoSinTraslado motivoSinTraslado;
+
+	private Instant horaSinTraslado;
+
+	@Column(columnDefinition = Geo.COLUMNA_PUNTO)
+	private Point ubicacionSinTraslado;
+
+	/** Cuándo quedó libre la unidad. Mientras sea {@code null}, sigue ocupada aunque el paciente ya esté entregado. */
+	private Instant horaLiberacion;
 
 	@Enumerated(EnumType.STRING)
 	private MotivoCancelacionAtencion motivoCancelacion;
@@ -111,6 +127,10 @@ public class Atencion {
 				horaRecogida = ahora;
 				ubicacionRecogida = ubicacion;
 			}
+			case EN_HOSPITAL -> {
+				horaLlegadaHospital = ahora;
+				ubicacionLlegadaHospital = ubicacion;
+			}
 			case PACIENTE_ENTREGADO -> {
 				horaEntrega = ahora;
 				ubicacionEntrega = ubicacion;
@@ -128,6 +148,44 @@ public class Atencion {
 		marcarHito(EstadoAtencion.PACIENTE_ENTREGADO, ubicacion);
 		this.centroSalud = centroSalud;
 		this.destinoDescripcion = destinoDescripcion;
+	}
+
+	/**
+	 * La salida que no traslada a nadie: se lo atendió ahí, se negó, no había nadie, ya se lo habían llevado o
+	 * falleció. Solo desde el lugar, porque es lo que se encontró allí; con el paciente ya a bordo no aplica.
+	 */
+	public void cerrarSinTraslado(MotivoSinTraslado motivo, Point ubicacion) {
+		if (motivo == null) {
+			throw new IllegalArgumentException("El motivo del cierre sin traslado es obligatorio.");
+		}
+		if (estado != EstadoAtencion.EN_EL_LUGAR) {
+			throw transicionInvalida(EstadoAtencion.SIN_TRASLADO);
+		}
+		estado = EstadoAtencion.SIN_TRASLADO;
+		motivoSinTraslado = motivo;
+		horaSinTraslado = Instant.now();
+		ubicacionSinTraslado = ubicacion;
+	}
+
+	/**
+	 * La unidad se desocupa. Es un hito aparte de la entrega: entre dejar al paciente en el hospital y quedar libre
+	 * pasan la entrega al médico, el papeleo y la limpieza, y en ese rato la unidad no puede recibir otra emergencia.
+	 */
+	public void liberar() {
+		if (!estado.isResuelta()) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"La atención " + id + " todavía no terminó: no se puede liberar la unidad.");
+		}
+		if (horaLiberacion != null) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"La atención " + id + " ya se liberó.");
+		}
+		horaLiberacion = Instant.now();
+	}
+
+	/** La unidad sigue tomada por esta atención: trabajando, o ya resuelta pero todavía sin liberarse. */
+	public boolean ocupaLaUnidad() {
+		return estado.isActiva() || (estado.isResuelta() && horaLiberacion == null);
 	}
 
 	/** ME-1 A4: desde cualquier estado activo y con motivo. CANCELADA es terminal: nunca se reabre. */

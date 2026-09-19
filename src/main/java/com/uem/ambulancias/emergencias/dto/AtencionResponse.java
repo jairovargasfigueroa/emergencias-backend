@@ -5,6 +5,7 @@ import java.time.Instant;
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.EstadoAtencion;
 import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
+import com.uem.ambulancias.emergencias.domain.MotivoSinTraslado;
 
 public record AtencionResponse(
 		Long id,
@@ -15,7 +16,11 @@ public record AtencionResponse(
 		Instant horaToma,
 		Instant horaLlegada,
 		Instant horaRecogida,
+		Instant horaLlegadaHospital,
 		Instant horaEntrega,
+		Instant horaSinTraslado,
+		MotivoSinTraslado motivoSinTraslado,
+		Instant horaLiberacion,
 		Instant horaCancelacion,
 		MotivoCancelacionAtencion motivoCancelacion,
 		String nombrePaciente,
@@ -33,7 +38,11 @@ public record AtencionResponse(
 				atencion.getHoraToma(),
 				atencion.getHoraLlegada(),
 				atencion.getHoraRecogida(),
+				atencion.getHoraLlegadaHospital(),
 				atencion.getHoraEntrega(),
+				atencion.getHoraSinTraslado(),
+				atencion.getMotivoSinTraslado(),
+				atencion.getHoraLiberacion(),
 				atencion.getHoraCancelacion(),
 				atencion.getMotivoCancelacion(),
 				atencion.getNombrePaciente(),
