@@ -3,6 +3,7 @@ package com.uem.ambulancias.emergencias.controller;
 import com.uem.ambulancias.comun.error.ManejadorErrores;
 import com.uem.ambulancias.comun.web.UsuarioActual;
 import com.uem.ambulancias.comun.web.PaginaResponse;
+import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.Incidente;
 import com.uem.ambulancias.emergencias.dto.AtencionResponse;
 import com.uem.ambulancias.emergencias.dto.FiltroEstadoIncidente;
@@ -10,6 +11,7 @@ import com.uem.ambulancias.emergencias.dto.IncidenteDetalleResponse;
 import com.uem.ambulancias.emergencias.dto.IncidenteResumenResponse;
 import com.uem.ambulancias.emergencias.dto.UnidadAcudiendoResponse;
 import com.uem.ambulancias.emergencias.exception.IncidenteYaTomadoException;
+import com.uem.ambulancias.emergencias.service.AtencionService;
 import com.uem.ambulancias.emergencias.service.ConsultaIncidentesService;
 import com.uem.ambulancias.emergencias.service.IncidenteConAlertasYAtenciones;
 import com.uem.ambulancias.emergencias.service.IncidenteService;
@@ -38,6 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class IncidenteController {
 
 	private final IncidenteService incidenteService;
+	private final AtencionService atencionService;
 	private final ConsultaIncidentesService consultaIncidentesService;
 	private final ServicioParamedicoService servicioParamedicoService;
 
@@ -64,7 +67,7 @@ public class IncidenteController {
 	public AtencionResponse tomar(@PathVariable("id") Long idIncidente,
 			@UsuarioActual Long paramedicoId) {
 		Long idAmbulancia = servicioParamedicoService.ambulanciaAsignada(paramedicoId);
-		return AtencionResponse.de(incidenteService.tomar(idIncidente, idAmbulancia));
+		return respuesta(incidenteService.tomar(idIncidente, idAmbulancia), idIncidente);
 	}
 
 	@PostMapping("/{id}/sumarse")
@@ -72,7 +75,12 @@ public class IncidenteController {
 	public AtencionResponse sumarse(@PathVariable("id") Long idIncidente,
 			@UsuarioActual Long paramedicoId) {
 		Long idAmbulancia = servicioParamedicoService.ambulanciaAsignada(paramedicoId);
-		return AtencionResponse.de(incidenteService.sumarse(idIncidente, idAmbulancia));
+		return respuesta(incidenteService.sumarse(idIncidente, idAmbulancia), idIncidente);
+	}
+
+	/** Toda respuesta lleva si los emisores retiraron su pedido: es lo que el paramédico necesita para decidir. */
+	private AtencionResponse respuesta(Atencion atencion, Long idIncidente) {
+		return AtencionResponse.de(atencion, atencionService.emisoresCancelaron(idIncidente));
 	}
 
 	/** Nunca se rechaza en silencio: 409 con lo necesario para decidir si sumarse sin otra consulta. */
