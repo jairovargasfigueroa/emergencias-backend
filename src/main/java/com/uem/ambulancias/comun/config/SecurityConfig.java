@@ -52,6 +52,8 @@ public class SecurityConfig {
 				.sessionManagement(sesion -> sesion.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 				.authorizeHttpRequests(peticiones -> peticiones
 						.requestMatchers("/auth/**").permitAll()
+						// Sin esto, un 404 o un 500 se reenvían a /error, que queda denegado, y el cliente ve un 403 que engaña.
+						.requestMatchers("/error").permitAll()
 						// Lo que usa la app del paramédico. Va primero porque /paramedicos/** es del administrador.
 						.requestMatchers("/paramedicos/actual/**").hasRole(PARAMEDICO)
 						.requestMatchers("/atenciones/**").hasRole(PARAMEDICO)
