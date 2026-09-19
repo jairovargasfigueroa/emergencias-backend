@@ -52,29 +52,39 @@ public class Ambulancia {
 
 	private Instant ultimaPosicionEn;
 
-	/** ME-1 M0: una ambulancia nace DISPONIBLE y activa. */
+	/** ME-1 M0: una ambulancia nace activa y sin turno, porque todavía no hay nadie que la opere. */
 	public static Ambulancia registrar(String placa, String tipoUnidad) {
 		Ambulancia ambulancia = new Ambulancia();
 		ambulancia.placa = placa;
 		ambulancia.tipoUnidad = tipoUnidad;
-		ambulancia.estado = EstadoAmbulancia.DISPONIBLE;
+		// Nace sin tripulación: recién cuenta como disponible cuando alguien entre en turno con ella.
+		ambulancia.estado = EstadoAmbulancia.SIN_TURNO;
 		ambulancia.activa = true;
 		return ambulancia;
 	}
 
-	/** ME-1 M4, por el administrador. Regla de integridad: con una atención activa no puede salir de servicio. */
+	/**
+	 * ME-1 M4, por el administrador. Regla de integridad: con una atención activa no puede salir de servicio. Se
+	 * acepta también sin nadie de turno: una unidad se rompe igual estando en la base.
+	 */
 	public void marcarFueraDeServicio() {
 		if (estado == EstadoAmbulancia.EN_ATENCION) {
 			throw enAtencion();
 		}
-		exigirEstado(EstadoAmbulancia.DISPONIBLE, EstadoAmbulancia.FUERA_DE_SERVICIO);
+		if (estado != EstadoAmbulancia.DISPONIBLE && estado != EstadoAmbulancia.SIN_TURNO) {
+			throw transicionInvalida(EstadoAmbulancia.FUERA_DE_SERVICIO);
+		}
 		estado = EstadoAmbulancia.FUERA_DE_SERVICIO;
 	}
 
-	/** ME-1 M5, por el paramédico o el administrador. */
-	public void reactivar() {
-		exigirEstado(EstadoAmbulancia.FUERA_DE_SERVICIO, EstadoAmbulancia.DISPONIBLE);
-		estado = EstadoAmbulancia.DISPONIBLE;
+	/**
+	 * ME-1 M5, por el paramédico o el administrador. Que se arregle la avería no la pone a trabajar: vuelve a estar
+	 * disponible solo si hay alguien de turno adentro.
+	 */
+	public void reactivar(boolean hayTurnoAbierto) {
+		EstadoAmbulancia destino = hayTurnoAbierto ? EstadoAmbulancia.DISPONIBLE : EstadoAmbulancia.SIN_TURNO;
+		exigirEstado(EstadoAmbulancia.FUERA_DE_SERVICIO, destino);
+		estado = destino;
 	}
 
 	/** Baja lógica. Se rechaza mientras tenga una atención activa. */
