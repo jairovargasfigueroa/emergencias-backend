@@ -1,7 +1,7 @@
 package com.uem.ambulancias.emergencias.controller;
 
 import com.uem.ambulancias.comun.error.ManejadorErrores;
-import com.uem.ambulancias.comun.web.Cabeceras;
+import com.uem.ambulancias.comun.web.UsuarioActual;
 import com.uem.ambulancias.comun.web.PaginaResponse;
 import com.uem.ambulancias.emergencias.domain.Incidente;
 import com.uem.ambulancias.emergencias.dto.AtencionResponse;
@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -63,7 +62,7 @@ public class IncidenteController {
 	@PostMapping("/{id}/tomar")
 	@ResponseStatus(HttpStatus.CREATED)
 	public AtencionResponse tomar(@PathVariable("id") Long idIncidente,
-			@RequestHeader(Cabeceras.USUARIO_ID) Long paramedicoId) {
+			@UsuarioActual Long paramedicoId) {
 		Long idAmbulancia = servicioParamedicoService.ambulanciaAsignada(paramedicoId);
 		return AtencionResponse.de(incidenteService.tomar(idIncidente, idAmbulancia));
 	}
@@ -71,7 +70,7 @@ public class IncidenteController {
 	@PostMapping("/{id}/sumarse")
 	@ResponseStatus(HttpStatus.CREATED)
 	public AtencionResponse sumarse(@PathVariable("id") Long idIncidente,
-			@RequestHeader(Cabeceras.USUARIO_ID) Long paramedicoId) {
+			@UsuarioActual Long paramedicoId) {
 		Long idAmbulancia = servicioParamedicoService.ambulanciaAsignada(paramedicoId);
 		return AtencionResponse.de(incidenteService.sumarse(idIncidente, idAmbulancia));
 	}

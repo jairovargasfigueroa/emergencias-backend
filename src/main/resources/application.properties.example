@@ -27,3 +27,14 @@ sga.firebase.url-base-datos=
 # CORS: orígenes del navegador que pueden llamar a la API, separados por comas.
 # En local no hace falta, porque el panel usa el proxy de Vite. Las apps móviles no pasan por CORS.
 # sga.cors.origenes-permitidos=https://sga-panel.workflow-tramites.site
+
+# Seguridad: secreto con el que se firman los tokens. 32 caracteres o más, y nunca se versiona.
+sga.seguridad.secreto=
+# Cuánto duran las sesiones: el panel en horas, las apps en días.
+sga.seguridad.horas-panel=12
+sga.seguridad.dias-app=180
+
+# Primer administrador del panel. Solo se crea al arrancar si todavía no existe ninguno.
+sga.admin.correo=
+sga.admin.clave=
+sga.admin.nombre=Administrador
