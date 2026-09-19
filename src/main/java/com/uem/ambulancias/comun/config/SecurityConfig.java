@@ -109,14 +109,21 @@ public class SecurityConfig {
 		return new BCryptPasswordEncoder();
 	}
 
-	/** Solo los orígenes configurados pueden llamar a la API desde un navegador. */
+	/**
+	 * Solo los orígenes configurados pueden llamar a la API desde un navegador. Sin ninguno configurado no se registra
+	 * regla alguna, en vez de una lista vacía que lo rechaza todo: en local el panel pasa por el proxy de Vite, pero el
+	 * navegador manda la cabecera {@code Origin} igual en todos los POST y con la regla vacía se caían con un 403.
+	 */
 	@Bean
 	CorsConfigurationSource corsConfigurationSource(CorsProperties cors) {
+		UrlBasedCorsConfigurationSource fuente = new UrlBasedCorsConfigurationSource();
+		if (cors.origenesPermitidos().isEmpty()) {
+			return fuente;
+		}
 		CorsConfiguration configuracion = new CorsConfiguration();
 		configuracion.setAllowedOrigins(cors.origenesPermitidos());
 		configuracion.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE"));
 		configuracion.setAllowedHeaders(List.of("Content-Type", "Authorization"));
-		UrlBasedCorsConfigurationSource fuente = new UrlBasedCorsConfigurationSource();
 		fuente.registerCorsConfiguration("/**", configuracion);
 		return fuente;
 	}
