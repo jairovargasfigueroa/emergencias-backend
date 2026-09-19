@@ -20,9 +20,6 @@ public enum EstadoAtencion {
 	public static final Set<EstadoAtencion> ACTIVOS =
 			Set.of(EN_CAMINO, EN_EL_LUGAR, PACIENTE_RECOGIDO, EN_HOSPITAL);
 
-	/** La unidad ya llegó al lugar: lo que reporte el ciudadano desde la app ya no cambia lo que encuentra allí. */
-	public static final Set<EstadoAtencion> EN_ESCENA = Set.of(EN_EL_LUGAR, PACIENTE_RECOGIDO);
-
 	/** La unidad fue y resolvió: el incidente ya no espera a nadie, aunque no haya trasladado a nadie. */
 	public static final Set<EstadoAtencion> RESUELTOS = Set.of(PACIENTE_ENTREGADO, SIN_TRASLADO);
 

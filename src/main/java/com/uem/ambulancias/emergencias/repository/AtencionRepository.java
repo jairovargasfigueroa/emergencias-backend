@@ -19,10 +19,13 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 		return existsByIncidenteIdAndEstadoIn(idIncidente, EstadoAtencion.ACTIVOS);
 	}
 
-	/** Alguna unidad del incidente ya llegó al lugar: está EN_EL_LUGAR o con el paciente recogido. */
-	default boolean existeEnEscenaPorIncidente(Long idIncidente) {
-		return existsByIncidenteIdAndEstadoIn(idIncidente, EstadoAtencion.EN_ESCENA);
-	}
+	/**
+	 * Si alguna unidad del incidente llegó al lugar alguna vez. Se pregunta por el hito, que queda congelado, y no
+	 * por el estado, que sigue avanzando: la unidad que ya está en el hospital, o la que canceló después de llegar,
+	 * igual estuvo ahí y vio lo que había.
+	 */
+	@Query("select count(a) > 0 from Atencion a where a.incidente.id = :incidenteId and a.horaLlegada is not null")
+	boolean existeLlegadaPorIncidente(@Param("incidenteId") Long incidenteId);
 
 	/** Atenciones activas del incidente con su ambulancia, en orden de toma. */
 	default List<Atencion> buscarActivasPorIncidente(Long idIncidente) {

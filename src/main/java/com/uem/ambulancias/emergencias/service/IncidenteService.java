@@ -90,7 +90,7 @@ public class IncidenteService {
 			throw new ConflictoException(CodigoError.DETALLES_NO_EDITABLES,
 					"El incidente " + incidenteId + " ya está cerrado.");
 		}
-		if (atenciones.existeEnEscenaPorIncidente(incidenteId)) {
+		if (atenciones.existeLlegadaPorIncidente(incidenteId)) {
 			throw new ConflictoException(CodigoError.DETALLES_NO_EDITABLES,
 					"Una unidad ya llegó al lugar del incidente " + incidenteId + ".");
 		}
@@ -131,7 +131,7 @@ public class IncidenteService {
 			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
 					"El incidente " + incidenteId + " ya está cerrado.");
 		}
-		if (atenciones.existeEnEscenaPorIncidente(incidenteId)) {
+		if (atenciones.existeLlegadaPorIncidente(incidenteId)) {
 			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
 					"Una unidad ya llegó al lugar del incidente " + incidenteId + ".");
 		}
