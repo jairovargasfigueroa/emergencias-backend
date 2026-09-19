@@ -16,6 +16,13 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
 	@Query("select a.incidente.id from Alerta a where a.id = :id")
 	Optional<Long> buscarIncidenteId(@Param("id") Long id);
 
+	/**
+	 * Si al incidente le queda algún pedido en pie. Cuando todos los emisores retiraron el suyo, la unidad que va en
+	 * camino tiene que saberlo, y si no va ninguna el incidente ya no tiene por qué seguir abierto.
+	 */
+	@Query("select count(a) > 0 from Alerta a where a.incidente.id = :incidenteId and a.estado <> 'CANCELADA'")
+	boolean existeAlgunaVigente(@Param("incidenteId") Long incidenteId);
+
 	/** Descripciones que dejaron los emisores del incidente, en orden de emisión. */
 	@Query("""
 			select a.descripcion from Alerta a

@@ -14,6 +14,7 @@ import com.uem.ambulancias.emergencias.domain.Incidente;
 import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
 import com.uem.ambulancias.emergencias.domain.MotivoCierreIncidente;
 import com.uem.ambulancias.emergencias.domain.MotivoSinTraslado;
+import com.uem.ambulancias.emergencias.repository.AlertaRepository;
 import com.uem.ambulancias.emergencias.repository.AtencionRepository;
 import com.uem.ambulancias.emergencias.repository.CentroSaludRepository;
 import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
@@ -35,11 +36,21 @@ import org.springframework.transaction.annotation.Transactional;
 public class AtencionService {
 
 	private final AtencionRepository atenciones;
+	private final AlertaRepository alertas;
 	private final IncidenteRepository incidentes;
 	private final AmbulanciaRepository ambulancias;
 	private final CentroSaludRepository centrosSalud;
 	private final ServicioParamedicoService servicioParamedico;
 	private final ApplicationEventPublisher eventos;
+
+	/**
+	 * Si todos los que pidieron la ambulancia para este incidente ya retiraron su pedido. No cancela nada por sí
+	 * solo: es lo que la unidad en camino necesita saber para decidir si sigue o se vuelve.
+	 */
+	@Transactional(readOnly = true)
+	public boolean emisoresCancelaron(Long incidenteId) {
+		return !alertas.existeAlgunaVigente(incidenteId);
+	}
 
 	/**
 	 * La atención que tiene ocupada a la ambulancia del paramédico, si tiene una. Incluye la que ya entregó al

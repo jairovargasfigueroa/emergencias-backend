@@ -8,6 +8,7 @@ import com.uem.ambulancias.comun.web.Textos;
 import com.uem.ambulancias.emergencias.domain.Alerta;
 import com.uem.ambulancias.emergencias.domain.Incidente;
 import com.uem.ambulancias.emergencias.dto.AlertaResponse;
+import com.uem.ambulancias.emergencias.dto.CancelarAlertaRequest;
 import com.uem.ambulancias.emergencias.dto.CrearAlertaRequest;
 import com.uem.ambulancias.emergencias.dto.DetallesAlertaRequest;
 import com.uem.ambulancias.emergencias.service.IncidenteService;
@@ -58,6 +59,18 @@ public class AlertaController {
 			@Valid @RequestBody DetallesAlertaRequest request) {
 		Alerta alerta = incidenteService.completarDetalles(alertaId, usuarioId, request.cantidadAfectados(),
 				Textos.opcional(request.descripcion()));
+		return AlertaResponse.de(alerta, alerta.getIncidente());
+	}
+
+	/**
+	 * El ciudadano retira su pedido, hasta que una unidad llegue al lugar. No siempre cierra el incidente: si otro
+	 * también pidió, o si ya hay una unidad en camino, el incidente sigue y lo resuelve quien corresponde.
+	 */
+	@PostMapping("/{alertaId}/cancelacion")
+	public AlertaResponse cancelar(@PathVariable Long alertaId, @UsuarioActual Long usuarioId,
+			@Valid @RequestBody CancelarAlertaRequest request) {
+		Alerta alerta = incidenteService.cancelarAlerta(alertaId, usuarioId, request.motivo(),
+				request.emisorEsPaciente());
 		return AlertaResponse.de(alerta, alerta.getIncidente());
 	}
 

@@ -10,6 +10,7 @@ import com.uem.ambulancias.emergencias.domain.Alerta;
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.EstadoIncidente;
 import com.uem.ambulancias.emergencias.domain.Incidente;
+import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAlerta;
 import com.uem.ambulancias.emergencias.exception.IncidenteYaTomadoException;
 import com.uem.ambulancias.emergencias.repository.AlertaRepository;
 import com.uem.ambulancias.emergencias.repository.AtencionRepository;
@@ -99,6 +100,51 @@ public class IncidenteService {
 
 		incidente.consolidarAfectados(cantidadAfectados);
 		incidentes.save(incidente);
+
+		eventos.publishEvent(new IncidenteActualizado(incidenteId, false));
+		return alerta;
+	}
+
+	/**
+	 * El ciudadano retira su pedido. Se puede hasta que una unidad llegue al lugar: desde ahí, lo que pasa lo decide
+	 * quien está parado allí.
+	 *
+	 * <p>Retirar un pedido no es cerrar la emergencia. Si quedan otras alertas vivas, el incidente sigue. Si no queda
+	 * ninguna pero ya hay una unidad en camino, tampoco se cierra: se le avisa y el paramédico decide si sigue o se
+	 * vuelve, como en el despacho real. Solo se cierra cuando nadie más pidió y nadie salió todavía.
+	 */
+	@Transactional
+	public Alerta cancelarAlerta(Long alertaId, Long ciudadanoId, MotivoCancelacionAlerta motivo,
+			Boolean emisorEsPaciente) {
+		Long incidenteId = alertas.buscarIncidenteId(alertaId)
+				.orElseThrow(() -> new NoEncontradoException("No existe la alerta " + alertaId + "."));
+		Incidente incidente = incidentes.buscarParaActualizar(incidenteId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el incidente " + incidenteId + "."));
+		Alerta alerta = alertas.findById(alertaId)
+				.orElseThrow(() -> new NoEncontradoException("No existe la alerta " + alertaId + "."));
+
+		if (!alerta.getEmisor().getId().equals(ciudadanoId)) {
+			throw new ConflictoException(CodigoError.ALERTA_AJENA,
+					"La alerta " + alertaId + " no es del ciudadano " + ciudadanoId + ".");
+		}
+		if (!incidente.getEstado().isAbierto()) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"El incidente " + incidenteId + " ya está cerrado.");
+		}
+		if (atenciones.existeEnEscenaPorIncidente(incidenteId)) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"Una unidad ya llegó al lugar del incidente " + incidenteId + ".");
+		}
+
+		alerta.cancelar(motivo, emisorEsPaciente);
+		alertas.save(alerta);
+
+		boolean quedanPedidos = alertas.existeAlgunaVigente(incidenteId);
+		boolean hayUnidadEnCamino = atenciones.existeActivaPorIncidente(incidenteId);
+		if (!quedanPedidos && !hayUnidadEnCamino) {
+			incidente.cambiarEstado(EstadoIncidente.CANCELADO);
+			incidentes.save(incidente);
+		}
 
 		eventos.publishEvent(new IncidenteActualizado(incidenteId, false));
 		return alerta;
