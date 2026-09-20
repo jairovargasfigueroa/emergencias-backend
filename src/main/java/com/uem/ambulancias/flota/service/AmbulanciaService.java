@@ -10,6 +10,7 @@ import com.uem.ambulancias.flota.domain.Ambulancia;
 import com.uem.ambulancias.flota.domain.Asignacion;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.repository.AsignacionRepository;
+import com.uem.ambulancias.flota.repository.TurnoRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -23,6 +24,7 @@ public class AmbulanciaService {
 
 	private final AmbulanciaRepository ambulancias;
 	private final AsignacionRepository asignaciones;
+	private final TurnoRepository turnos;
 
 	/** La placa se guarda sin espacios y en mayúsculas, y es única (R5). */
 	@Transactional
@@ -53,7 +55,7 @@ public class AmbulanciaService {
 	@Transactional
 	public Ambulancia reactivar(Long id) {
 		Ambulancia ambulancia = buscarParaActualizar(id);
-		ambulancia.reactivar();
+		ambulancia.reactivar(turnos.contarAbiertosPorAmbulancia(id) > 0);
 		return ambulancia;
 	}
 

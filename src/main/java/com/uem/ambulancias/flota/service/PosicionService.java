@@ -8,6 +8,7 @@ import com.uem.ambulancias.comun.geo.Geo;
 import com.uem.ambulancias.flota.domain.Asignacion;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.repository.AsignacionRepository;
+import com.uem.ambulancias.flota.repository.TurnoRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -20,13 +21,16 @@ public class PosicionService {
 
 	private final ServicioParamedicoService servicioParamedico;
 	private final AsignacionRepository asignaciones;
+	private final TurnoRepository turnos;
 	private final AmbulanciaRepository ambulancias;
 	private final PosicionProperties propiedades;
 	private final ApplicationEventPublisher eventos;
 
 	/**
-	 * PB-03 R4 y R5: la posición del paramédico en servicio es la de su ambulancia. Se publica en tiempo real y se
+	 * PB-03 R4 y R5: la posición del paramédico en turno es la de su ambulancia. Se publica en tiempo real y se
 	 * guarda como última posición si la anterior tiene más de {@code sga.posicion.persistir-cada-seg}.
+	 *
+	 * <p>Sin turno abierto se rechaza: fuera de su jornada, dónde está el paramédico no es asunto del sistema.
 	 */
 	@Transactional
 	public void registrar(Long paramedicoId, double latitud, double longitud) {
@@ -35,6 +39,9 @@ public class PosicionService {
 				.filter(asignacion -> asignacion.getAmbulancia().isActiva())
 				.orElseThrow(() -> new ConflictoException(CodigoError.SIN_SERVICIO,
 						"El paramédico no tiene una ambulancia activa asignada."));
+		if (turnos.buscarAbiertoPorParamedico(paramedicoId).isEmpty()) {
+			throw new ConflictoException(CodigoError.SIN_SERVICIO, "El paramédico no está en turno.");
+		}
 
 		Long ambulanciaId = vigente.getAmbulancia().getId();
 		Instant ahora = Instant.now();

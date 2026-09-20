@@ -1,12 +1,12 @@
 package com.uem.ambulancias.flota.controller;
 
-import com.uem.ambulancias.comun.web.Cabeceras;
-import com.uem.ambulancias.flota.dto.IdentificarParamedicoRequest;
-import com.uem.ambulancias.flota.dto.ParamedicoResponse;
+import com.uem.ambulancias.comun.web.UsuarioActual;
 import com.uem.ambulancias.flota.dto.RegistrarDispositivoRequest;
 import com.uem.ambulancias.flota.dto.ServicioActualResponse;
+import com.uem.ambulancias.flota.dto.TurnoResponse;
 import com.uem.ambulancias.flota.service.ParamedicoConAsignacion;
 import com.uem.ambulancias.flota.service.ServicioParamedicoService;
+import com.uem.ambulancias.flota.service.TurnoService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,13 +14,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Endpoints que usa la app del paramédico para saber quién es y qué ambulancia opera.
+ * Lo que la app del paramédico consulta de su propio servicio. Entrar es cosa de /auth.
  */
 @RestController
 @RequestMapping("/paramedicos")
@@ -28,23 +27,31 @@ import org.springframework.web.bind.annotation.RestController;
 public class ServicioParamedicoController {
 
 	private final ServicioParamedicoService servicioParamedicoService;
-
-	/** Identificación provisional: la app guarda el id y lo envía en la cabecera X-Usuario-Id. */
-	@PostMapping("/identificacion")
-	public ParamedicoResponse identificar(@Valid @RequestBody IdentificarParamedicoRequest request) {
-		ParamedicoConAsignacion identificado = servicioParamedicoService.identificar(request.telefono());
-		return ParamedicoResponse.de(identificado.paramedico(), identificado.asignacionVigente());
-	}
+	private final TurnoService turnoService;
 
 	@GetMapping("/actual")
-	public ServicioActualResponse servicioActual(@RequestHeader(Cabeceras.USUARIO_ID) Long paramedicoId) {
+	public ServicioActualResponse servicioActual(@UsuarioActual Long paramedicoId) {
 		ParamedicoConAsignacion servicio = servicioParamedicoService.servicioActual(paramedicoId);
-		return ServicioActualResponse.de(servicio.paramedico(), servicio.asignacionVigente());
+		return ServicioActualResponse.de(servicio.paramedico(), servicio.asignacionVigente(),
+				turnoService.turnoAbierto(paramedicoId).orElse(null));
+	}
+
+	/** Entra a trabajar: su unidad pasa a contar como disponible y empieza a compartir su posición. */
+	@PostMapping("/actual/turno/inicio")
+	@ResponseStatus(HttpStatus.CREATED)
+	public TurnoResponse iniciarTurno(@UsuarioActual Long paramedicoId) {
+		return TurnoResponse.de(turnoService.iniciar(paramedicoId));
+	}
+
+	/** Sale de trabajar. Se rechaza con una atención en curso: nadie se va dejando un caso abierto. */
+	@PostMapping("/actual/turno/cierre")
+	public TurnoResponse terminarTurno(@UsuarioActual Long paramedicoId) {
+		return TurnoResponse.de(turnoService.terminar(paramedicoId));
 	}
 
 	@PostMapping("/actual/dispositivo")
 	@ResponseStatus(HttpStatus.NO_CONTENT)
-	public void registrarDispositivo(@RequestHeader(Cabeceras.USUARIO_ID) Long paramedicoId,
+	public void registrarDispositivo(@UsuarioActual Long paramedicoId,
 			@Valid @RequestBody RegistrarDispositivoRequest request) {
 		servicioParamedicoService.registrarDispositivo(paramedicoId, request.tokenPush());
 	}

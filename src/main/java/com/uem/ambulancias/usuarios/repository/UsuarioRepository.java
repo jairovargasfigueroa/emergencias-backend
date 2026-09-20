@@ -18,6 +18,12 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
 	Optional<Usuario> findByIdAndRol(Long id, RolUsuario rol);
 
+	/** Entrada al panel: el correo identifica al administrador. */
+	Optional<Usuario> findByCorreoAndRol(String correo, RolUsuario rol);
+
+	/** Si ya hay un administrador, no se siembra el inicial. */
+	boolean existsByRol(RolUsuario rol);
+
 	Optional<Usuario> findFirstByTelefonoAndRolOrderByIdAsc(String telefono, RolUsuario rol);
 
 	Optional<Usuario> findFirstByTelefonoAndRolAndActivoTrueOrderByIdAsc(String telefono, RolUsuario rol);

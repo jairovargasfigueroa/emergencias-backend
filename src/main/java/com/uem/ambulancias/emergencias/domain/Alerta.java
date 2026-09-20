@@ -2,6 +2,8 @@ package com.uem.ambulancias.emergencias.domain;
 
 import java.time.Instant;
 
+import com.uem.ambulancias.comun.error.CodigoError;
+import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.geo.Geo;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 
@@ -54,6 +56,14 @@ public class Alerta {
 	@Enumerated(EnumType.STRING)
 	private MotivoCancelacionAlerta motivoCancelacion;
 
+	private Instant horaCancelacion;
+
+	/**
+	 * Si quien avisó es la persona que necesitaba la ambulancia. Se pregunta al retirar el pedido, que es donde
+	 * importa: el despacho real no le da el mismo peso a que cancele el propio paciente o un tercero que pasaba.
+	 */
+	private Boolean emisorEsPaciente;
+
 	private Integer cantidadAfectados;
 
 	@Column(columnDefinition = "text")
@@ -90,6 +100,23 @@ public class Alerta {
 	public void vincular(Incidente incidente) {
 		this.incidente = incidente;
 		this.estado = EstadoAlerta.VINCULADA;
+	}
+
+	/**
+	 * El ciudadano retira su pedido. Retirar un pedido no es cerrar la emergencia: si quedan otras alertas vivas o ya
+	 * hay una unidad en camino, el incidente sigue y lo resuelve quien corresponde.
+	 */
+	public void cancelar(MotivoCancelacionAlerta motivo, Boolean emisorEsPaciente) {
+		if (motivo == null) {
+			throw new IllegalArgumentException("El motivo de cancelación es obligatorio.");
+		}
+		if (estado == EstadoAlerta.CANCELADA) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA, "La alerta " + id + " ya estaba cancelada.");
+		}
+		estado = EstadoAlerta.CANCELADA;
+		motivoCancelacion = motivo;
+		horaCancelacion = Instant.now();
+		this.emisorEsPaciente = emisorEsPaciente;
 	}
 
 	/**

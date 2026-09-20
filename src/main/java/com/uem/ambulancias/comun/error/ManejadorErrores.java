@@ -3,6 +3,8 @@ package com.uem.ambulancias.comun.error;
 import java.util.List;
 import java.util.Map;
 
+import com.uem.ambulancias.seguridad.service.CredencialesInvalidasException;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -22,6 +24,11 @@ public class ManejadorErrores {
 	@ExceptionHandler(ConflictoException.class)
 	ProblemDetail conflicto(ConflictoException e) {
 		return problema(HttpStatus.CONFLICT, e.getCodigo(), e.getMessage());
+	}
+
+	@ExceptionHandler(CredencialesInvalidasException.class)
+	ProblemDetail credenciales(CredencialesInvalidasException e) {
+		return problema(HttpStatus.UNAUTHORIZED, CodigoError.CREDENCIALES_INVALIDAS, e.getMessage());
 	}
 
 	@ExceptionHandler(NoEncontradoException.class)

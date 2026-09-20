@@ -26,8 +26,8 @@ import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * SEC-A: difunde los incidentes después del commit. Lo ven todas las unidades disponibles y activas; si no hay
- * ninguna, se publica igual. Un incidente nuevo además llega por push a los paramédicos en servicio, del más cercano
- * al más lejano.
+ * ninguna, se publica igual. Un incidente que espera unidad (recién creado o que se quedó sin ninguna) además llega
+ * por push a los paramédicos en servicio, del más cercano al más lejano.
  */
 @Slf4j
 @Component
@@ -46,14 +46,14 @@ public class DifusionDeIncidentes {
 	@Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
 	public void difundir(IncidenteActualizado evento) {
 		try {
-			incidentes.findById(evento.incidenteId()).ifPresent(incidente -> publicar(incidente, evento.nuevo()));
+			incidentes.findById(evento.incidenteId()).ifPresent(incidente -> publicar(incidente, evento.avisar()));
 		} catch (RuntimeException e) {
 			// El cambio ya está confirmado: un fallo al publicar no debe convertirse en un error de la petición.
 			log.error("No se pudo difundir el incidente {}.", evento.incidenteId(), e);
 		}
 	}
 
-	private void publicar(Incidente incidente, boolean nuevo) {
+	private void publicar(Incidente incidente, boolean avisar) {
 		boolean abierto = incidente.getEstado().isAbierto();
 		List<Atencion> activas = abierto ? atenciones.buscarActivasPorIncidente(incidente.getId()) : List.of();
 		publicador.publicarSeguimiento(seguimiento(incidente, activas));
@@ -81,7 +81,7 @@ public class DifusionDeIncidentes {
 				activas.size());
 		publicador.publicarIncidenteAbierto(publicado);
 
-		if (nuevo) {
+		if (avisar) {
 			notificador.notificarNuevoIncidente(tokensPorCercania(disponiblesPorCercania), publicado);
 		}
 	}

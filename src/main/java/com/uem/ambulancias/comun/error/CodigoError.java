@@ -7,6 +7,7 @@ package com.uem.ambulancias.comun.error;
 public enum CodigoError {
 
 	VALIDACION,
+	CREDENCIALES_INVALIDAS,
 	NO_ENCONTRADO,
 	TRANSICION_INVALIDA,
 	PLACA_DUPLICADA,

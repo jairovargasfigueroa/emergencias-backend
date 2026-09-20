@@ -81,6 +81,18 @@ public class Incidente {
 		}
 	}
 
+	/** Cierre deducido por el sistema a partir de lo que reportaron las unidades. */
+	public void cerrar(EstadoIncidente nuevo, MotivoCierreIncidente motivo) {
+		cerrar(nuevo, motivo, null);
+	}
+
+	/** Cierre con su porqué: el motivo y, cuando lo cierra una persona, quién fue. */
+	public void cerrar(EstadoIncidente nuevo, MotivoCierreIncidente motivo, Usuario cerradoPor) {
+		cambiarEstado(nuevo);
+		this.motivoCierre = motivo;
+		this.cerradoPor = cerradoPor;
+	}
+
 	/**
 	 * Aplica una transición de ME-1. Si no es válida desde el estado actual, la rechaza y nada cambia. Al pasar a un
 	 * estado final queda fijada {@code fechaHoraCierre}.

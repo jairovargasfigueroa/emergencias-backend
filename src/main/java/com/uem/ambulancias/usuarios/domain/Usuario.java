@@ -38,6 +38,13 @@ public class Usuario {
 	@Column(nullable = false)
 	private boolean activo;
 
+	/** Correo del administrador: con él entra al panel. Los demás roles no lo tienen. */
+	@Column(unique = true)
+	private String correo;
+
+	/** Clave cifrada del administrador. Los demás roles entran sin clave por ahora. */
+	private String clave;
+
 	/** Token de notificaciones push del teléfono del paramédico. */
 	@Column(length = 512)
 	private String tokenPush;
@@ -45,6 +52,14 @@ public class Usuario {
 	/** Personal registrado por el administrador: nace activo con rol PARAMEDICO. */
 	public static Usuario registrarParamedico(String nombreCompleto, String telefono) {
 		return nuevo(nombreCompleto, telefono, RolUsuario.PARAMEDICO);
+	}
+
+	/** Administrador del panel: entra con correo y clave, que llega ya cifrada. */
+	public static Usuario registrarAdmin(String nombreCompleto, String telefono, String correo, String claveCifrada) {
+		Usuario usuario = nuevo(nombreCompleto, telefono, RolUsuario.ADMIN);
+		usuario.correo = correo;
+		usuario.clave = claveCifrada;
+		return usuario;
 	}
 
 	/** Registro ligero desde la app: nace activo con rol CIUDADANO. */
@@ -64,6 +79,11 @@ public class Usuario {
 	/** Baja lógica: el usuario y su historial se conservan. */
 	public void desactivar() {
 		activo = false;
+	}
+
+	/** La clave nueva llega ya cifrada: la entidad nunca ve la original. */
+	public void cambiarClave(String claveCifrada) {
+		this.clave = claveCifrada;
 	}
 
 	/** Un dispositivo nuevo reemplaza al anterior. */
