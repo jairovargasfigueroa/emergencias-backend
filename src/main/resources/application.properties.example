@@ -56,3 +56,5 @@ sga.traslados.minutos-aviso-temprano=120
 sga.traslados.minimo-para-camilla=II
 sga.traslados.minimo-para-oxigeno=II
 sga.traslados.minimo-para-equipo=III
+# Cada cuantos segundos corre el barrido que asigna unidades a los traslados.
+sga.traslados.barrido-seg=120

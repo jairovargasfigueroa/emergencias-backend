@@ -1,6 +1,7 @@
 package com.uem.ambulancias.flota.repository;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,6 +34,19 @@ public interface AmbulanciaRepository extends JpaRepository<Ambulancia, Long> {
 			                     ST_SetSRID(ST_MakePoint(:longitud, :latitud), 4326)::geography) asc nulls last
 			""", nativeQuery = true)
 	List<Ambulancia> buscarDisponiblesPorCercania(@Param("latitud") double latitud, @Param("longitud") double longitud);
+
+	/**
+	 * Lo mismo, pero solo las unidades cuyo tipo alcanza para el traslado. Los tipos que sirven se calculan en
+	 * Java sobre la escalera de la norma y llegan ya resueltos, para no meter esa regla en el SQL.
+	 */
+	@Query(value = """
+			select a.* from ambulancia a
+			where a.estado = 'DISPONIBLE' and a.activa and a.tipo_unidad in (:tipos)
+			order by ST_Distance(a.ultima_posicion::geography,
+			                     ST_SetSRID(ST_MakePoint(:longitud, :latitud), 4326)::geography) asc nulls last
+			""", nativeQuery = true)
+	List<Ambulancia> buscarDisponiblesParaTraslado(@Param("latitud") double latitud,
+			@Param("longitud") double longitud, @Param("tipos") Collection<String> tipos);
 
 	/** Lectura con bloqueo pesimista: serializa los cambios de estado de la misma ambulancia. */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
