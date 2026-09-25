@@ -71,6 +71,8 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.GET, "/traslados/mios").hasRole(CIUDADANO)
 						// Lo que usa el panel.
 						.requestMatchers(HttpMethod.GET, "/incidentes", "/incidentes/*").hasRole(ADMIN)
+						.requestMatchers(HttpMethod.GET, "/traslados", "/traslados/problemas").hasRole(ADMIN)
+						.requestMatchers(HttpMethod.POST, "/traslados/*/asignar").hasRole(ADMIN)
 						.requestMatchers("/ambulancias/**", "/asignaciones/**", "/paramedicos/**").hasRole(ADMIN)
 						.anyRequest().authenticated())
 				.oauth2ResourceServer(recurso -> recurso.jwt(jwt -> jwt.jwtAuthenticationConverter(convertidor)))

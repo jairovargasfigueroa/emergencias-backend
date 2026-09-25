@@ -43,5 +43,8 @@ public record TrasladoProperties(
 		@DefaultValue("II") TipoUnidad minimoParaOxigeno,
 
 		/** Unidad mínima para alguien con vía, sonda o monitoreo. */
-		@DefaultValue("III") TipoUnidad minimoParaEquipo) {
+		@DefaultValue("III") TipoUnidad minimoParaEquipo,
+
+		/** Zona horaria con la que el panel decide qué es "hoy". El servidor puede estar en UTC. */
+		@DefaultValue("America/La_Paz") String zona) {
 }
