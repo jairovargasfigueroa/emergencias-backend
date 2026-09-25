@@ -19,6 +19,7 @@ import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
 import com.uem.ambulancias.flota.domain.Ambulancia;
 import com.uem.ambulancias.flota.domain.EstadoAmbulancia;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
+import com.uem.ambulancias.usuarios.domain.Usuario;
 
 import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Point;
@@ -155,14 +156,14 @@ public class IncidenteService {
 	 * {@link IncidenteYaTomadoException} y no crea nada.
 	 */
 	@Transactional
-	public Atencion tomar(Long idIncidente, Long idAmbulancia) {
-		return crearAtencion(idIncidente, idAmbulancia, true);
+	public Atencion tomar(Long idIncidente, Long idAmbulancia, Usuario paramedico) {
+		return crearAtencion(idIncidente, idAmbulancia, paramedico, true);
 	}
 
 	/** SEC-B.1. Mismo camino que {@link #tomar} sin verificar si ya hay atenciones activas. */
 	@Transactional
-	public Atencion sumarse(Long idIncidente, Long idAmbulancia) {
-		return crearAtencion(idIncidente, idAmbulancia, false);
+	public Atencion sumarse(Long idIncidente, Long idAmbulancia, Usuario paramedico) {
+		return crearAtencion(idIncidente, idAmbulancia, paramedico, false);
 	}
 
 	/** Ambulancias que acuden al incidente (atenciones activas), para el contexto del 409. */
@@ -176,7 +177,7 @@ public class IncidenteService {
 	 * ocurren antes de crear la atención; si alguna falla, no se crea nada. Cascada de ME-1 en la misma transacción:
 	 * A0, I1 (si el incidente estaba ACTIVO) y M1.
 	 */
-	private Atencion crearAtencion(Long idIncidente, Long idAmbulancia, boolean esToma) {
+	private Atencion crearAtencion(Long idIncidente, Long idAmbulancia, Usuario paramedico, boolean esToma) {
 		Incidente incidente = incidentes.buscarParaActualizar(idIncidente)
 				.orElseThrow(() -> new NoEncontradoException("No existe el incidente " + idIncidente + "."));
 		Ambulancia ambulancia = ambulancias.buscarParaActualizar(idAmbulancia)
@@ -193,7 +194,7 @@ public class IncidenteService {
 			throw new IncidenteYaTomadoException(incidente);
 		}
 
-		Atencion atencion = atenciones.save(Atencion.iniciar(incidente, ambulancia, Instant.now()));
+		Atencion atencion = atenciones.save(Atencion.iniciar(incidente, ambulancia, paramedico, Instant.now()));
 		if (incidente.getEstado() == EstadoIncidente.ACTIVO) {
 			incidente.cambiarEstado(EstadoIncidente.EN_ATENCION);
 			incidentes.save(incidente);

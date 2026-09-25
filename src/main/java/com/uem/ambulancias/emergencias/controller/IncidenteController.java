@@ -16,6 +16,7 @@ import com.uem.ambulancias.emergencias.service.ConsultaIncidentesService;
 import com.uem.ambulancias.emergencias.service.IncidenteConAlertasYAtenciones;
 import com.uem.ambulancias.emergencias.service.IncidenteService;
 import com.uem.ambulancias.flota.service.ServicioParamedicoService;
+import com.uem.ambulancias.usuarios.domain.Usuario;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -66,16 +67,18 @@ public class IncidenteController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public AtencionResponse tomar(@PathVariable("id") Long idIncidente,
 			@UsuarioActual Long paramedicoId) {
+		Usuario paramedico = servicioParamedicoService.buscarParamedicoActivo(paramedicoId);
 		Long idAmbulancia = servicioParamedicoService.ambulanciaAsignada(paramedicoId);
-		return respuesta(incidenteService.tomar(idIncidente, idAmbulancia), idIncidente);
+		return respuesta(incidenteService.tomar(idIncidente, idAmbulancia, paramedico), idIncidente);
 	}
 
 	@PostMapping("/{id}/sumarse")
 	@ResponseStatus(HttpStatus.CREATED)
 	public AtencionResponse sumarse(@PathVariable("id") Long idIncidente,
 			@UsuarioActual Long paramedicoId) {
+		Usuario paramedico = servicioParamedicoService.buscarParamedicoActivo(paramedicoId);
 		Long idAmbulancia = servicioParamedicoService.ambulanciaAsignada(paramedicoId);
-		return respuesta(incidenteService.sumarse(idIncidente, idAmbulancia), idIncidente);
+		return respuesta(incidenteService.sumarse(idIncidente, idAmbulancia, paramedico), idIncidente);
 	}
 
 	/** Toda respuesta lleva si los emisores retiraron su pedido: es lo que el paramédico necesita para decidir. */
