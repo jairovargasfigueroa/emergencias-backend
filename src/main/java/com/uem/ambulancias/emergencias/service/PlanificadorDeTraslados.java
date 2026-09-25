@@ -2,15 +2,19 @@ package com.uem.ambulancias.emergencias.service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import com.uem.ambulancias.emergencias.domain.Traslado;
 import com.uem.ambulancias.emergencias.repository.TrasladoRepository;
+import com.uem.ambulancias.flota.domain.TipoUnidad;
+import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
  * Lo único que corre solo en todo el módulo. Un traslado programado el jueves no tiene quién lo despierte el
@@ -27,7 +31,30 @@ public class PlanificadorDeTraslados {
 
 	private final TrasladoRepository traslados;
 	private final AsignadorDeTraslados asignador;
+	private final AmbulanciaRepository ambulancias;
 	private final TrasladoProperties config;
+
+	/**
+	 * Un traslado esperando y una unidad que se desocupa: engancharlos en el momento en vez de esperar al próximo
+	 * barrido. Corre después del commit, cuando la unidad ya quedó libre de verdad.
+	 */
+	@TransactionalEventListener
+	public void alLiberarseUnaUnidad(UnidadLiberada evento) {
+		ambulancias.findById(evento.ambulanciaId()).ifPresent(unidad -> {
+			List<TipoUnidad> queCubre = TipoUnidad.ESCALERA.stream()
+					.filter(tipo -> unidad.getTipoUnidad().cubreA(tipo))
+					.toList();
+			if (queCubre.isEmpty()) {
+				return;
+			}
+			for (Traslado traslado : traslados.buscarEsperandoUnidadDeTipo(queCubre)) {
+				if (asignador.intentarAsignar(traslado.getId()).isPresent()) {
+					log.info("Traslado {} asignado a la unidad que acaba de liberarse", traslado.getId());
+					return;
+				}
+			}
+		});
+	}
 
 	@Scheduled(fixedDelayString = "${sga.traslados.barrido-seg:120}", timeUnit = TimeUnit.SECONDS)
 	public void barrer() {
