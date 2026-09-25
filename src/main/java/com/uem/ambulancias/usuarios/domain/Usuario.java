@@ -4,9 +4,12 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -49,6 +52,15 @@ public class Usuario {
 	@Column(length = 512)
 	private String tokenPush;
 
+	/**
+	 * Quién cargó a esta persona. Nulo significa que se registró sola y entra a la app; con valor es una entrada
+	 * en la agenda de ese ciudadano —un familiar al que traslada, un contacto de confianza— que no inicia sesión
+	 * ni tiene su teléfono verificado. Por eso varios dependientes pueden compartir un mismo número.
+	 */
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "registrado_por_id")
+	private Usuario registradoPor;
+
 	/** Personal registrado por el administrador: nace activo con rol PARAMEDICO. */
 	public static Usuario registrarParamedico(String nombreCompleto, String telefono) {
 		return nuevo(nombreCompleto, telefono, RolUsuario.PARAMEDICO);
@@ -65,6 +77,21 @@ public class Usuario {
 	/** Registro ligero desde la app: nace activo con rol CIUDADANO. */
 	public static Usuario registrarCiudadano(String nombreCompleto, String telefono) {
 		return nuevo(nombreCompleto, telefono, RolUsuario.CIUDADANO);
+	}
+
+	/**
+	 * Persona cargada por un ciudadano: su mamá, a la que traslada, o su hermano como contacto. No es una cuenta
+	 * y no hay nada que verificar, porque el número que se pone suele ser el de quien la registra.
+	 */
+	public static Usuario registrarDependiente(String nombreCompleto, String telefono, Usuario registradoPor) {
+		Usuario usuario = nuevo(nombreCompleto, telefono, RolUsuario.CIUDADANO);
+		usuario.registradoPor = registradoPor;
+		return usuario;
+	}
+
+	/** Si esta persona entra a la app por su cuenta o es solo una entrada en la agenda de otro. */
+	public boolean esCuentaPropia() {
+		return registradoPor == null;
 	}
 
 	private static Usuario nuevo(String nombreCompleto, String telefono, RolUsuario rol) {

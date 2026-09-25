@@ -6,6 +6,7 @@ import com.uem.ambulancias.comun.error.CodigoError;
 import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.geo.Geo;
 import com.uem.ambulancias.flota.domain.Ambulancia;
+import com.uem.ambulancias.usuarios.domain.Usuario;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -21,14 +22,16 @@ import jakarta.persistence.Table;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.Check;
 import org.locationtech.jts.geom.Point;
 
 /**
- * Lo que una unidad hace en un incidente. Cada hito congela su hora y su ubicación; el paciente se
- * registra aquí porque cada unidad recoge al suyo.
+ * Lo que una unidad hace en un incidente o en un traslado. Cada hito congela su hora y su ubicación; el paciente
+ * se registra aquí porque cada unidad recoge al suyo.
  */
 @Entity
 @Table(name = "atencion")
+@Check(name = "ck_atencion_origen", constraints = "(incidente_id is null) <> (traslado_id is null)")
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Atencion {
@@ -80,6 +83,12 @@ public class Atencion {
 
 	private Instant horaCancelacion;
 
+	/**
+	 * Solo en traslados: la unidad llegó y el paciente no estaba listo. La espera termina sola en el hito
+	 * siguiente, así que con una marca alcanza. Es tiempo de unidad que la empresa está pagando.
+	 */
+	private Instant horaAvisoNoListo;
+
 	private String nombrePaciente;
 
 	private String documentoPaciente;
@@ -87,26 +96,75 @@ public class Atencion {
 	@Column(columnDefinition = "text")
 	private String destinoDescripcion;
 
-	@ManyToOne(fetch = FetchType.LAZY, optional = false)
-	@JoinColumn(name = "incidente_id", nullable = false)
+	/** Nulo cuando la atención viene de un traslado. Exactamente uno de los dos padres está puesto. */
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "incidente_id")
 	private Incidente incidente;
+
+	/** Nulo cuando la atención viene de una emergencia. */
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "traslado_id")
+	private Traslado traslado;
 
 	@ManyToOne(fetch = FetchType.LAZY, optional = false)
 	@JoinColumn(name = "ambulancia_id", nullable = false)
 	private Ambulancia ambulancia;
+
+	/**
+	 * Quién responde por esta atención: el que marca los hitos y, cuando haya cobros, el que rinde. No es toda la
+	 * tripulación, que se sabe por los turnos abiertos sobre esa unidad; es uno solo, y por eso se guarda.
+	 */
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "paramedico_responsable_id")
+	private Usuario paramedicoResponsable;
 
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "centro_salud_id")
 	private CentroSalud centroSalud;
 
 	/** ME-1 A0: la atención nace EN_CAMINO cuando la unidad toma o se suma al incidente. */
-	public static Atencion iniciar(Incidente incidente, Ambulancia ambulancia, Instant horaToma) {
-		Atencion atencion = new Atencion();
+	public static Atencion iniciar(Incidente incidente, Ambulancia ambulancia, Usuario paramedicoResponsable,
+			Instant horaToma) {
+		Atencion atencion = nueva(ambulancia, paramedicoResponsable, horaToma);
 		atencion.incidente = incidente;
+		return atencion;
+	}
+
+	/**
+	 * La atención de un traslado nace igual que la de un incidente, con la misma máquina de hitos. Lo único
+	 * distinto es de dónde cuelga y que el destino ya se conoce antes de salir.
+	 */
+	public static Atencion iniciarTraslado(Traslado traslado, Ambulancia ambulancia, Usuario paramedicoResponsable,
+			Instant horaToma) {
+		Atencion atencion = nueva(ambulancia, paramedicoResponsable, horaToma);
+		atencion.traslado = traslado;
+		atencion.centroSalud = traslado.getCentroSaludDestino();
+		atencion.destinoDescripcion = traslado.getDestinoDetalle();
+		atencion.nombrePaciente = traslado.getPasajero().getNombreCompleto();
+		return atencion;
+	}
+
+	private static Atencion nueva(Ambulancia ambulancia, Usuario paramedicoResponsable, Instant horaToma) {
+		Atencion atencion = new Atencion();
 		atencion.ambulancia = ambulancia;
+		atencion.paramedicoResponsable = paramedicoResponsable;
 		atencion.horaToma = horaToma;
 		atencion.estado = EstadoAtencion.EN_CAMINO;
 		return atencion;
+	}
+
+	public boolean esDeTraslado() {
+		return traslado != null;
+	}
+
+	/**
+	 * Solo en traslados. Deja la marca y no cambia el estado: la unidad sigue en el lugar, esperando o por
+	 * retirarse, y eso lo decide el paramédico después.
+	 */
+	public void marcarPacienteNoListo(Instant ahora) {
+		if (horaAvisoNoListo == null) {
+			horaAvisoNoListo = ahora;
+		}
 	}
 
 	/**

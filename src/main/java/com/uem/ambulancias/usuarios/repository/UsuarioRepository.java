@@ -24,9 +24,20 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 	/** Si ya hay un administrador, no se siembra el inicial. */
 	boolean existsByRol(RolUsuario rol);
 
-	Optional<Usuario> findFirstByTelefonoAndRolOrderByIdAsc(String telefono, RolUsuario rol);
+	/**
+	 * El teléfono identifica a un usuario solo entre los que se registraron solos. Los dependientes suelen llevar
+	 * el número de quien los cargó, así que si no se excluyeran, registrar a la mamá devolvería a la hija.
+	 */
+	Optional<Usuario> findFirstByTelefonoAndRolAndRegistradoPorIsNullOrderByIdAsc(String telefono, RolUsuario rol);
 
-	Optional<Usuario> findFirstByTelefonoAndRolAndActivoTrueOrderByIdAsc(String telefono, RolUsuario rol);
+	Optional<Usuario> findFirstByTelefonoAndRolAndActivoTrueAndRegistradoPorIsNullOrderByIdAsc(String telefono,
+			RolUsuario rol);
+
+	/** Las personas de un ciudadano: a quienes traslada y sus contactos de confianza. */
+	List<Usuario> findByRegistradoPorIdAndActivoTrueOrderByNombreCompletoAsc(Long registradoPorId);
+
+	/** Para que nadie use como pasajero a una persona que registró otro. */
+	boolean existsByIdAndRegistradoPorId(Long id, Long registradoPorId);
 
 	/** Lectura con bloqueo pesimista: serializa las operaciones sobre el mismo usuario. */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)

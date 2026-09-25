@@ -26,7 +26,7 @@ public class ServicioParamedicoService {
 	/** Identificación provisional por teléfono, mientras no exista autenticación. Solo paramédicos activos. */
 	public ParamedicoConAsignacion identificar(String telefono) {
 		Usuario paramedico = usuarios
-				.findFirstByTelefonoAndRolAndActivoTrueOrderByIdAsc(telefono.trim(), RolUsuario.PARAMEDICO)
+				.findFirstByTelefonoAndRolAndActivoTrueAndRegistradoPorIsNullOrderByIdAsc(telefono.trim(), RolUsuario.PARAMEDICO)
 				.orElseThrow(() -> new NoEncontradoException("No hay un paramédico activo con ese teléfono."));
 		return conAsignacionVigente(paramedico);
 	}

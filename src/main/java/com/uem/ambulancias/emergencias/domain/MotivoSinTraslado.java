@@ -15,6 +15,10 @@ public enum MotivoSinTraslado {
 	/** Ya se lo habían llevado por otro medio: el incidente queda como atendido externamente. */
 	TRASLADO_POR_OTRO_MEDIO,
 	/** Falleció en el lugar, sin traslado. */
-	FALLECIDO
+	FALLECIDO,
+	/** Solo en traslados: la unidad llegó y el paciente no estaba listo, y se retiró. */
+	PACIENTE_NO_LISTO,
+	/** Solo en traslados: el paciente necesita más de lo que la unidad enviada puede dar. */
+	UNIDAD_NO_CORRESPONDE
 
 }

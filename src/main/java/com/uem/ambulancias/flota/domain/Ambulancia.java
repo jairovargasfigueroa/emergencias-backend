@@ -37,8 +37,10 @@ public class Ambulancia {
 	@Column(nullable = false)
 	private String placa;
 
+	/** Clasificación de la Norma 430. Decide qué traslados puede tomar esta unidad. */
+	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
-	private String tipoUnidad;
+	private TipoUnidad tipoUnidad;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
@@ -53,7 +55,7 @@ public class Ambulancia {
 	private Instant ultimaPosicionEn;
 
 	/** ME-1 M0: una ambulancia nace activa y sin turno, porque todavía no hay nadie que la opere. */
-	public static Ambulancia registrar(String placa, String tipoUnidad) {
+	public static Ambulancia registrar(String placa, TipoUnidad tipoUnidad) {
 		Ambulancia ambulancia = new Ambulancia();
 		ambulancia.placa = placa;
 		ambulancia.tipoUnidad = tipoUnidad;
