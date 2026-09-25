@@ -23,7 +23,7 @@ public class CiudadanoService {
 	@Transactional
 	public Usuario registrar(String nombreCompleto, String telefono) {
 		String telefonoLimpio = telefono.trim();
-		return usuarios.findFirstByTelefonoAndRolOrderByIdAsc(telefonoLimpio, RolUsuario.CIUDADANO)
+		return usuarios.findFirstByTelefonoAndRolAndRegistradoPorIsNullOrderByIdAsc(telefonoLimpio, RolUsuario.CIUDADANO)
 				.orElseGet(() -> usuarios.save(Usuario.registrarCiudadano(nombreCompleto.trim(), telefonoLimpio)));
 	}
 
