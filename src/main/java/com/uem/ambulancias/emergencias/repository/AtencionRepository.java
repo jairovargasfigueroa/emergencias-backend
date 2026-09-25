@@ -79,6 +79,15 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 			""")
 	List<Atencion> buscarPorTraslados(@Param("trasladoIds") Collection<Long> trasladoIds);
 
+	/** Los traslados que hizo un paramédico, del más reciente al más viejo. Es su historial en la app. */
+	@Query("""
+			select a from Atencion a join fetch a.ambulancia
+			join fetch a.traslado t left join fetch t.pasajero left join fetch t.centroSaludDestino
+			where a.paramedicoResponsable.id = :paramedicoId and a.traslado is not null
+			order by a.horaToma desc
+			""")
+	List<Atencion> buscarTrasladosDeParamedico(@Param("paramedicoId") Long paramedicoId);
+
 	/** La atención en curso de un traslado, para cuando el solicitante lo cancela con la unidad ya en camino. */
 	@Query("""
 			select a from Atencion a

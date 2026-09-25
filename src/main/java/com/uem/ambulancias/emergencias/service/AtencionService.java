@@ -66,6 +66,12 @@ public class AtencionService {
 		return atenciones.buscarQueOcupaAmbulancia(servicioParamedico.ambulanciaAsignada(paramedicoId));
 	}
 
+	/** Los traslados que hizo este paramédico: lo que ve en su historial. */
+	@Transactional(readOnly = true)
+	public List<Atencion> trasladosDe(Long paramedicoId) {
+		return atenciones.buscarTrasladosDeParamedico(paramedicoId);
+	}
+
 	/** ME-1 A1. */
 	@Transactional
 	public Atencion marcarLlegada(Long atencionId, Long paramedicoId, Point ubicacion) {

@@ -1,5 +1,7 @@
 package com.uem.ambulancias.emergencias.controller;
 
+import java.util.List;
+
 import com.uem.ambulancias.comun.geo.Geo;
 import com.uem.ambulancias.comun.web.UsuarioActual;
 import com.uem.ambulancias.comun.web.Textos;
@@ -48,6 +50,17 @@ public class AtencionController {
 		boolean emisoresCancelaron = atencion.getIncidente() != null
 				&& atencionService.emisoresCancelaron(atencion.getIncidente().getId());
 		return AtencionResponse.de(atencion, emisoresCancelaron);
+	}
+
+	/** El historial de traslados del paramédico, del más reciente al más viejo. */
+	@GetMapping("/paramedicos/actual/traslados")
+	public List<AtencionResponse> misTraslados(@UsuarioActual Long paramedicoId) {
+		return atencionService.trasladosDe(paramedicoId).stream().map(AtencionController::sinAvisoDeEmisores).toList();
+	}
+
+	/** En un traslado no hay alertas que retirar: lo pidió una persona y ella misma lo cancela. */
+	private static AtencionResponse sinAvisoDeEmisores(Atencion atencion) {
+		return AtencionResponse.de(atencion, false);
 	}
 
 	/** Solo en traslados: llegó y el paciente no estaba listo. Queda la hora, que es tiempo de unidad perdido. */
