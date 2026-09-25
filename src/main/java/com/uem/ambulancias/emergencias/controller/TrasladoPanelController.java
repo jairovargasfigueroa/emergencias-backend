@@ -47,6 +47,11 @@ public class TrasladoPanelController {
 		return trasladoService.problemas().stream().map(TrasladoPanelController::respuesta).toList();
 	}
 
+	@GetMapping("/{id}")
+	public TrasladoDelPanelResponse detalle(@PathVariable("id") Long trasladoId) {
+		return respuesta(trasladoService.detalle(trasladoId));
+	}
+
 	@PostMapping("/{id}/asignar")
 	public TrasladoDelPanelResponse asignar(@PathVariable("id") Long trasladoId, @UsuarioActual Long administradorId,
 			@Valid @RequestBody AsignarTrasladoRequest request) {
