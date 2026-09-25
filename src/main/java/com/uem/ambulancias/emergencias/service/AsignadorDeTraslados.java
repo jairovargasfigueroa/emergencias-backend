@@ -4,6 +4,9 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
+import com.uem.ambulancias.comun.error.CodigoError;
+import com.uem.ambulancias.comun.error.ConflictoException;
+import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.EstadoTraslado;
 import com.uem.ambulancias.emergencias.domain.Traslado;
@@ -15,7 +18,9 @@ import com.uem.ambulancias.flota.domain.TipoUnidad;
 import com.uem.ambulancias.flota.domain.Turno;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.repository.TurnoRepository;
+import com.uem.ambulancias.usuarios.domain.RolUsuario;
 import com.uem.ambulancias.usuarios.domain.Usuario;
+import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -35,6 +40,7 @@ public class AsignadorDeTraslados {
 	private final AtencionRepository atenciones;
 	private final AmbulanciaRepository ambulancias;
 	private final TurnoRepository turnos;
+	private final UsuarioRepository usuarios;
 
 	/** Los programados a los que ya les llegó la hora de salir pasan a buscar unidad. */
 	@Transactional
@@ -73,7 +79,7 @@ public class AsignadorDeTraslados {
 			if (yaRechazaron.contains(candidata.getId())) {
 				continue;
 			}
-			Optional<Atencion> asignada = tomar(traslado, candidata.getId());
+			Optional<Atencion> asignada = tomar(traslado, candidata.getId(), null);
 			if (asignada.isPresent()) {
 				return asignada;
 			}
@@ -82,10 +88,35 @@ public class AsignadorDeTraslados {
 	}
 
 	/**
+	 * Asignación a mano desde el panel: el sistema no encontró nada, o el administrador sabe algo que el sistema
+	 * no. Se verifica igual que la unidad alcance, para no mandar a alguien a un viaje que no va a poder hacer.
+	 */
+	@Transactional
+	public Atencion asignarA(Long trasladoId, Long ambulanciaId, Long administradorId) {
+		Usuario administrador = usuarios.findByIdAndRol(administradorId, RolUsuario.ADMIN)
+				.orElseThrow(() -> new NoEncontradoException("No existe el administrador " + administradorId + "."));
+		Traslado traslado = traslados.findById(trasladoId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
+		if (traslado.getEstado() != EstadoTraslado.BUSCANDO_UNIDAD) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"El traslado no está esperando unidad.");
+		}
+		Ambulancia elegida = ambulancias.findById(ambulanciaId)
+				.orElseThrow(() -> new NoEncontradoException("No existe la ambulancia " + ambulanciaId + "."));
+		if (!elegida.getTipoUnidad().cubreA(traslado.tipoUnidadEfectivo())) {
+			throw new ConflictoException(CodigoError.UNIDAD_INSUFICIENTE,
+					"La unidad " + elegida.getPlaca() + " no alcanza para este traslado.");
+		}
+		return tomar(traslado, ambulanciaId, administrador)
+				.orElseThrow(() -> new ConflictoException(CodigoError.AMBULANCIA_NO_DISPONIBLE,
+						"Esa unidad no está disponible o no tiene a nadie en turno."));
+	}
+
+	/**
 	 * Se bloquea la fila antes de tomarla: entre la consulta por cercanía y este momento, la unidad pudo haberse
 	 * ido a una emergencia. Si ya no está disponible, se sigue con la siguiente candidata.
 	 */
-	private Optional<Atencion> tomar(Traslado traslado, Long ambulanciaId) {
+	private Optional<Atencion> tomar(Traslado traslado, Long ambulanciaId, Usuario asignadoPor) {
 		Ambulancia ambulancia = ambulancias.buscarParaActualizar(ambulanciaId).orElse(null);
 		if (ambulancia == null || !ambulancia.puedeAtender()) {
 			return Optional.empty();
@@ -95,7 +126,7 @@ public class AsignadorDeTraslados {
 			return Optional.empty();
 		}
 		Atencion atencion = atenciones
-				.save(Atencion.iniciarTraslado(traslado, ambulancia, responsable, Instant.now()));
+				.save(Atencion.iniciarTraslado(traslado, ambulancia, responsable, asignadoPor, Instant.now()));
 		ambulancia.cambiarEstado(EstadoAmbulancia.EN_ATENCION);
 		traslado.asignar();
 		traslados.save(traslado);

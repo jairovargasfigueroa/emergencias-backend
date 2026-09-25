@@ -118,6 +118,14 @@ public class Atencion {
 	@JoinColumn(name = "paramedico_responsable_id")
 	private Usuario paramedicoResponsable;
 
+	/**
+	 * Quién asignó la unidad. Nulo significa que la asignó el sistema. Si con el tiempo resulta que casi todas
+	 * las asigna el administrador a mano, eso está diciendo que la regla automática no sirve.
+	 */
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "asignado_por_id")
+	private Usuario asignadoPor;
+
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "centro_salud_id")
 	private CentroSalud centroSalud;
@@ -135,9 +143,10 @@ public class Atencion {
 	 * distinto es de dónde cuelga y que el destino ya se conoce antes de salir.
 	 */
 	public static Atencion iniciarTraslado(Traslado traslado, Ambulancia ambulancia, Usuario paramedicoResponsable,
-			Instant horaToma) {
+			Usuario asignadoPor, Instant horaToma) {
 		Atencion atencion = nueva(ambulancia, paramedicoResponsable, horaToma);
 		atencion.traslado = traslado;
+		atencion.asignadoPor = asignadoPor;
 		atencion.centroSalud = traslado.getCentroSaludDestino();
 		atencion.destinoDescripcion = traslado.getDestinoDetalle();
 		atencion.nombrePaciente = traslado.getPasajero().getNombreCompleto();
