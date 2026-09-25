@@ -52,14 +52,50 @@ public class TrasladoService {
 	public Traslado registrar(Long solicitanteId, RegistrarTrasladoRequest datos) {
 		Usuario solicitante = ciudadanos.buscarCiudadanoActivo(solicitanteId);
 		Usuario pasajero = resolverPasajero(solicitante, datos.pasajeroId());
+		Pedido pedido = resolver(datos);
 
+		return traslados.save(Traslado.registrar(solicitante, pasajero, pedido.necesidades(), pedido.origen(),
+				pedido.origenReferencia(), pedido.contactoNombre(), pedido.contactoTelefono(), pedido.centro(),
+				pedido.destino(), pedido.destinoDetalle(), pedido.horario(), pedido.tipoUnidad(), Instant.now()));
+	}
+
+	/**
+	 * Cambiar el pedido entero. Solo mientras nadie haya salido: el horario y el tipo de unidad se vuelven a
+	 * calcular con los datos nuevos, porque si cambió la dirección o la hora, los viejos ya no significan nada.
+	 */
+	@Transactional
+	public Traslado reprogramar(Long solicitanteId, Long trasladoId, RegistrarTrasladoRequest datos) {
+		Traslado traslado = buscarPropio(solicitanteId, trasladoId);
+		Pedido pedido = resolver(datos);
+		traslado.reprogramar(pedido.necesidades(), pedido.origen(), pedido.origenReferencia(),
+				pedido.contactoNombre(), pedido.contactoTelefono(), pedido.centro(), pedido.destino(),
+				pedido.destinoDetalle(), pedido.horario(), pedido.tipoUnidad());
+		return traslados.save(traslado);
+	}
+
+	/** Corregir la referencia, el contacto y las observaciones. Se puede hasta con la unidad en camino. */
+	@Transactional
+	public Traslado actualizarDetalles(Long solicitanteId, Long trasladoId, String origenReferencia,
+			String contactoNombre, String contactoTelefono, String observaciones) {
+		Traslado traslado = buscarPropio(solicitanteId, trasladoId);
+		String nombre = vacioComoNulo(contactoNombre);
+		String telefono = vacioComoNulo(contactoTelefono);
+		exigirContactoCompleto(nombre, telefono);
+		traslado.actualizarDetalles(vacioComoNulo(origenReferencia), nombre, telefono,
+				vacioComoNulo(observaciones));
+		return traslados.save(traslado);
+	}
+
+	/** Lo que hay que calcular igual al pedir que al reprogramar. */
+	private Pedido resolver(RegistrarTrasladoRequest datos) {
 		Necesidades necesidades = new Necesidades(datos.movilidad(), datos.oxigeno(), datos.equipo(),
-				datos.aislamiento(), datos.pesoAproximado(), datos.acompanantes(), datos.observaciones());
+				datos.aislamiento(), datos.pesoAproximado(), datos.acompanantes(),
+				vacioComoNulo(datos.observaciones()));
 		TipoUnidad tipoUnidad = selector.resolver(necesidades, datos.tipoUnidad());
 
 		Point origen = Geo.punto(datos.origenLatitud(), datos.origenLongitud());
-		CentroSalud centroDestino = resolverCentro(datos.centroSaludDestinoId());
-		Point destino = resolverDestino(centroDestino, datos);
+		CentroSalud centro = resolverCentro(datos.centroSaludDestinoId());
+		Point destino = resolverDestino(centro, datos);
 
 		Instant ahora = Instant.now();
 		Horario horario = datos.horaCita() == null
@@ -71,9 +107,22 @@ public class TrasladoService {
 		String contactoTelefono = vacioComoNulo(datos.contactoTelefono());
 		exigirContactoCompleto(contactoNombre, contactoTelefono);
 
-		return traslados.save(Traslado.registrar(solicitante, pasajero, necesidades, origen,
-				vacioComoNulo(datos.origenReferencia()), contactoNombre, contactoTelefono, centroDestino, destino,
-				vacioComoNulo(datos.destinoDetalle()), horario, tipoUnidad, ahora));
+		return new Pedido(necesidades, tipoUnidad, origen, vacioComoNulo(datos.origenReferencia()), contactoNombre,
+				contactoTelefono, centro, destino, vacioComoNulo(datos.destinoDetalle()), horario);
+	}
+
+	private Traslado buscarPropio(Long solicitanteId, Long trasladoId) {
+		Traslado traslado = traslados.findById(trasladoId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
+		if (!traslado.esDe(solicitanteId)) {
+			throw new ConflictoException(CodigoError.TRASLADO_AJENO, "El traslado no es de este ciudadano.");
+		}
+		return traslado;
+	}
+
+	private record Pedido(Necesidades necesidades, TipoUnidad tipoUnidad, Point origen, String origenReferencia,
+			String contactoNombre, String contactoTelefono, CentroSalud centro, Point destino,
+			String destinoDetalle, Horario horario) {
 	}
 
 	/** Lo que el ciudadano ve en su pestaña: los próximos y el historial, lo más reciente primero. */
@@ -87,11 +136,7 @@ public class TrasladoService {
 	 */
 	@Transactional
 	public Traslado cancelar(Long solicitanteId, Long trasladoId) {
-		Traslado traslado = traslados.findById(trasladoId)
-				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
-		if (!traslado.esDe(solicitanteId)) {
-			throw new ConflictoException(CodigoError.TRASLADO_AJENO, "El traslado no es de este ciudadano.");
-		}
+		Traslado traslado = buscarPropio(solicitanteId, trasladoId);
 		if (!traslado.getEstado().isVigente()) {
 			throw new ConflictoException(CodigoError.TRASLADO_FINALIZADO,
 					"El traslado ya terminó y no se puede cancelar.");

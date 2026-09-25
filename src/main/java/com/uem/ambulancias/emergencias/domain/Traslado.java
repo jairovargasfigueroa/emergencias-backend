@@ -169,6 +169,65 @@ public class Traslado {
 		return traslado;
 	}
 
+	/**
+	 * Cambiar el pedido entero. Solo mientras no haya salido nadie: con una unidad en camino, el paramédico ya
+	 * se fue con otra información, y mandarlo a otro lado sin avisarle no es una edición, es otro viaje.
+	 *
+	 * <p>Se limpia la corrección del tipo de unidad: se corrigió sobre datos que acaban de cambiar.
+	 */
+	public void reprogramar(Necesidades necesidades, Point origen, String origenReferencia, String contactoNombre,
+			String contactoTelefono, CentroSalud centroSaludDestino, Point destino, String destinoDetalle,
+			Horario horario, TipoUnidad tipoUnidadPedido) {
+		exigirQueNadieHayaSalido();
+		this.movilidad = necesidades.movilidad();
+		this.requiereOxigeno = necesidades.oxigeno();
+		this.requiereEquipo = necesidades.equipo();
+		this.requiereAislamiento = necesidades.aislamiento();
+		this.pesoAproximado = necesidades.pesoAproximado();
+		this.acompanantes = necesidades.acompanantes();
+		this.observaciones = necesidades.observaciones();
+		this.tipoUnidadPedido = tipoUnidadPedido;
+		this.tipoUnidadCorregido = null;
+		this.origen = origen;
+		this.origenReferencia = origenReferencia;
+		this.contactoNombre = contactoNombre;
+		this.contactoTelefono = contactoTelefono;
+		this.centroSaludDestino = centroSaludDestino;
+		this.destino = destino;
+		this.destinoDetalle = destinoDetalle;
+		this.modoHorario = horario.modo();
+		this.horaCita = horario.horaCita();
+		this.horaSalidaEstimada = horario.salidaEstimada();
+		this.horaLimiteSalida = horario.limiteSalida();
+		// Si movieron la cita para más tarde, deja de ser hora de salir y el pedido vuelve a esperar su día.
+		this.estado = horario.modo() == ModoHorario.INMEDIATO
+				? EstadoTraslado.BUSCANDO_UNIDAD
+				: EstadoTraslado.PROGRAMADO;
+	}
+
+	/**
+	 * Lo que solo ayuda a la tripulación a encontrar la puerta y a hablar con alguien. No cambia ninguna decisión
+	 * que el sistema ya tomó, así que se puede corregir hasta con la unidad en camino, que es cuando más sirve.
+	 */
+	public void actualizarDetalles(String origenReferencia, String contactoNombre, String contactoTelefono,
+			String observaciones) {
+		if (!estado.isVigente()) {
+			throw new ConflictoException(CodigoError.TRASLADO_FINALIZADO,
+					"El traslado ya terminó y no se puede editar.");
+		}
+		this.origenReferencia = origenReferencia;
+		this.contactoNombre = contactoNombre;
+		this.contactoTelefono = contactoTelefono;
+		this.observaciones = observaciones;
+	}
+
+	private void exigirQueNadieHayaSalido() {
+		if (estado != EstadoTraslado.PROGRAMADO && estado != EstadoTraslado.BUSCANDO_UNIDAD) {
+			throw new ConflictoException(CodigoError.TRASLADO_FINALIZADO,
+					"Con la unidad ya asignada solo se pueden corregir la referencia, el contacto y las observaciones.");
+		}
+	}
+
 	/** El tipo que hay que buscar: el corregido si alguien lo arregló, y si no el que pidió el ciudadano. */
 	public TipoUnidad tipoUnidadEfectivo() {
 		return tipoUnidadCorregido != null ? tipoUnidadCorregido : tipoUnidadPedido;
