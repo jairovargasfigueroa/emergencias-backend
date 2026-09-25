@@ -8,6 +8,7 @@ import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.flota.domain.Ambulancia;
 import com.uem.ambulancias.flota.domain.Asignacion;
+import com.uem.ambulancias.flota.domain.TipoUnidad;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.repository.AsignacionRepository;
 import com.uem.ambulancias.flota.repository.TurnoRepository;
@@ -28,13 +29,13 @@ public class AmbulanciaService {
 
 	/** La placa se guarda sin espacios y en mayúsculas, y es única (R5). */
 	@Transactional
-	public Ambulancia registrar(String placa, String tipoUnidad) {
+	public Ambulancia registrar(String placa, TipoUnidad tipoUnidad) {
 		String placaNormalizada = placa.trim().toUpperCase(Locale.ROOT);
 		if (ambulancias.existsByPlaca(placaNormalizada)) {
 			throw placaDuplicada(placaNormalizada);
 		}
 		try {
-			return ambulancias.saveAndFlush(Ambulancia.registrar(placaNormalizada, tipoUnidad.trim()));
+			return ambulancias.saveAndFlush(Ambulancia.registrar(placaNormalizada, tipoUnidad));
 		} catch (DataIntegrityViolationException e) {
 			// Otra petición registró la misma placa entre la verificación y el guardado.
 			throw placaDuplicada(placaNormalizada);
