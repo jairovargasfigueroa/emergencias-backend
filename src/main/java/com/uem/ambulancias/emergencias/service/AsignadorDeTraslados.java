@@ -67,8 +67,12 @@ public class AsignadorDeTraslados {
 			return Optional.empty();
 		}
 		List<String> tiposQueSirven = tiposQueCubren(traslado.tipoUnidadEfectivo());
+		List<Long> yaRechazaron = atenciones.buscarAmbulanciasQueRechazaron(trasladoId);
 		for (Ambulancia candidata : ambulancias.buscarDisponiblesParaTraslado(traslado.getOrigen().getY(),
 				traslado.getOrigen().getX(), tiposQueSirven)) {
+			if (yaRechazaron.contains(candidata.getId())) {
+				continue;
+			}
 			Optional<Atencion> asignada = tomar(traslado, candidata.getId());
 			if (asignada.isPresent()) {
 				return asignada;
