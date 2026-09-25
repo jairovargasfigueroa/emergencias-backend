@@ -19,16 +19,24 @@ public class SelectorDeUnidad {
 
 	private final TrasladoProperties config;
 
-	/** El mayor de los mínimos que apliquen. Sin ninguna necesidad especial alcanza un transporte simple. */
 	public TipoUnidad sugerirPara(Necesidades necesidades) {
+		return sugerirPara(necesidades.movilidad(), necesidades.oxigeno(), necesidades.equipo());
+	}
+
+	/**
+	 * El mayor de los mínimos que apliquen. Sin ninguna necesidad especial alcanza un transporte simple. Los
+	 * demás datos del pedido —peso, acompañantes, aislamiento— no cambian el tipo: cambian cómo se prepara la
+	 * tripulación.
+	 */
+	public TipoUnidad sugerirPara(Movilidad movilidad, boolean oxigeno, boolean equipo) {
 		TipoUnidad tipo = TipoUnidad.IA;
-		if (necesidades.movilidad() == Movilidad.CAMILLA) {
+		if (movilidad == Movilidad.CAMILLA) {
 			tipo = TipoUnidad.elMayor(tipo, config.minimoParaCamilla());
 		}
-		if (necesidades.oxigeno()) {
+		if (oxigeno) {
 			tipo = TipoUnidad.elMayor(tipo, config.minimoParaOxigeno());
 		}
-		if (necesidades.equipo()) {
+		if (equipo) {
 			tipo = TipoUnidad.elMayor(tipo, config.minimoParaEquipo());
 		}
 		return tipo;
