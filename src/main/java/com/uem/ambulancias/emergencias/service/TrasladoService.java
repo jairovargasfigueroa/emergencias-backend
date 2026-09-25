@@ -8,20 +8,24 @@ import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.comun.geo.Geo;
 import com.uem.ambulancias.emergencias.domain.CentroSalud;
-import com.uem.ambulancias.emergencias.domain.EstadoTraslado;
 import com.uem.ambulancias.emergencias.domain.Horario;
+import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
 import com.uem.ambulancias.emergencias.domain.Necesidades;
 import com.uem.ambulancias.emergencias.domain.Traslado;
 import com.uem.ambulancias.emergencias.dto.RegistrarTrasladoRequest;
+import com.uem.ambulancias.emergencias.repository.AtencionRepository;
 import com.uem.ambulancias.emergencias.repository.CentroSaludRepository;
 import com.uem.ambulancias.emergencias.repository.TrasladoRepository;
+import com.uem.ambulancias.flota.domain.EstadoAmbulancia;
 import com.uem.ambulancias.flota.domain.TipoUnidad;
+import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 import com.uem.ambulancias.usuarios.service.CiudadanoService;
 
 import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Point;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,11 +39,14 @@ import org.springframework.transaction.annotation.Transactional;
 public class TrasladoService {
 
 	private final TrasladoRepository traslados;
+	private final AtencionRepository atenciones;
+	private final AmbulanciaRepository ambulancias;
 	private final UsuarioRepository usuarios;
 	private final CentroSaludRepository centros;
 	private final CiudadanoService ciudadanos;
 	private final EstimadorDeTiempos estimador;
 	private final SelectorDeUnidad selector;
+	private final ApplicationEventPublisher eventos;
 
 	@Transactional
 	public Traslado registrar(Long solicitanteId, RegistrarTrasladoRequest datos) {
@@ -89,10 +96,12 @@ public class TrasladoService {
 			throw new ConflictoException(CodigoError.TRASLADO_FINALIZADO,
 					"El traslado ya terminó y no se puede cancelar.");
 		}
-		if (traslado.getEstado() == EstadoTraslado.ASIGNADO) {
-			throw new ConflictoException(CodigoError.TRASLADO_FINALIZADO,
-					"La unidad ya salió: hay que avisar a la empresa para cancelarlo.");
-		}
+		// Con la unidad ya en camino, cancelar también le devuelve la libertad: si no, queda tomada al pedo.
+		atenciones.buscarActivaPorTraslado(trasladoId).ifPresent(atencion -> {
+			atencion.cancelar(MotivoCancelacionAtencion.CANCELADA_POR_SOLICITANTE);
+			ambulancias.actualizarEstado(atencion.getAmbulancia().getId(), EstadoAmbulancia.DISPONIBLE);
+			eventos.publishEvent(new UnidadLiberada(atencion.getAmbulancia().getId()));
+		});
 		traslado.cancelar(ciudadanos.buscarCiudadanoActivo(solicitanteId), Instant.now());
 		return traslados.save(traslado);
 	}

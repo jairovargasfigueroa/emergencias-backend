@@ -45,6 +45,7 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 
 	@Query("""
 			select a from Atencion a join fetch a.ambulancia left join fetch a.centroSalud
+			left join fetch a.traslado t left join fetch t.pasajero left join fetch t.centroSaludDestino
 			where a.ambulancia.id = :ambulanciaId
 			  and (a.estado in :activos or (a.estado in :resueltos and a.horaLiberacion is null))
 			order by a.horaToma desc
@@ -60,6 +61,24 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 	boolean existsByIncidenteIdAndEstadoIn(Long incidenteId, Collection<EstadoAtencion> estados);
 
 	boolean existsByIncidenteIdAndEstado(Long incidenteId, EstadoAtencion estado);
+
+	/**
+	 * Las unidades que ya rechazaron este traslado. Sin esto, el barrido le vuelve a ofrecer el mismo traslado a
+	 * la misma unidad —que suele ser la más cercana— y el rechazo entra en bucle hasta que el pedido se vence.
+	 */
+	@Query("""
+			select a.ambulancia.id from Atencion a
+			where a.traslado.id = :trasladoId and a.motivoCancelacion = 'RECHAZADA_POR_PARAMEDICO'
+			""")
+	List<Long> buscarAmbulanciasQueRechazaron(@Param("trasladoId") Long trasladoId);
+
+	/** La atención en curso de un traslado, para cuando el solicitante lo cancela con la unidad ya en camino. */
+	@Query("""
+			select a from Atencion a
+			where a.traslado.id = :trasladoId
+			  and a.estado in ('EN_CAMINO', 'EN_EL_LUGAR', 'PACIENTE_RECOGIDO', 'EN_HOSPITAL')
+			""")
+	Optional<Atencion> buscarActivaPorTraslado(@Param("trasladoId") Long trasladoId);
 
 	@Query("select a.incidente.id from Atencion a where a.id = :id")
 	Optional<Long> buscarIncidenteId(@Param("id") Long id);

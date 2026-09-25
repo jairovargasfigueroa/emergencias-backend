@@ -11,6 +11,7 @@ import com.uem.ambulancias.emergencias.dto.EntregaRequest;
 import com.uem.ambulancias.emergencias.dto.RecogidaRequest;
 import com.uem.ambulancias.emergencias.dto.SinTrasladoRequest;
 import com.uem.ambulancias.emergencias.dto.UbicacionRequest;
+import com.uem.ambulancias.emergencias.dto.UnidadNoCorrespondeRequest;
 import com.uem.ambulancias.emergencias.service.AtencionService;
 
 import jakarta.validation.Valid;
@@ -39,9 +40,29 @@ public class AtencionController {
 				.orElseGet(() -> ResponseEntity.noContent().build());
 	}
 
-	/** Toda respuesta lleva si los emisores retiraron su pedido: es lo que el paramédico necesita para decidir. */
+	/**
+	 * Toda respuesta lleva si los emisores retiraron su pedido: es lo que el paramédico necesita para decidir. En
+	 * un traslado no aplica, porque no hay alertas que retirar: lo pidió una persona y ella misma lo cancela.
+	 */
 	private AtencionResponse respuesta(Atencion atencion) {
-		return AtencionResponse.de(atencion, atencionService.emisoresCancelaron(atencion.getIncidente().getId()));
+		boolean emisoresCancelaron = atencion.getIncidente() != null
+				&& atencionService.emisoresCancelaron(atencion.getIncidente().getId());
+		return AtencionResponse.de(atencion, emisoresCancelaron);
+	}
+
+	/** Solo en traslados: llegó y el paciente no estaba listo. Queda la hora, que es tiempo de unidad perdido. */
+	@PostMapping("/atenciones/{id}/no-listo")
+	public AtencionResponse marcarPacienteNoListo(@PathVariable Long id, @UsuarioActual Long paramedicoId) {
+		return respuesta(atencionService.marcarPacienteNoListo(id, paramedicoId));
+	}
+
+	/** Solo en traslados: el paciente necesita más de lo que esta unidad puede dar. */
+	@PostMapping("/atenciones/{id}/unidad-no-corresponde")
+	public AtencionResponse unidadNoCorresponde(@PathVariable Long id, @UsuarioActual Long paramedicoId,
+			@Valid @RequestBody UnidadNoCorrespondeRequest request) {
+		return respuesta(atencionService.cerrarPorUnidadQueNoCorresponde(id, paramedicoId,
+				Geo.punto(request.latitud(), request.longitud()), request.movilidad(), request.oxigeno(),
+				request.equipo()));
 	}
 
 	@PostMapping("/atenciones/{id}/llegada")
