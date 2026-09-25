@@ -1,12 +1,17 @@
 package com.uem.ambulancias.emergencias.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.uem.ambulancias.comun.error.CodigoError;
 import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.comun.geo.Geo;
+import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.CentroSalud;
 import com.uem.ambulancias.emergencias.domain.Horario;
 import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
@@ -46,6 +51,7 @@ public class TrasladoService {
 	private final CiudadanoService ciudadanos;
 	private final EstimadorDeTiempos estimador;
 	private final SelectorDeUnidad selector;
+	private final TrasladoProperties config;
 	private final ApplicationEventPublisher eventos;
 
 	@Transactional
@@ -128,6 +134,31 @@ public class TrasladoService {
 	/** Lo que el ciudadano ve en su pestaña: los próximos y el historial, lo más reciente primero. */
 	public List<Traslado> mios(Long solicitanteId) {
 		return traslados.findBySolicitanteIdOrderByFechaHoraCreacionDesc(solicitanteId);
+	}
+
+	/** La tabla del panel. El día se calcula en la zona de la empresa: el servidor puede estar en UTC. */
+	public List<TrasladoConAtencion> delDia(LocalDate dia) {
+		ZoneId zona = ZoneId.of(config.zona());
+		LocalDate elDia = dia != null ? dia : LocalDate.now(zona);
+		return conSuAtencion(traslados.buscarEntre(elDia.atStartOfDay(zona).toInstant(),
+				elDia.plusDays(1).atStartOfDay(zona).toInstant()));
+	}
+
+	/** La bandeja de problemas: los que siguen esperando unidad, el que primero se cae arriba de todo. */
+	public List<TrasladoConAtencion> problemas() {
+		return conSuAtencion(traslados.buscarEsperandoUnidad());
+	}
+
+	/** Una sola consulta para las atenciones de toda la lista, en vez de una por fila. */
+	private List<TrasladoConAtencion> conSuAtencion(List<Traslado> lista) {
+		if (lista.isEmpty()) {
+			return List.of();
+		}
+		Map<Long, Atencion> porTraslado = atenciones
+				.buscarPorTraslados(lista.stream().map(Traslado::getId).toList()).stream()
+				.collect(Collectors.toMap(atencion -> atencion.getTraslado().getId(), atencion -> atencion,
+						(uno, otro) -> uno));
+		return lista.stream().map(t -> new TrasladoConAtencion(t, porTraslado.get(t.getId()))).toList();
 	}
 
 	/**

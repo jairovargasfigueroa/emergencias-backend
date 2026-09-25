@@ -72,6 +72,13 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 			""")
 	List<Long> buscarAmbulanciasQueRechazaron(@Param("trasladoId") Long trasladoId);
 
+	/** Las atenciones vivas de varios traslados, en una sola consulta: es lo que la tabla del panel necesita. */
+	@Query("""
+			select a from Atencion a join fetch a.ambulancia left join fetch a.paramedicoResponsable
+			where a.traslado.id in :trasladoIds and a.horaCancelacion is null
+			""")
+	List<Atencion> buscarPorTraslados(@Param("trasladoIds") Collection<Long> trasladoIds);
+
 	/** La atención en curso de un traslado, para cuando el solicitante lo cancela con la unidad ya en camino. */
 	@Query("""
 			select a from Atencion a
