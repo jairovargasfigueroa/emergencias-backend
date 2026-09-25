@@ -144,6 +144,13 @@ public class TrasladoService {
 				elDia.plusDays(1).atStartOfDay(zona).toInstant()));
 	}
 
+	/** El detalle de un traslado para el panel, con la unidad que lo está haciendo si ya tiene una. */
+	public TrasladoConAtencion detalle(Long trasladoId) {
+		Traslado traslado = traslados.findById(trasladoId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
+		return conSuAtencion(List.of(traslado)).getFirst();
+	}
+
 	/** La bandeja de problemas: los que siguen esperando unidad, el que primero se cae arriba de todo. */
 	public List<TrasladoConAtencion> problemas() {
 		return conSuAtencion(traslados.buscarEsperandoUnidad());
