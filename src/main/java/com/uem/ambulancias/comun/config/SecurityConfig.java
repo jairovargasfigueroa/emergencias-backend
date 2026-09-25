@@ -59,11 +59,15 @@ public class SecurityConfig {
 						.requestMatchers("/atenciones/**").hasRole(PARAMEDICO)
 						.requestMatchers(HttpMethod.POST, "/posiciones").hasRole(PARAMEDICO)
 						.requestMatchers(HttpMethod.POST, "/incidentes/*/tomar", "/incidentes/*/sumarse").hasRole(PARAMEDICO)
-						.requestMatchers(HttpMethod.GET, "/centros-salud").hasRole(PARAMEDICO)
+						// El ciudadano también los consulta: es de donde elige el destino de un traslado.
+						.requestMatchers(HttpMethod.GET, "/centros-salud").hasAnyRole(PARAMEDICO, CIUDADANO)
 						// ME-1 M5: la ambulancia vuelve de una avería desde la app (PB-05 R11) o desde el panel.
 						.requestMatchers(HttpMethod.POST, "/ambulancias/*/reactivar").hasAnyRole(PARAMEDICO, ADMIN)
 						// Lo que usa la app del ciudadano.
 						.requestMatchers("/alertas/**").hasRole(CIUDADANO)
+						.requestMatchers("/personas/**").hasRole(CIUDADANO)
+						.requestMatchers(HttpMethod.POST, "/traslados", "/traslados/*/cancelar").hasRole(CIUDADANO)
+						.requestMatchers(HttpMethod.GET, "/traslados/mios").hasRole(CIUDADANO)
 						// Lo que usa el panel.
 						.requestMatchers(HttpMethod.GET, "/incidentes", "/incidentes/*").hasRole(ADMIN)
 						.requestMatchers("/ambulancias/**", "/asignaciones/**", "/paramedicos/**").hasRole(ADMIN)

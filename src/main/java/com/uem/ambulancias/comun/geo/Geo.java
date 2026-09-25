@@ -26,4 +26,21 @@ public final class Geo {
 		return FABRICA.createPoint(new Coordinate(longitud, latitud));
 	}
 
+	private static final double RADIO_TIERRA_M = 6_371_000;
+
+	/**
+	 * Distancia en línea recta entre dos puntos, en metros. Las consultas usan geography de PostGIS; esto es para
+	 * cuando hace falta la distancia en Java sin ir a la base, como al estimar cuánto va a tardar un traslado.
+	 */
+	public static double metrosEntre(Point uno, Point otro) {
+		double latUno = Math.toRadians(uno.getY());
+		double latOtro = Math.toRadians(otro.getY());
+		double difLat = latOtro - latUno;
+		double difLon = Math.toRadians(otro.getX() - uno.getX());
+
+		double a = Math.pow(Math.sin(difLat / 2), 2)
+				+ Math.cos(latUno) * Math.cos(latOtro) * Math.pow(Math.sin(difLon / 2), 2);
+		return 2 * RADIO_TIERRA_M * Math.asin(Math.sqrt(a));
+	}
+
 }

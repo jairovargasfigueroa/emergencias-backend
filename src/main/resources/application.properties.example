@@ -38,3 +38,21 @@ sga.seguridad.dias-app=180
 sga.admin.correo=
 sga.admin.clave=
 sga.admin.nombre=Administrador
+
+# Traslados. Todos tienen valor por defecto: se declaran aca para poder ajustarlos sin tocar codigo.
+# Estimacion del viaje: cuanto mas largo es por calle que en linea recta, y a que velocidad promedio.
+sga.traslados.factor-calle=1.4
+sga.traslados.velocidad-km-h=25
+# Minutos: llegar al origen, subir al paciente, y el colchon sobre la ultima salida posible.
+# El margen es tambien la ventana que se le promete a la familia ("pasamos entre 9:00 y 9:40").
+sga.traslados.minutos-acercamiento=15
+sga.traslados.minutos-recogida=15
+sga.traslados.minutos-margen=20
+# Cuanto se busca unidad para un pedido inmediato antes de darlo por no cubierto.
+sga.traslados.minutos-ventana-inmediato=60
+# Con cuanta anticipacion se le avisa al administrador de un traslado que pinta mal.
+sga.traslados.minutos-aviso-temprano=120
+# Unidad minima segun lo que necesita el paciente. Depende de como este equipada la flota.
+sga.traslados.minimo-para-camilla=II
+sga.traslados.minimo-para-oxigeno=II
+sga.traslados.minimo-para-equipo=III
