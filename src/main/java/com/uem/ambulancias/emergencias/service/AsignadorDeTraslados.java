@@ -23,6 +23,7 @@ import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +42,7 @@ public class AsignadorDeTraslados {
 	private final AmbulanciaRepository ambulancias;
 	private final TurnoRepository turnos;
 	private final UsuarioRepository usuarios;
+	private final ApplicationEventPublisher eventos;
 
 	/** Los programados a los que ya les llegó la hora de salir pasan a buscar unidad. */
 	@Transactional
@@ -130,6 +132,8 @@ public class AsignadorDeTraslados {
 		ambulancia.cambiarEstado(EstadoAmbulancia.EN_ATENCION);
 		traslado.asignar();
 		traslados.save(traslado);
+		// El responsable está manejando, no mirando la app: si no se le avisa, se entera recién cuando la abre.
+		eventos.publishEvent(new TrasladoAsignado(traslado.getId(), responsable.getId()));
 		return Optional.of(atencion);
 	}
 
