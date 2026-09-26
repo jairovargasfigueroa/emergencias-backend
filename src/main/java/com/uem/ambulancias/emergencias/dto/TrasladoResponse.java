@@ -20,6 +20,9 @@ public record TrasladoResponse(
 		Instant horaCita,
 		Instant horaSalidaEstimada,
 		Instant horaLimiteSalida,
+		/** La ventana que se le promete a la familia: cuándo pasa la unidad por el origen. */
+		Instant horaRecogidaDesde,
+		Instant horaRecogidaHasta,
 
 		String pasajero,
 		Movilidad movilidad,
@@ -52,6 +55,8 @@ public record TrasladoResponse(
 				traslado.getHoraCita(),
 				traslado.getHoraSalidaEstimada(),
 				traslado.getHoraLimiteSalida(),
+				traslado.getHoraRecogidaDesde(),
+				traslado.getHoraRecogidaHasta(),
 				traslado.getPasajero().getNombreCompleto(),
 				traslado.getMovilidad(),
 				traslado.isRequiereOxigeno(),

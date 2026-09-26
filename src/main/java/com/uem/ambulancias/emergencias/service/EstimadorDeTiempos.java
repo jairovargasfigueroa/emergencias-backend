@@ -30,8 +30,8 @@ public class EstimadorDeTiempos {
 		long minutosSinMargen = config.minutosAcercamiento() + config.minutosRecogida()
 				+ minutosDeViaje(origen, destino);
 		Instant limite = horaCita.minus(Duration.ofMinutes(minutosSinMargen));
-		return new Horario(ModoHorario.PROGRAMADO, horaCita,
-				limite.minus(Duration.ofMinutes(config.minutosMargen())), limite);
+		Instant salida = limite.minus(Duration.ofMinutes(config.minutosMargen()));
+		return conVentanaDeRecogida(ModoHorario.PROGRAMADO, horaCita, salida, limite);
 	}
 
 	/**
@@ -39,8 +39,17 @@ public class EstimadorDeTiempos {
 	 * ventana fija: pasada esa hora se le dice a la familia que no se pudo, en vez de tenerla esperando.
 	 */
 	public Horario paraAhora(Instant ahora) {
-		return new Horario(ModoHorario.INMEDIATO, null, ahora,
+		return conVentanaDeRecogida(ModoHorario.INMEDIATO, null, ahora,
 				ahora.plus(Duration.ofMinutes(config.minutosVentanaInmediato())));
+	}
+
+	/**
+	 * La recogida es la salida más el acercamiento: la unidad no aparece en la puerta en el mismo instante en que
+	 * arranca. Es la ventana que se le promete a la familia, y por eso se guarda y no se recalcula después.
+	 */
+	private Horario conVentanaDeRecogida(ModoHorario modo, Instant horaCita, Instant salida, Instant limite) {
+		Duration acercamiento = Duration.ofMinutes(config.minutosAcercamiento());
+		return new Horario(modo, horaCita, salida, limite, salida.plus(acercamiento), limite.plus(acercamiento));
 	}
 
 	/** Minutos del tramo con el paciente a bordo. */
