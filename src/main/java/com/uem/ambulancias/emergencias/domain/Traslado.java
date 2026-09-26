@@ -118,6 +118,11 @@ public class Traslado {
 	@Column(nullable = false)
 	private Instant horaLimiteSalida;
 
+	/** Cuándo pasa la unidad por el origen. Es lo que se le promete a la familia, no la hora de salida. */
+	private Instant horaRecogidaDesde;
+
+	private Instant horaRecogidaHasta;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private EstadoTraslado estado;
@@ -162,6 +167,8 @@ public class Traslado {
 		traslado.horaCita = horario.horaCita();
 		traslado.horaSalidaEstimada = horario.salidaEstimada();
 		traslado.horaLimiteSalida = horario.limiteSalida();
+		traslado.horaRecogidaDesde = horario.recogidaDesde();
+		traslado.horaRecogidaHasta = horario.recogidaHasta();
 		traslado.estado = horario.modo() == ModoHorario.INMEDIATO
 				? EstadoTraslado.BUSCANDO_UNIDAD
 				: EstadoTraslado.PROGRAMADO;
@@ -199,6 +206,8 @@ public class Traslado {
 		this.horaCita = horario.horaCita();
 		this.horaSalidaEstimada = horario.salidaEstimada();
 		this.horaLimiteSalida = horario.limiteSalida();
+		this.horaRecogidaDesde = horario.recogidaDesde();
+		this.horaRecogidaHasta = horario.recogidaHasta();
 		// Si movieron la cita para más tarde, deja de ser hora de salir y el pedido vuelve a esperar su día.
 		this.estado = horario.modo() == ModoHorario.INMEDIATO
 				? EstadoTraslado.BUSCANDO_UNIDAD
