@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
@@ -37,8 +39,12 @@ public class PlanificadorDeTraslados {
 	/**
 	 * Un traslado esperando y una unidad que se desocupa: engancharlos en el momento en vez de esperar al próximo
 	 * barrido. Corre después del commit, cuando la unidad ya quedó libre de verdad.
+	 *
+	 * <p>Va en transacción nueva a propósito: en esta fase la transacción que liberó la unidad sigue atada al hilo
+	 * pero ya está commiteada, así que una transacción que se colgara de ella no llegaría a guardar nada.
 	 */
 	@TransactionalEventListener
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public void alLiberarseUnaUnidad(UnidadLiberada evento) {
 		ambulancias.findById(evento.ambulanciaId()).ifPresent(unidad -> {
 			List<TipoUnidad> queCubre = TipoUnidad.ESCALERA.stream()
