@@ -2,7 +2,9 @@ package com.uem.ambulancias.flota.controller;
 
 import java.util.List;
 
+import com.uem.ambulancias.comun.web.UsuarioActual;
 import com.uem.ambulancias.flota.dto.AmbulanciaResponse;
+import com.uem.ambulancias.flota.dto.EditarAmbulanciaRequest;
 import com.uem.ambulancias.flota.dto.AsignacionResponse;
 import com.uem.ambulancias.flota.dto.RegistrarAmbulanciaRequest;
 import com.uem.ambulancias.flota.service.AmbulanciaService;
@@ -13,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -44,9 +47,20 @@ public class AmbulanciaController {
 		return AmbulanciaResponse.de(ambulanciaService.marcarFueraDeServicio(id));
 	}
 
+	@PutMapping("/{id}")
+	public AmbulanciaResponse editar(@PathVariable Long id, @Valid @RequestBody EditarAmbulanciaRequest request) {
+		return AmbulanciaResponse.de(ambulanciaService.editar(id, request.placa(), request.tipoUnidad()));
+	}
+
+	/** La pide el administrador, o el paramédico de esa misma unidad: por eso hace falta saber quién llama. */
 	@PostMapping("/{id}/reactivar")
-	public AmbulanciaResponse reactivar(@PathVariable Long id) {
-		return AmbulanciaResponse.de(ambulanciaService.reactivar(id));
+	public AmbulanciaResponse reactivar(@PathVariable Long id, @UsuarioActual Long usuarioId) {
+		return AmbulanciaResponse.de(ambulanciaService.reactivar(id, usuarioId));
+	}
+
+	@PostMapping("/{id}/activar")
+	public AmbulanciaResponse activar(@PathVariable Long id) {
+		return AmbulanciaResponse.de(ambulanciaService.activar(id));
 	}
 
 	@PostMapping("/{id}/desactivar")

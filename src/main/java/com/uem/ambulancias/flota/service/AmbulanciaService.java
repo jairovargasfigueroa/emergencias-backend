@@ -12,6 +12,9 @@ import com.uem.ambulancias.flota.domain.TipoUnidad;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.repository.AsignacionRepository;
 import com.uem.ambulancias.flota.repository.TurnoRepository;
+import com.uem.ambulancias.usuarios.domain.RolUsuario;
+import com.uem.ambulancias.usuarios.domain.Usuario;
+import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -26,11 +29,12 @@ public class AmbulanciaService {
 	private final AmbulanciaRepository ambulancias;
 	private final AsignacionRepository asignaciones;
 	private final TurnoRepository turnos;
+	private final UsuarioRepository usuarios;
 
 	/** La placa se guarda sin espacios y en mayúsculas, y es única (R5). */
 	@Transactional
 	public Ambulancia registrar(String placa, TipoUnidad tipoUnidad) {
-		String placaNormalizada = placa.trim().toUpperCase(Locale.ROOT);
+		String placaNormalizada = normalizarPlaca(placa);
 		if (ambulancias.existsByPlaca(placaNormalizada)) {
 			throw placaDuplicada(placaNormalizada);
 		}
@@ -53,12 +57,65 @@ public class AmbulanciaService {
 		return ambulancia;
 	}
 
+	/**
+	 * ME-1 M5: vuelve de una avería. La puede pedir el administrador, o el paramédico de esa misma unidad desde
+	 * su app. Se verifica de quién es porque era la única ruta del sistema donde la ambulancia salía de la URL y
+	 * no del token: un paramédico podía poner en servicio una unidad ajena que seguía rota de verdad.
+	 */
 	@Transactional
-	public Ambulancia reactivar(Long id) {
+	public Ambulancia reactivar(Long id, Long usuarioId) {
+		exigirQueSeaSuUnidad(id, usuarioId);
 		Ambulancia ambulancia = buscarParaActualizar(id);
 		ambulancia.reactivar(turnos.contarAbiertosPorAmbulancia(id) > 0);
 		return ambulancia;
 	}
+
+	/** Corrige la placa o el tipo. La placa sigue las mismas reglas que al registrar, sin contarse a sí misma. */
+	@Transactional
+	public Ambulancia editar(Long id, String placa, TipoUnidad tipoUnidad) {
+		Ambulancia ambulancia = buscarParaActualizar(id);
+		String placaNormalizada = normalizarPlaca(placa);
+		if (ambulancias.existsByPlacaAndIdNot(placaNormalizada, id)) {
+			throw placaDuplicada(placaNormalizada);
+		}
+		try {
+			ambulancia.corregirDatos(placaNormalizada, tipoUnidad);
+			ambulancias.flush();
+			return ambulancia;
+		} catch (DataIntegrityViolationException e) {
+			// Otra petición se quedó con la misma placa entre la verificación y el guardado.
+			throw placaDuplicada(placaNormalizada);
+		}
+	}
+
+	/** Deshace la baja lógica. La placa nunca se libera, así que no hay nada que revisar. */
+	@Transactional
+	public Ambulancia activar(Long id) {
+		Ambulancia ambulancia = buscarParaActualizar(id);
+		ambulancia.activar();
+		return ambulancia;
+	}
+
+	private void exigirQueSeaSuUnidad(Long ambulanciaId, Long usuarioId) {
+		Usuario usuario = usuarios.findById(usuarioId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el usuario " + usuarioId + "."));
+		if (usuario.getRol() != RolUsuario.PARAMEDICO) {
+			return;
+		}
+		boolean esSuUnidad = asignaciones.buscarVigentePorParamedico(usuarioId)
+				.filter(asignacion -> asignacion.getAmbulancia().getId().equals(ambulanciaId))
+				.isPresent();
+		if (!esSuUnidad) {
+			throw new ConflictoException(CodigoError.AMBULANCIA_AJENA,
+					"Solo puedes volver a servicio la ambulancia que tienes asignada.");
+		}
+	}
+
+	/** Sin espacios en ninguna parte y en mayúsculas, para que "ABC 123" y "ABC123" sean la misma placa. */
+	private static String normalizarPlaca(String placa) {
+		return placa.replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
+	}
+
 
 	@Transactional
 	public Ambulancia desactivar(Long id) {

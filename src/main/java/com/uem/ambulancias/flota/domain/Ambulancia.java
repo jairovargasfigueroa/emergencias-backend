@@ -97,6 +97,24 @@ public class Ambulancia {
 		activa = false;
 	}
 
+	/** Deshace la baja lógica. El estado no se toca: vuelve como quedó. */
+	public void activar() {
+		activa = true;
+	}
+
+	/**
+	 * Corrige lo que se cargó mal. La placa se puede cambiar siempre porque no altera lo que la unidad puede
+	 * hacer. El tipo no, con una atención en curso: es lo que decide qué traslados puede tomar, y bajarlo a
+	 * mitad de un viaje dejaría a ese paciente con una unidad que ya no le corresponde.
+	 */
+	public void corregirDatos(String placa, TipoUnidad tipoUnidad) {
+		if (this.tipoUnidad != tipoUnidad && estado == EstadoAmbulancia.EN_ATENCION) {
+			throw enAtencion();
+		}
+		this.placa = placa;
+		this.tipoUnidad = tipoUnidad;
+	}
+
 	/** Puede tomar o sumarse a un incidente: está activa y DISPONIBLE (PB-04 R5). */
 	public boolean puedeAtender() {
 		return activa && estado == EstadoAmbulancia.DISPONIBLE;

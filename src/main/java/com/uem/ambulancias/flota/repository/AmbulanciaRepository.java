@@ -21,6 +21,9 @@ public interface AmbulanciaRepository extends JpaRepository<Ambulancia, Long> {
 
 	boolean existsByPlaca(String placa);
 
+	/** Lo mismo, sin contarse a sí misma: al editar, dejar la placa como estaba no puede ser un conflicto. */
+	boolean existsByPlacaAndIdNot(String placa, Long id);
+
 	List<Ambulancia> findAllByOrderByPlacaAsc();
 
 	/**
