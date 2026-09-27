@@ -39,6 +39,19 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
 			""")
 	List<Alerta> buscarPorIncidente(@Param("incidenteId") Long incidenteId);
 
+	/**
+	 * Lo mismo para varios incidentes de una vez, en orden de emisión. Un incidente no tiene nombre propio: lo
+	 * único que lo hace reconocible en una lista es lo que escribió el que avisó, y es la primera descripción la
+	 * que vale, porque la escribió quien vio el hecho primero.
+	 */
+	@Query("""
+			select new com.uem.ambulancias.emergencias.repository.ReferenciaDeIncidente(a.incidente.id, a.descripcion)
+			from Alerta a
+			where a.incidente.id in :incidenteIds and a.descripcion is not null
+			order by a.fechaHora, a.id
+			""")
+	List<ReferenciaDeIncidente> buscarDescripcionesPorIncidentes(@Param("incidenteIds") Collection<Long> incidenteIds);
+
 	/** Cantidad de alertas de cada uno de esos incidentes, en una sola consulta agrupada. */
 	@Query("""
 			select new com.uem.ambulancias.emergencias.repository.AlertasPorIncidente(a.incidente.id, count(a))

@@ -1,5 +1,6 @@
 package com.uem.ambulancias.emergencias.repository;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +36,14 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 	/** La atención activa de la ambulancia. ME-1 garantiza que hay a lo sumo una. */
 	default Optional<Atencion> buscarActivaPorAmbulancia(Long ambulanciaId) {
 		return buscarPorAmbulanciaYEstados(ambulanciaId, EstadoAtencion.ACTIVOS).stream().findFirst();
+	}
+
+	/**
+	 * Lo mismo para varias unidades de una vez. El centro de control se refresca solo cada pocos segundos: una
+	 * consulta por unidad sería la misma pregunta multiplicada por el tamaño de la flota, cada vez.
+	 */
+	default List<Atencion> buscarActivasPorAmbulancias(Collection<Long> ambulanciaIds) {
+		return buscarPorAmbulanciasYEstados(ambulanciaIds, EstadoAtencion.ACTIVOS);
 	}
 
 	/** La atención que tiene tomada a la ambulancia: la que está en curso, o una ya resuelta que no se liberó. */
@@ -114,6 +123,30 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 			""")
 	List<Atencion> buscarPorAmbulanciaYEstados(@Param("ambulanciaId") Long ambulanciaId,
 			@Param("estados") Collection<EstadoAtencion> estados);
+
+	@Query("""
+			select a from Atencion a join fetch a.ambulancia
+			where a.ambulancia.id in :ambulanciaIds and a.estado in :estados
+			order by a.horaToma desc
+			""")
+	List<Atencion> buscarPorAmbulanciasYEstados(@Param("ambulanciaIds") Collection<Long> ambulanciaIds,
+			@Param("estados") Collection<EstadoAtencion> estados);
+
+	/**
+	 * Las atenciones que tuvieron algún hito dentro de la ventana. Es la bitácora del centro de control: no hay
+	 * tabla de eventos porque cada hito ya quedó congelado en su columna, así que se pregunta por las columnas y
+	 * la lista de eventos se arma en memoria.
+	 *
+	 * <p>Se miran todas y no solo {@code horaToma}: una unidad que salió anteayer y recién ahora entregó tiene
+	 * novedades de hoy aunque su atención sea vieja.
+	 */
+	@Query("""
+			select a from Atencion a join fetch a.ambulancia left join fetch a.centroSalud
+			where a.horaToma >= :desde or a.horaLlegada >= :desde or a.horaRecogida >= :desde
+			   or a.horaLlegadaHospital >= :desde or a.horaEntrega >= :desde or a.horaSinTraslado >= :desde
+			   or a.horaLiberacion >= :desde or a.horaCancelacion >= :desde or a.horaAvisoNoListo >= :desde
+			""")
+	List<Atencion> buscarConHitosDesde(@Param("desde") Instant desde);
 
 	/** Todas las atenciones de esos incidentes, con su ambulancia y su centro de salud, en orden de toma. */
 	@Query("""
