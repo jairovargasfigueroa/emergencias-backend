@@ -11,6 +11,7 @@ import com.uem.ambulancias.flota.domain.Asignacion;
 import com.uem.ambulancias.flota.exception.ReasignacionRequiereConfirmacionException;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.repository.AsignacionRepository;
+import com.uem.ambulancias.flota.repository.TurnoRepository;
 import com.uem.ambulancias.usuarios.domain.RolUsuario;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
@@ -26,6 +27,7 @@ public class AsignacionService {
 	private final UsuarioRepository usuarios;
 	private final AmbulanciaRepository ambulancias;
 	private final AsignacionRepository asignaciones;
+	private final TurnoRepository turnos;
 
 	/**
 	 * Asigna un paramédico activo a una ambulancia activa (R2). Si ya tiene una asignación vigente con
@@ -39,6 +41,14 @@ public class AsignacionService {
 		if (!paramedico.isActivo()) {
 			throw new ConflictoException(CodigoError.PARAMEDICO_INACTIVO,
 					"El paramédico " + paramedico.getNombreCompleto() + " está desactivado.");
+		}
+
+		// Mover a alguien de unidad mientras trabaja separa su turno de su asignación: el turno se queda con la
+		// ambulancia vieja y la asignación con la nueva, y a partir de ahí su GPS, su atención en curso y los
+		// avisos apuntan a unidades distintas. Se cambia de ambulancia bajándose de la anterior, no en marcha.
+		if (turnos.buscarAbiertoPorParamedico(paramedicoId).isPresent()) {
+			throw new ConflictoException(CodigoError.PARAMEDICO_EN_TURNO, paramedico.getNombreCompleto()
+					+ " está en turno. Tiene que salir de turno antes de cambiarle la ambulancia.");
 		}
 
 		Ambulancia ambulancia = ambulancias.findById(ambulanciaId)
