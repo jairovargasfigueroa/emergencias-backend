@@ -30,6 +30,13 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 	 */
 	Optional<Usuario> findFirstByTelefonoAndRolAndRegistradoPorIsNullOrderByIdAsc(String telefono, RolUsuario rol);
 
+	/**
+	 * Si ese número ya identifica a alguien de ese rol. Mira exactamente lo mismo que el ingreso a la app: solo
+	 * cuentas propias y activas. Un dependiente no cuenta porque no inicia sesión, y una persona dada de baja
+	 * tampoco, así que su número queda libre para quien venga después.
+	 */
+	boolean existsByTelefonoAndRolAndActivoTrueAndRegistradoPorIsNull(String telefono, RolUsuario rol);
+
 	Optional<Usuario> findFirstByTelefonoAndRolAndActivoTrueAndRegistradoPorIsNullOrderByIdAsc(String telefono,
 			RolUsuario rol);
 
