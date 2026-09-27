@@ -3,6 +3,7 @@ package com.uem.ambulancias.flota.controller;
 import java.util.List;
 
 import com.uem.ambulancias.flota.dto.AsignacionResponse;
+import com.uem.ambulancias.flota.dto.EditarParamedicoRequest;
 import com.uem.ambulancias.flota.dto.ParamedicoResponse;
 import com.uem.ambulancias.flota.dto.RegistrarParamedicoRequest;
 import com.uem.ambulancias.flota.service.ParamedicoConAsignacion;
@@ -14,6 +15,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -40,9 +42,25 @@ public class PersonalController {
 		return personalService.listarParamedicos().stream().map(PersonalController::aRespuesta).toList();
 	}
 
+	@PutMapping("/{id}")
+	public ParamedicoResponse editar(@PathVariable Long id, @Valid @RequestBody EditarParamedicoRequest request) {
+		return aRespuesta(personalService.editarParamedico(id, request.nombreCompleto(), request.telefono()));
+	}
+
 	@PostMapping("/{id}/desactivar")
 	public ParamedicoResponse desactivar(@PathVariable Long id) {
 		return aRespuesta(personalService.desactivarParamedico(id));
+	}
+
+	@PostMapping("/{id}/activar")
+	public ParamedicoResponse activar(@PathVariable Long id) {
+		return aRespuesta(personalService.activarParamedico(id));
+	}
+
+	/** Lo deja sin ambulancia, sin ponerlo en otra. */
+	@PostMapping("/{id}/quitar-asignacion")
+	public ParamedicoResponse quitarDeLaUnidad(@PathVariable Long id) {
+		return aRespuesta(personalService.quitarDeLaUnidad(id));
 	}
 
 	@GetMapping("/{id}/asignaciones")
