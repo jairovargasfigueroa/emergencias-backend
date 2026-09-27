@@ -15,6 +15,7 @@ import com.uem.ambulancias.flota.repository.TurnoRepository;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,7 @@ public class TurnoService {
 	private final AmbulanciaRepository ambulancias;
 	private final AtencionRepository atenciones;
 	private final ServicioParamedicoService servicioParamedico;
+	private final ApplicationEventPublisher eventos;
 
 	/** El turno abierto del paramédico, si está trabajando ahora. */
 	public Optional<Turno> turnoAbierto(Long paramedicoId) {
@@ -84,6 +86,8 @@ public class TurnoService {
 			if (ambulancia.getEstado() == EstadoAmbulancia.DISPONIBLE) {
 				ambulancia.cambiarEstado(EstadoAmbulancia.SIN_TURNO);
 			}
+			// Se avisa aunque la unidad quede averiada: de cualquier modo ya no hay quién reporte su posición.
+			eventos.publishEvent(new UnidadSinTripulacion(ambulanciaId));
 		}
 		return turno;
 	}

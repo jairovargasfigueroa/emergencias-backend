@@ -3,8 +3,10 @@ package com.uem.ambulancias.emergencias.repository;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
+import com.uem.ambulancias.emergencias.domain.EstadoAtencion;
 import com.uem.ambulancias.emergencias.domain.EstadoIncidente;
 import com.uem.ambulancias.emergencias.domain.Incidente;
 
@@ -48,5 +50,25 @@ public interface IncidenteRepository extends JpaRepository<Incidente, Long> {
 
 	/** Consulta del panel: incidentes en alguno de esos estados, con el orden y la página del pedido. */
 	Page<Incidente> findByEstadoIn(Collection<EstadoIncidente> estados, Pageable pageable);
+
+	/**
+	 * Los incidentes que nadie está cubriendo: ACTIVO y sin ninguna atención activa encima. Es la lista roja del
+	 * centro de control, el más viejo primero, porque el que lleva más tiempo esperando es el que más urge.
+	 *
+	 * <p>El estado ya debería alcanzar —ME-1 devuelve el incidente a ACTIVO cuando se cancela la última unidad—,
+	 * pero se pregunta igual por las atenciones: si alguna vez el estado quedara desfasado, el error sería mandar
+	 * otra unidad a un incidente ya cubierto, y eso se paga con una ambulancia menos en la calle.
+	 */
+	default List<Incidente> buscarSinCubrir() {
+		return buscarActivosSinAtencionEn(EstadoAtencion.ACTIVOS);
+	}
+
+	@Query("""
+			select i from Incidente i
+			where i.estado = 'ACTIVO'
+			  and not exists (select a from Atencion a where a.incidente = i and a.estado in :activos)
+			order by i.fechaHoraCreacion, i.id
+			""")
+	List<Incidente> buscarActivosSinAtencionEn(@Param("activos") Collection<EstadoAtencion> activos);
 
 }

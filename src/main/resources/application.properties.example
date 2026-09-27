@@ -60,3 +60,10 @@ sga.traslados.minimo-para-equipo=III
 sga.traslados.barrido-seg=120
 # Zona horaria con la que el panel decide que es "hoy". El servidor puede estar en UTC.
 sga.traslados.zona=America/La_Paz
+
+# Centro de control. Todos tienen valor por defecto: se declaran aca para poder ajustarlos sin tocar codigo.
+# Cuanto pasado muestra la bitacora y cuantos eventos devuelve.
+sga.operacion.ventana-eventos-horas=12
+sga.operacion.maximo-eventos=40
+# Segundos sin reportar posicion a partir de los cuales la unidad se marca sin senal.
+sga.operacion.sin-senal-seg=60

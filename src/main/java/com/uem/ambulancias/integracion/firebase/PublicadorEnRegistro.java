@@ -46,6 +46,11 @@ public class PublicadorEnRegistro implements PublicadorDeIncidentes, PublicadorD
 	}
 
 	@Override
+	public void retirarPosicion(Long ambulanciaId) {
+		log.info("Firebase apagado: no se retira la posición de la ambulancia {}.", ambulanciaId);
+	}
+
+	@Override
 	public void notificarNuevoIncidente(List<String> tokensPorCercania, IncidentePublicado incidente) {
 		log.info("Firebase apagado: no se envía push del incidente {} a {} teléfonos.", incidente.id(),
 				tokensPorCercania.size());
