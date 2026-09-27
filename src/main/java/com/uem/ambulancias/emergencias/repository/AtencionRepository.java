@@ -124,8 +124,13 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 	List<Atencion> buscarPorAmbulanciaYEstados(@Param("ambulanciaId") Long ambulanciaId,
 			@Param("estados") Collection<EstadoAtencion> estados);
 
+	/**
+	 * Se traen también el incidente y el traslado: las entidades mapean el padre como asociación y no como id
+	 * suelto, así que sin esto pedirle el id a cada uno despierta su proxy y cae una consulta por atención.
+	 */
 	@Query("""
 			select a from Atencion a join fetch a.ambulancia
+			left join fetch a.incidente left join fetch a.traslado
 			where a.ambulancia.id in :ambulanciaIds and a.estado in :estados
 			order by a.horaToma desc
 			""")
@@ -139,9 +144,13 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 	 *
 	 * <p>Se miran todas y no solo {@code horaToma}: una unidad que salió anteayer y recién ahora entregó tiene
 	 * novedades de hoy aunque su atención sea vieja.
+	 *
+	 * <p>Viene todo lo que cada evento nombra —unidad, destino y de qué cuelga la atención— porque si no, armar
+	 * la lista dispara una consulta por evento.
 	 */
 	@Query("""
 			select a from Atencion a join fetch a.ambulancia left join fetch a.centroSalud
+			left join fetch a.incidente left join fetch a.traslado
 			where a.horaToma >= :desde or a.horaLlegada >= :desde or a.horaRecogida >= :desde
 			   or a.horaLlegadaHospital >= :desde or a.horaEntrega >= :desde or a.horaSinTraslado >= :desde
 			   or a.horaLiberacion >= :desde or a.horaCancelacion >= :desde or a.horaAvisoNoListo >= :desde
