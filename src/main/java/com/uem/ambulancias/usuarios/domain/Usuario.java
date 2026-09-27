@@ -108,6 +108,20 @@ public class Usuario {
 		activo = false;
 	}
 
+	/** Deshace la baja lógica. Vuelve con todo lo suyo: su asignación nunca se cerró. */
+	public void activar() {
+		activo = true;
+	}
+
+	/**
+	 * Corrige lo que se cargó mal. El teléfono no es un dato de contacto cualquiera: hoy es la credencial con la
+	 * que el paramédico entra a su app, así que cambiarlo cambia quién puede iniciar sesión como esta persona.
+	 */
+	public void corregirDatos(String nombreCompleto, String telefono) {
+		this.nombreCompleto = nombreCompleto;
+		this.telefono = telefono;
+	}
+
 	/** La clave nueva llega ya cifrada: la entidad nunca ve la original. */
 	public void cambiarClave(String claveCifrada) {
 		this.clave = claveCifrada;

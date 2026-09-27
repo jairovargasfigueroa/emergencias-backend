@@ -37,6 +37,9 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 	 */
 	boolean existsByTelefonoAndRolAndActivoTrueAndRegistradoPorIsNull(String telefono, RolUsuario rol);
 
+	/** Lo mismo, sin contarse a sí mismo: al editar, dejar el teléfono como estaba no puede ser un conflicto. */
+	boolean existsByTelefonoAndRolAndActivoTrueAndRegistradoPorIsNullAndIdNot(String telefono, RolUsuario rol, Long id);
+
 	Optional<Usuario> findFirstByTelefonoAndRolAndActivoTrueAndRegistradoPorIsNullOrderByIdAsc(String telefono,
 			RolUsuario rol);
 
