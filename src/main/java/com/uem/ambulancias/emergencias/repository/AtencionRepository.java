@@ -46,6 +46,15 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 		return buscarPorAmbulanciasYEstados(ambulanciaIds, EstadoAtencion.ACTIVOS);
 	}
 
+	/**
+	 * Las atenciones que tienen tomadas a esas unidades: en curso, o ya resueltas y sin liberar. Es el mismo
+	 * criterio que deja a la ambulancia en EN_ATENCION, asi que preguntando por aca nunca aparece una unidad
+	 * ocupada sin nada que mostrar.
+	 */
+	default List<Atencion> buscarQueOcupanAmbulancias(Collection<Long> ambulanciaIds) {
+		return buscarOcupandoAmbulancias(ambulanciaIds, EstadoAtencion.ACTIVOS, EstadoAtencion.RESUELTOS);
+	}
+
 	/** La atención que tiene tomada a la ambulancia: la que está en curso, o una ya resuelta que no se liberó. */
 	default Optional<Atencion> buscarQueOcupaAmbulancia(Long ambulanciaId) {
 		return buscarOcupandoAmbulancia(ambulanciaId, EstadoAtencion.ACTIVOS, EstadoAtencion.RESUELTOS).stream()
@@ -136,6 +145,17 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 			""")
 	List<Atencion> buscarPorAmbulanciasYEstados(@Param("ambulanciaIds") Collection<Long> ambulanciaIds,
 			@Param("estados") Collection<EstadoAtencion> estados);
+
+	@Query("""
+			select a from Atencion a join fetch a.ambulancia
+			left join fetch a.incidente left join fetch a.traslado
+			where a.ambulancia.id in :ambulanciaIds
+			  and (a.estado in :activos or (a.estado in :resueltos and a.horaLiberacion is null))
+			order by a.horaToma desc
+			""")
+	List<Atencion> buscarOcupandoAmbulancias(@Param("ambulanciaIds") Collection<Long> ambulanciaIds,
+			@Param("activos") Collection<EstadoAtencion> activos,
+			@Param("resueltos") Collection<EstadoAtencion> resueltos);
 
 	/**
 	 * Las atenciones que tuvieron algún hito dentro de la ventana. Es la bitácora del centro de control: no hay
