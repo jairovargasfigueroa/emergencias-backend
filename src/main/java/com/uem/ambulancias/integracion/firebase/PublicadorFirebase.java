@@ -88,6 +88,12 @@ public class PublicadorFirebase implements PublicadorDeIncidentes, PublicadorDeP
 	}
 
 	@Override
+	public void retirarPosicion(Long ambulanciaId) {
+		EscriturasFirebase.registrarFallo(nodo(POSICIONES, ambulanciaId).removeValueAsync(),
+				"retirar la posición de la ambulancia " + ambulanciaId);
+	}
+
+	@Override
 	public void publicarPosicionEnSeguimiento(Long incidenteId, PosicionActualizada posicion) {
 		DatabaseReference nodoPosicion = nodo(SEGUIMIENTO, incidenteId)
 				.child("unidades")
