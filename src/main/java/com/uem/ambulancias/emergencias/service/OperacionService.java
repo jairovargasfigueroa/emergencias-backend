@@ -3,7 +3,6 @@ package com.uem.ambulancias.emergencias.service;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -24,9 +23,8 @@ import com.uem.ambulancias.emergencias.repository.AtencionRepository;
 import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
 import com.uem.ambulancias.emergencias.repository.ReferenciaDeIncidente;
 import com.uem.ambulancias.flota.domain.Ambulancia;
-import com.uem.ambulancias.flota.domain.Asignacion;
 import com.uem.ambulancias.flota.domain.Turno;
-import com.uem.ambulancias.flota.repository.AsignacionRepository;
+import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.repository.TurnoRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -46,7 +44,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class OperacionService {
 
-	private final AsignacionRepository asignaciones;
+	private final AmbulanciaRepository ambulancias;
 	private final TurnoRepository turnos;
 	private final AtencionRepository atenciones;
 	private final IncidenteRepository incidentes;
@@ -55,7 +53,7 @@ public class OperacionService {
 	private final OperacionProperties config;
 
 	public OperacionResponse estadoActual() {
-		List<Ambulancia> unidades = unidadesEnServicio();
+		List<Ambulancia> unidades = unidadesSupervisadas();
 		List<Long> unidadIds = unidades.stream().map(Ambulancia::getId).toList();
 
 		Map<Long, List<Turno>> tripulaciones = tripulacionesPorUnidad(unidadIds);
@@ -83,18 +81,12 @@ public class OperacionService {
 	}
 
 	/**
-	 * Las unidades que el centro de control supervisa: las que tienen a alguien asignado. Una ambulancia sin
-	 * paramédico asignado todavía no es una unidad operable, así que no ocupa lugar en la pantalla.
+	 * Toda la flota dada de alta, no solo la que tiene a alguien adentro. Una unidad sin turno o parada por
+	 * avería es justamente la que el administrador necesita ver: esconderla sería ocultarle que le falta gente
+	 * o que tiene una ambulancia sin usar. Las dadas de baja sí quedan afuera: ya no son parte de la operación.
 	 */
-	private List<Ambulancia> unidadesEnServicio() {
-		return asignaciones.buscarVigentes().stream()
-				.map(Asignacion::getAmbulancia)
-				// Varios paramédicos comparten unidad: de las asignaciones vigentes salen ambulancias repetidas.
-				.collect(Collectors.toMap(Ambulancia::getId, Function.identity(), (uno, otro) -> uno,
-						LinkedHashMap::new))
-				.values().stream()
-				.sorted(Comparator.comparing(Ambulancia::getPlaca))
-				.toList();
+	private List<Ambulancia> unidadesSupervisadas() {
+		return ambulancias.findAllByOrderByPlacaAsc().stream().filter(Ambulancia::isActiva).toList();
 	}
 
 	private Map<Long, List<Turno>> tripulacionesPorUnidad(List<Long> unidadIds) {
@@ -110,7 +102,7 @@ public class OperacionService {
 		if (unidadIds.isEmpty()) {
 			return Map.of();
 		}
-		return atenciones.buscarActivasPorAmbulancias(unidadIds).stream()
+		return atenciones.buscarQueOcupanAmbulancias(unidadIds).stream()
 				.collect(Collectors.toMap(atencion -> atencion.getAmbulancia().getId(), Function.identity(),
 						(uno, otro) -> uno));
 	}
