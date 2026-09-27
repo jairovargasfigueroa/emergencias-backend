@@ -28,6 +28,10 @@ public class SeguimientoDePosiciones {
 	public void copiarAlSeguimiento(PosicionActualizada posicion) {
 		try {
 			atenciones.buscarActivaPorAmbulancia(posicion.ambulanciaId())
+					// El seguimiento es de un incidente: una atencion de traslado no tiene ninguno y su posicion
+					// no va a parar a ningun lado. Sin este filtro, cada posicion de una unidad en traslado
+					// reventaba contra un incidente nulo y dejaba un error en el log.
+					.filter(atencion -> !atencion.esDeTraslado())
 					.ifPresent(atencion -> publicador.publicarPosicionEnSeguimiento(atencion.getIncidente().getId(),
 							posicion));
 		} catch (RuntimeException e) {
