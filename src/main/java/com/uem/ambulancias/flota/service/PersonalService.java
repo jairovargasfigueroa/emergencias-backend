@@ -5,6 +5,8 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.uem.ambulancias.comun.error.CodigoError;
+import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.flota.domain.Asignacion;
 import com.uem.ambulancias.flota.repository.AsignacionRepository;
@@ -13,6 +15,7 @@ import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,10 +30,30 @@ public class PersonalService {
 	private final UsuarioRepository usuarios;
 	private final AsignacionRepository asignaciones;
 
+	/**
+	 * El teléfono es hoy la única credencial del paramédico: con eso y nada más entra a su app. Por eso no puede
+	 * repetirse entre paramédicos activos — dos con el mismo número serían la misma cuenta, y el ingreso le
+	 * entregaría la sesión a uno de los dos sin forma de saber a cuál.
+	 */
 	@Transactional
 	public ParamedicoConAsignacion registrarParamedico(String nombreCompleto, String telefono) {
-		Usuario paramedico = usuarios.save(Usuario.registrarParamedico(nombreCompleto.trim(), telefono.trim()));
-		return new ParamedicoConAsignacion(paramedico, null);
+		String telefonoLimpio = telefono.trim();
+		if (usuarios.existsByTelefonoAndRolAndActivoTrueAndRegistradoPorIsNull(telefonoLimpio, RolUsuario.PARAMEDICO)) {
+			throw telefonoDuplicado(telefonoLimpio);
+		}
+		try {
+			Usuario paramedico = usuarios
+					.saveAndFlush(Usuario.registrarParamedico(nombreCompleto.trim(), telefonoLimpio));
+			return new ParamedicoConAsignacion(paramedico, null);
+		} catch (DataIntegrityViolationException e) {
+			// Otra petición registró el mismo número entre la verificación y el guardado.
+			throw telefonoDuplicado(telefonoLimpio);
+		}
+	}
+
+	private static ConflictoException telefonoDuplicado(String telefono) {
+		return new ConflictoException(CodigoError.TELEFONO_DUPLICADO,
+				"Ya hay un paramédico activo con el teléfono " + telefono + ".");
 	}
 
 	/** Paramédicos ordenados por nombre, cada uno con su asignación vigente si la tiene. */
