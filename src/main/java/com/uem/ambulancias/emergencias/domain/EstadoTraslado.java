@@ -40,8 +40,19 @@ public enum EstadoTraslado {
 			NO_CUBIERTO, Set.of(),
 			CANCELADO, Set.of());
 
+	/** Estados en los que una unidad lo tiene, o terminó en manos de una. */
+	public static final Set<EstadoTraslado> CON_UNIDAD = Set.of(ASIGNADO, COMPLETADO, NO_REALIZADO);
+
 	public boolean isVigente() {
 		return VIGENTES.contains(this);
+	}
+
+	/**
+	 * Si hay una unidad a cargo, o la hubo hasta el final. En los demás estados las unidades que pasaron ya no
+	 * cuentan: lo devolvieron, o el traslado se canceló o se venció sin nadie.
+	 */
+	public boolean isConUnidad() {
+		return CON_UNIDAD.contains(this);
 	}
 
 	public boolean puedePasarA(EstadoTraslado nuevo) {

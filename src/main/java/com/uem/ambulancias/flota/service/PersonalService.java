@@ -104,7 +104,7 @@ public class PersonalService {
 				RolUsuario.PARAMEDICO, id)) {
 			throw new ConflictoException(CodigoError.TELEFONO_DUPLICADO,
 					"Mientras estuvo de baja, otro paramédico quedó con el teléfono " + paramedico.getTelefono()
-							+ ". Cambiá alguno de los dos antes de activarlo.");
+							+ ". Cambia alguno de los dos antes de activarlo.");
 		}
 		paramedico.activar();
 		return conAsignacion(paramedico);

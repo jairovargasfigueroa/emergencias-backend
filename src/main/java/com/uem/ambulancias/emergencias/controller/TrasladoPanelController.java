@@ -7,6 +7,7 @@ import com.uem.ambulancias.comun.web.UsuarioActual;
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.dto.AsignarTrasladoRequest;
 import com.uem.ambulancias.emergencias.dto.TrasladoDelPanelResponse;
+import com.uem.ambulancias.emergencias.dto.UnidadParaTrasladoResponse;
 import com.uem.ambulancias.emergencias.service.AsignadorDeTraslados;
 import com.uem.ambulancias.emergencias.service.TrasladoConAtencion;
 import com.uem.ambulancias.emergencias.service.TrasladoService;
@@ -41,7 +42,10 @@ public class TrasladoPanelController {
 		return trasladoService.delDia(dia).stream().map(TrasladoPanelController::respuesta).toList();
 	}
 
-	/** Los que siguen esperando unidad: es la bandeja donde el barrido deja lo que no pudo resolver solo. */
+	/**
+	 * La bandeja donde el barrido deja lo que no pudo resolver solo: los que siguen esperando unidad y los que se
+	 * vencieron sin ella hasta que alguien le avise a la familia.
+	 */
 	@GetMapping("/problemas")
 	public List<TrasladoDelPanelResponse> problemas() {
 		return trasladoService.problemas().stream().map(TrasladoPanelController::respuesta).toList();
@@ -52,11 +56,32 @@ public class TrasladoPanelController {
 		return respuesta(trasladoService.detalle(trasladoId));
 	}
 
+	/** Con qué unidades se puede asignar a mano, de la más cercana al origen a la más lejana. */
+	@GetMapping("/{id}/unidades")
+	public List<UnidadParaTrasladoResponse> unidades(@PathVariable("id") Long trasladoId) {
+		return asignador.candidatas(trasladoId).stream().map(UnidadParaTrasladoResponse::de).toList();
+	}
+
 	@PostMapping("/{id}/asignar")
 	public TrasladoDelPanelResponse asignar(@PathVariable("id") Long trasladoId, @UsuarioActual Long administradorId,
 			@Valid @RequestBody AsignarTrasladoRequest request) {
 		Atencion atencion = asignador.asignarA(trasladoId, request.ambulanciaId(), administradorId);
 		return TrasladoDelPanelResponse.de(atencion.getTraslado(), atencion);
+	}
+
+	/**
+	 * Sacarle el traslado a la unidad que no llega y devolverlo a la búsqueda, primero en la fila. Solo mientras
+	 * la unidad viene en camino.
+	 */
+	@PostMapping("/{id}/devolver")
+	public TrasladoDelPanelResponse devolverABusqueda(@PathVariable("id") Long trasladoId) {
+		return TrasladoDelPanelResponse.de(asignador.devolverABusqueda(trasladoId), null);
+	}
+
+	/** Ya se le avisó a la familia que no se consiguió unidad: el traslado sale de la bandeja. */
+	@PostMapping("/{id}/familia-avisada")
+	public TrasladoDelPanelResponse marcarFamiliaAvisada(@PathVariable("id") Long trasladoId) {
+		return respuesta(trasladoService.marcarFamiliaAvisada(trasladoId));
 	}
 
 	private static TrasladoDelPanelResponse respuesta(TrasladoConAtencion fila) {

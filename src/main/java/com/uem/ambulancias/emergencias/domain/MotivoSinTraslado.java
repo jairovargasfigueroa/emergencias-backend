@@ -19,6 +19,18 @@ public enum MotivoSinTraslado {
 	/** Solo en traslados: la unidad llegó y el paciente no estaba listo, y se retiró. */
 	PACIENTE_NO_LISTO,
 	/** Solo en traslados: el paciente necesita más de lo que la unidad enviada puede dar. */
-	UNIDAD_NO_CORRESPONDE
+	UNIDAD_NO_CORRESPONDE;
+
+	/**
+	 * Si el motivo tiene sentido para una atención de ese origen. En un traslado programado nadie espera que se
+	 * lo atienda en el lugar, y en una emergencia no hay ficha que corregir ni un paciente que se esté preparando.
+	 */
+	public boolean valePara(OrigenAtencion origen) {
+		return switch (this) {
+			case ATENDIDO_EN_EL_LUGAR -> origen == OrigenAtencion.INCIDENTE;
+			case PACIENTE_NO_LISTO, UNIDAD_NO_CORRESPONDE -> origen == OrigenAtencion.TRASLADO;
+			case PACIENTE_RECHAZO, NO_HABIA_PACIENTE, TRASLADO_POR_OTRO_MEDIO, FALLECIDO -> true;
+		};
+	}
 
 }

@@ -1,5 +1,6 @@
 package com.uem.ambulancias.emergencias.domain;
 
+import java.time.Duration;
 import java.time.Instant;
 
 import com.uem.ambulancias.comun.error.CodigoError;
@@ -89,6 +90,12 @@ public class Atencion {
 	 */
 	private Instant horaAvisoNoListo;
 
+	/**
+	 * Solo en traslados: hasta cuándo espera la tripulación a ese paciente. Se fija al marcar que no estaba listo,
+	 * con la tolerancia de ese momento, y antes de esa hora la unidad no puede retirarse por ese motivo.
+	 */
+	private Instant esperaHasta;
+
 	private String nombrePaciente;
 
 	private String documentoPaciente;
@@ -167,12 +174,17 @@ public class Atencion {
 	}
 
 	/**
-	 * Solo en traslados. Deja la marca y no cambia el estado: la unidad sigue en el lugar, esperando o por
-	 * retirarse, y eso lo decide el paramédico después.
+	 * Solo en traslados. Deja la marca, arranca la espera y no cambia el estado: la unidad sigue en la puerta, y
+	 * si sube al paciente o se retira lo decide la tripulación cuando pase la tolerancia.
 	 */
-	public void marcarPacienteNoListo(Instant ahora) {
+	public void marcarPacienteNoListo(Instant ahora, Duration espera) {
+		if (estado != EstadoAtencion.EN_EL_LUGAR) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"Que el paciente no está listo se marca en la puerta, con la unidad ya en el lugar.");
+		}
 		if (horaAvisoNoListo == null) {
 			horaAvisoNoListo = ahora;
+			esperaHasta = ahora.plus(espera);
 		}
 	}
 
@@ -225,13 +237,33 @@ public class Atencion {
 		if (motivo == null) {
 			throw new IllegalArgumentException("El motivo del cierre sin traslado es obligatorio.");
 		}
+		if (!motivo.valePara(OrigenAtencion.de(this))) {
+			throw new ConflictoException(CodigoError.VALIDACION, "Ese motivo no corresponde a esta atención.");
+		}
 		if (estado != EstadoAtencion.EN_EL_LUGAR) {
 			throw transicionInvalida(EstadoAtencion.SIN_TRASLADO);
+		}
+		if (motivo == MotivoSinTraslado.PACIENTE_NO_LISTO) {
+			exigirEsperaCumplida();
 		}
 		estado = EstadoAtencion.SIN_TRASLADO;
 		motivoSinTraslado = motivo;
 		horaSinTraslado = Instant.now();
 		ubicacionSinTraslado = ubicacion;
+	}
+
+	/**
+	 * Retirarse porque el paciente no estaba listo es de después de la espera, como en cualquier servicio de
+	 * traslados: primero se avisa que no está listo, y recién cuando pasa la tolerancia la unidad se puede ir.
+	 */
+	private void exigirEsperaCumplida() {
+		if (esperaHasta == null) {
+			throw new ConflictoException(CodigoError.ESPERA_EN_CURSO,
+					"Primero marca que el paciente no está listo: desde ahí corre el tiempo de espera.");
+		}
+		if (Instant.now().isBefore(esperaHasta)) {
+			throw new ConflictoException(CodigoError.ESPERA_EN_CURSO, "Todavía no terminó el tiempo de espera.");
+		}
 	}
 
 	/**
@@ -253,6 +285,43 @@ public class Atencion {
 	/** La unidad sigue tomada por esta atención: trabajando, o ya resuelta pero todavía sin liberarse. */
 	public boolean ocupaLaUnidad() {
 		return estado.isActiva() || (estado.isResuelta() && horaLiberacion == null);
+	}
+
+	/**
+	 * La cancelación que pide la propia tripulación. No puede usar los motivos del sistema —el solicitante que
+	 * cancela, el administrador que reasigna—, y en un traslado hay motivos que solo tienen sentido antes de tener al
+	 * paciente: devolverlo es de antes de llegar, y desviarse a otra cosa, de antes de subirlo.
+	 */
+	public void cancelarPorLaTripulacion(MotivoCancelacionAtencion motivo) {
+		switch (motivo) {
+			case CANCELADA_POR_SOLICITANTE, REASIGNADA -> throw motivoInvalido("Ese motivo no lo elige la tripulación.");
+			case RECHAZADA_POR_PARAMEDICO -> {
+				if (!esDeTraslado()) {
+					throw motivoInvalido("Solo un traslado se puede devolver.");
+				}
+				if (estado != EstadoAtencion.EN_CAMINO) {
+					throw motivoInvalido("Un traslado se devuelve antes de llegar a buscar al paciente.");
+				}
+			}
+			case DESVIADA -> {
+				if (esDeTraslado() && estado != EstadoAtencion.EN_CAMINO && estado != EstadoAtencion.EN_EL_LUGAR) {
+					throw motivoInvalido("Con el paciente a bordo, la unidad no se puede desviar.");
+				}
+			}
+			case NO_SE_ENCONTRO_PACIENTE -> {
+				if (esDeTraslado()) {
+					throw motivoInvalido("En un traslado, si no hay nadie en la puerta se cierra sin traslado.");
+				}
+			}
+			default -> {
+				// Avería y otro motivo pueden pasar en cualquier momento.
+			}
+		}
+		cancelar(motivo);
+	}
+
+	private static ConflictoException motivoInvalido(String mensaje) {
+		return new ConflictoException(CodigoError.VALIDACION, mensaje);
 	}
 
 	/** ME-1 A4: desde cualquier estado activo y con motivo. CANCELADA es terminal: nunca se reabre. */

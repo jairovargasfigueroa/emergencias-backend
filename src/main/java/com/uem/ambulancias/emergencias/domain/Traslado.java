@@ -1,5 +1,6 @@
 package com.uem.ambulancias.emergencias.domain;
 
+import java.time.Duration;
 import java.time.Instant;
 
 import com.uem.ambulancias.comun.error.CodigoError;
@@ -78,7 +79,10 @@ public class Traslado {
 	@Column(nullable = false)
 	private TipoUnidad tipoUnidadPedido;
 
-	/** Lo que de verdad hacía falta, cuando alguien lo corrige. Nulo mientras nadie lo toque. */
+	/**
+	 * Lo que de verdad hacía falta, cuando una tripulación lo corrige. Nulo mientras nadie lo toque, y siempre
+	 * mayor que el pedido cuando está puesto: si no, no habría hecho falta corregirlo.
+	 */
 	@Enumerated(EnumType.STRING)
 	private TipoUnidad tipoUnidadCorregido;
 
@@ -122,6 +126,18 @@ public class Traslado {
 	private Instant horaRecogidaDesde;
 
 	private Instant horaRecogidaHasta;
+
+	/**
+	 * La última vez que una unidad lo devolvió. Mientras esté puesta, el traslado va primero en la fila: la
+	 * familia ya estaba esperando, y en una central de verdad el viaje que se cayó se despacha antes que los demás.
+	 */
+	private Instant horaDevolucion;
+
+	/**
+	 * Cuándo el administrador le avisó a la familia que no se consiguió unidad. Hasta entonces el traslado sigue a
+	 * la vista en la bandeja: que un viaje no se cubra no puede pasar en silencio.
+	 */
+	private Instant horaFamiliaAvisada;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
@@ -180,7 +196,8 @@ public class Traslado {
 	 * Cambiar el pedido entero. Solo mientras no haya salido nadie: con una unidad en camino, el paramédico ya
 	 * se fue con otra información, y mandarlo a otro lado sin avisarle no es una edición, es otro viaje.
 	 *
-	 * <p>Se limpia la corrección del tipo de unidad: se corrigió sobre datos que acaban de cambiar.
+	 * <p>La corrección de una tripulación se mantiene: la hizo alguien que tuvo al paciente enfrente. Solo deja de
+	 * hacer falta cuando lo que se pide ahora ya alcanza.
 	 */
 	public void reprogramar(Necesidades necesidades, Point origen, String origenReferencia, String contactoNombre,
 			String contactoTelefono, CentroSalud centroSaludDestino, Point destino, String destinoDetalle,
@@ -194,7 +211,9 @@ public class Traslado {
 		this.acompanantes = necesidades.acompanantes();
 		this.observaciones = necesidades.observaciones();
 		this.tipoUnidadPedido = tipoUnidadPedido;
-		this.tipoUnidadCorregido = null;
+		if (tipoUnidadCorregido != null && tipoUnidadPedido.cubreA(tipoUnidadCorregido)) {
+			this.tipoUnidadCorregido = null;
+		}
 		this.origen = origen;
 		this.origenReferencia = origenReferencia;
 		this.contactoNombre = contactoNombre;
@@ -243,11 +262,15 @@ public class Traslado {
 	}
 
 	/**
-	 * Se corrige cuando la unidad enviada no alcanzó. Sin esto el traslado vuelve a buscar el mismo tipo que ya
-	 * falló y el bucle no termina nunca.
+	 * La tripulación encontró al paciente distinto de lo que decía la ficha y la unidad no alcanza. Se corrige la
+	 * ficha con lo que vio —así la próxima tripulación sale sabiendo cómo está— y el tipo que hace falta, que nunca
+	 * baja. Sin esto el traslado vuelve a buscar el mismo tipo que ya falló y el bucle no termina nunca.
 	 */
-	public void corregirTipoUnidad(TipoUnidad tipo) {
-		tipoUnidadCorregido = tipo;
+	public void corregirNecesidades(Movilidad movilidad, boolean oxigeno, boolean equipo, TipoUnidad tipoNecesario) {
+		this.movilidad = movilidad;
+		this.requiereOxigeno = oxigeno;
+		this.requiereEquipo = equipo;
+		this.tipoUnidadCorregido = TipoUnidad.elMayor(tipoUnidadEfectivo(), tipoNecesario);
 	}
 
 	/** Llegó la hora de salir. */
@@ -260,9 +283,24 @@ public class Traslado {
 		pasarA(EstadoTraslado.ASIGNADO);
 	}
 
-	/** El paramédico rechazó, o su unidad no correspondía: el pedido sigue vivo y vuelve a la cola. */
-	public void devolverABusqueda() {
+	/**
+	 * La unidad lo devolvió, no correspondía o se averió: el pedido sigue vivo y vuelve a la cola, primero en la
+	 * fila. Se le asegura al menos {@code busquedaNueva} para conseguir otra: nadie da por perdido un viaje porque
+	 * falló la primera unidad. Si eso corre el límite, corre también la ventana que ve la familia, porque la unidad
+	 * que vaya ahora ya no pasa a la hora que se le prometió.
+	 */
+	public void devolverABusqueda(Instant ahora, Duration busquedaNueva, Duration acercamiento) {
 		pasarA(EstadoTraslado.BUSCANDO_UNIDAD);
+		horaDevolucion = ahora;
+		Instant limiteNuevo = ahora.plus(busquedaNueva);
+		if (horaLimiteSalida.isBefore(limiteNuevo)) {
+			horaLimiteSalida = limiteNuevo;
+			horaRecogidaHasta = limiteNuevo.plus(acercamiento);
+			Instant recogidaPosible = ahora.plus(acercamiento);
+			if (horaRecogidaDesde.isBefore(recogidaPosible)) {
+				horaRecogidaDesde = recogidaPosible;
+			}
+		}
 	}
 
 	public void completar() {
@@ -277,6 +315,17 @@ public class Traslado {
 	/** Se pasó la última salida posible: hay que avisarle a la familia en vez de dejarla esperando. */
 	public void marcarNoCubierto() {
 		pasarA(EstadoTraslado.NO_CUBIERTO);
+	}
+
+	/** Ya se le avisó a la familia que no hubo unidad: el traslado sale de la bandeja de problemas. */
+	public void marcarFamiliaAvisada(Instant ahora) {
+		if (estado != EstadoTraslado.NO_CUBIERTO) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"Solo se marca el aviso a la familia en un traslado que quedó sin unidad.");
+		}
+		if (horaFamiliaAvisada == null) {
+			horaFamiliaAvisada = ahora;
+		}
 	}
 
 	public void cancelar(Usuario quien, Instant ahora) {

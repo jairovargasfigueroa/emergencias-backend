@@ -1,14 +1,19 @@
 package com.uem.ambulancias.emergencias.service;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import com.uem.ambulancias.comun.error.CodigoError;
 import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.error.NoEncontradoException;
+import com.uem.ambulancias.comun.geo.Geo;
 import com.uem.ambulancias.emergencias.domain.Atencion;
+import com.uem.ambulancias.emergencias.domain.EstadoAtencion;
 import com.uem.ambulancias.emergencias.domain.EstadoTraslado;
+import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
 import com.uem.ambulancias.emergencias.domain.Traslado;
 import com.uem.ambulancias.emergencias.repository.AtencionRepository;
 import com.uem.ambulancias.emergencias.repository.TrasladoRepository;
@@ -42,6 +47,7 @@ public class AsignadorDeTraslados {
 	private final AmbulanciaRepository ambulancias;
 	private final TurnoRepository turnos;
 	private final UsuarioRepository usuarios;
+	private final TrasladoProperties config;
 	private final ApplicationEventPublisher eventos;
 
 	/** Los programados a los que ya les llegó la hora de salir pasan a buscar unidad. */
@@ -67,26 +73,56 @@ public class AsignadorDeTraslados {
 	/**
 	 * Intenta darle unidad a un traslado. Vacío significa que en este instante no hay ninguna que sirva, no que
 	 * el traslado se haya caído: se reintenta mientras todavía se llegue a tiempo.
+	 *
+	 * <p>El traslado se bloquea antes de mirar su estado: el administrador puede estar asignándolo a mano en ese
+	 * mismo momento, y sin el bloqueo los dos lo veían esperando y salían dos unidades para el mismo viaje.
 	 */
 	@Transactional
 	public Optional<Atencion> intentarAsignar(Long trasladoId) {
-		Traslado traslado = traslados.findById(trasladoId).orElse(null);
+		Traslado traslado = traslados.buscarParaActualizar(trasladoId).orElse(null);
 		if (traslado == null || traslado.getEstado() != EstadoTraslado.BUSCANDO_UNIDAD) {
 			return Optional.empty();
 		}
 		List<String> tiposQueSirven = tiposQueCubren(traslado.tipoUnidadEfectivo());
-		List<Long> yaRechazaron = atenciones.buscarAmbulanciasQueRechazaron(trasladoId);
-		for (Ambulancia candidata : ambulancias.buscarDisponiblesParaTraslado(traslado.getOrigen().getY(),
-				traslado.getOrigen().getX(), tiposQueSirven)) {
-			if (yaRechazaron.contains(candidata.getId())) {
+		// Las que ya lo tuvieron y lo dejaron no entran: a mano, el administrador sí puede elegirlas.
+		List<Long> yaLoTuvieron = atenciones.buscarAmbulanciasQueLoTuvieron(trasladoId);
+		Instant posicionDesde = Instant.now().minus(config.posicionVigente());
+		for (Long candidataId : ambulancias.buscarIdsDisponiblesParaTraslado(traslado.getOrigen().getY(),
+				traslado.getOrigen().getX(), tiposQueSirven, posicionDesde)) {
+			if (yaLoTuvieron.contains(candidataId)) {
 				continue;
 			}
-			Optional<Atencion> asignada = tomar(traslado, candidata.getId(), null);
+			Optional<Atencion> asignada = tomar(traslado, candidataId, null);
 			if (asignada.isPresent()) {
 				return asignada;
 			}
 		}
 		return Optional.empty();
+	}
+
+	/**
+	 * Las unidades que el administrador puede elegir para asignar a mano, de la más cercana al origen a la más
+	 * lejana: las disponibles cuyo tipo alcanza. Van también las que el barrido no usaría —sin posición reciente,
+	 * o que ya lo tuvieron y lo dejaron—, marcadas, porque quien asigna a mano puede saber algo que el sistema no.
+	 */
+	@Transactional(readOnly = true)
+	public List<UnidadCandidata> candidatas(Long trasladoId) {
+		Traslado traslado = traslados.findById(trasladoId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
+		TipoUnidad requerido = traslado.tipoUnidadEfectivo();
+		Set<Long> yaLoTuvieron = Set.copyOf(atenciones.buscarAmbulanciasQueLoTuvieron(trasladoId));
+		Instant posicionDesde = Instant.now().minus(config.posicionVigente());
+		return ambulancias.findAllByOrderByPlacaAsc().stream()
+				.filter(Ambulancia::puedeAtender)
+				.filter(unidad -> unidad.getTipoUnidad().cubreA(requerido))
+				.map(unidad -> new UnidadCandidata(unidad,
+						unidad.getUltimaPosicion() == null ? null
+								: Geo.metrosEntre(unidad.getUltimaPosicion(), traslado.getOrigen()),
+						unidad.getUltimaPosicionEn() != null && !unidad.getUltimaPosicionEn().isBefore(posicionDesde),
+						yaLoTuvieron.contains(unidad.getId())))
+				.sorted(Comparator.comparing(UnidadCandidata::distanciaMetros,
+						Comparator.nullsLast(Comparator.naturalOrder())))
+				.toList();
 	}
 
 	/**
@@ -97,13 +133,15 @@ public class AsignadorDeTraslados {
 	public Atencion asignarA(Long trasladoId, Long ambulanciaId, Long administradorId) {
 		Usuario administrador = usuarios.findByIdAndRol(administradorId, RolUsuario.ADMIN)
 				.orElseThrow(() -> new NoEncontradoException("No existe el administrador " + administradorId + "."));
-		Traslado traslado = traslados.findById(trasladoId)
+		Traslado traslado = traslados.buscarParaActualizar(trasladoId)
 				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
 		if (traslado.getEstado() != EstadoTraslado.BUSCANDO_UNIDAD) {
 			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
-					"El traslado no está esperando unidad.");
+					"El traslado ya no está esperando unidad: puede que el sistema se la haya asignado recién.");
 		}
-		Ambulancia elegida = ambulancias.findById(ambulanciaId)
+		// Bloqueada desde la primera lectura: si se leyera antes sin bloqueo, la que se bloquea después sería esa
+		// misma copia, y no se vería que en el medio se fue a una emergencia.
+		Ambulancia elegida = ambulancias.buscarParaActualizar(ambulanciaId)
 				.orElseThrow(() -> new NoEncontradoException("No existe la ambulancia " + ambulanciaId + "."));
 		if (!elegida.getTipoUnidad().cubreA(traslado.tipoUnidadEfectivo())) {
 			throw new ConflictoException(CodigoError.UNIDAD_INSUFICIENTE,
@@ -112,6 +150,35 @@ public class AsignadorDeTraslados {
 		return tomar(traslado, ambulanciaId, administrador)
 				.orElseThrow(() -> new ConflictoException(CodigoError.AMBULANCIA_NO_DISPONIBLE,
 						"Esa unidad no está disponible o no tiene a nadie en turno."));
+	}
+
+	/**
+	 * El administrador le saca el traslado a la unidad que lo tiene y lo devuelve a la búsqueda, primero en la
+	 * fila. Es lo que hace un despachador cuando ve que una unidad no llega: la llama, y si hace falta manda otra.
+	 * Solo mientras la unidad viene en camino: en la puerta o con el paciente a bordo, sacársela no arregla nada.
+	 */
+	@Transactional
+	public Traslado devolverABusqueda(Long trasladoId) {
+		Traslado traslado = traslados.buscarParaActualizar(trasladoId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
+		Atencion enCurso = traslado.getEstado() == EstadoTraslado.ASIGNADO
+				? atenciones.buscarActivaPorTraslado(trasladoId).orElse(null)
+				: null;
+		if (enCurso == null) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"El traslado no tiene una unidad a la que sacárselo.");
+		}
+		if (enCurso.getEstado() != EstadoAtencion.EN_CAMINO) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"La unidad ya llegó: desde ahí el traslado lo resuelve la tripulación.");
+		}
+		Long ambulanciaId = enCurso.getAmbulancia().getId();
+		enCurso.cancelar(MotivoCancelacionAtencion.REASIGNADA);
+		ambulancias.actualizarEstado(ambulanciaId, EstadoAmbulancia.DISPONIBLE);
+		traslado.devolverABusqueda(Instant.now(), config.busquedaTrasDevolucion(), config.acercamiento());
+		eventos.publishEvent(new TrasladoRetirado(trasladoId, ambulanciaId, MotivoCancelacionAtencion.REASIGNADA));
+		eventos.publishEvent(new UnidadLiberada(ambulanciaId));
+		return traslados.save(traslado);
 	}
 
 	/**
@@ -132,8 +199,8 @@ public class AsignadorDeTraslados {
 		ambulancia.cambiarEstado(EstadoAmbulancia.EN_ATENCION);
 		traslado.asignar();
 		traslados.save(traslado);
-		// El responsable está manejando, no mirando la app: si no se le avisa, se entera recién cuando la abre.
-		eventos.publishEvent(new TrasladoAsignado(traslado.getId(), responsable.getId()));
+		// La tripulación está manejando, no mirando la app: si no se le avisa, se entera recién cuando la abre.
+		eventos.publishEvent(new TrasladoAsignado(traslado.getId(), ambulanciaId));
 		return Optional.of(atencion);
 	}
 

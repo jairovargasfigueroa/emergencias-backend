@@ -1,5 +1,7 @@
 package com.uem.ambulancias.emergencias.service;
 
+import java.time.Duration;
+
 import com.uem.ambulancias.flota.domain.TipoUnidad;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -36,6 +38,18 @@ public record TrasladoProperties(
 		/** Con cuánta anticipación se avisa al administrador de un traslado que pinta mal. */
 		@DefaultValue("120") int minutosAvisoTemprano,
 
+		/**
+		 * El barrido solo le da un traslado a una unidad que reportó su posición hace menos de esto. Sin GPS
+		 * reciente no se sabe si está cerca, ni si el teléfono de la tripulación sigue prendido para enterarse.
+		 */
+		@DefaultValue("5") int minutosPosicionVigente,
+
+		/**
+		 * Cuánto espera la tripulación en la puerta a un paciente que no está listo antes de poder retirarse. Es la
+		 * tolerancia de cualquier servicio de traslados: pasado ese tiempo, el viaje se da por fallido.
+		 */
+		@DefaultValue("15") int minutosEspera,
+
 		/** Unidad mínima para trasladar a alguien en camilla. */
 		@DefaultValue("II") TipoUnidad minimoParaCamilla,
 
@@ -47,4 +61,22 @@ public record TrasladoProperties(
 
 		/** Zona horaria con la que el panel decide qué es "hoy". El servidor puede estar en UTC. */
 		@DefaultValue("America/La_Paz") String zona) {
+
+	/** La búsqueda que se le asegura a un traslado devuelto: la misma que tiene un pedido para ahora. */
+	public Duration busquedaTrasDevolucion() {
+		return Duration.ofMinutes(minutosVentanaInmediato);
+	}
+
+	public Duration acercamiento() {
+		return Duration.ofMinutes(minutosAcercamiento);
+	}
+
+	public Duration posicionVigente() {
+		return Duration.ofMinutes(minutosPosicionVigente);
+	}
+
+	public Duration espera() {
+		return Duration.ofMinutes(minutosEspera);
+	}
+
 }

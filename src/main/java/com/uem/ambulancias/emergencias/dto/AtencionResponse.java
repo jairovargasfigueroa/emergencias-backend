@@ -36,6 +36,8 @@ public record AtencionResponse(
 		Instant horaLiberacion,
 		/** Solo en traslados: la unidad llegó y el paciente no estaba listo. */
 		Instant horaAvisoNoListo,
+		/** Solo en traslados: hasta cuándo espera la tripulación a ese paciente antes de poder retirarse. */
+		Instant esperaHasta,
 		Instant horaCancelacion,
 		MotivoCancelacionAtencion motivoCancelacion,
 		String nombrePaciente,
@@ -71,6 +73,7 @@ public record AtencionResponse(
 				atencion.getMotivoSinTraslado(),
 				atencion.getHoraLiberacion(),
 				atencion.getHoraAvisoNoListo(),
+				atencion.getEsperaHasta(),
 				atencion.getHoraCancelacion(),
 				atencion.getMotivoCancelacion(),
 				atencion.getNombrePaciente(),

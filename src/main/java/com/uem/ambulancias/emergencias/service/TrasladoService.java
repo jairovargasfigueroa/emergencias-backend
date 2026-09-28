@@ -71,7 +71,7 @@ public class TrasladoService {
 	 */
 	@Transactional
 	public Traslado reprogramar(Long solicitanteId, Long trasladoId, RegistrarTrasladoRequest datos) {
-		Traslado traslado = buscarPropio(solicitanteId, trasladoId);
+		Traslado traslado = buscarPropioParaActualizar(solicitanteId, trasladoId);
 		Pedido pedido = resolver(datos);
 		traslado.reprogramar(pedido.necesidades(), pedido.origen(), pedido.origenReferencia(),
 				pedido.contactoNombre(), pedido.contactoTelefono(), pedido.centro(), pedido.destino(),
@@ -79,17 +79,20 @@ public class TrasladoService {
 		return traslados.save(traslado);
 	}
 
-	/** Corregir la referencia, el contacto y las observaciones. Se puede hasta con la unidad en camino. */
+	/**
+	 * Corregir la referencia, el contacto y las observaciones. Se puede hasta con la unidad en camino, así que la
+	 * respuesta lleva en qué va la unidad: la app reemplaza con ella lo que tenía.
+	 */
 	@Transactional
-	public Traslado actualizarDetalles(Long solicitanteId, Long trasladoId, String origenReferencia,
+	public TrasladoConAtencion actualizarDetalles(Long solicitanteId, Long trasladoId, String origenReferencia,
 			String contactoNombre, String contactoTelefono, String observaciones) {
-		Traslado traslado = buscarPropio(solicitanteId, trasladoId);
+		Traslado traslado = buscarPropioParaActualizar(solicitanteId, trasladoId);
 		String nombre = vacioComoNulo(contactoNombre);
 		String telefono = vacioComoNulo(contactoTelefono);
 		exigirContactoCompleto(nombre, telefono);
 		traslado.actualizarDetalles(vacioComoNulo(origenReferencia), nombre, telefono,
 				vacioComoNulo(observaciones));
-		return traslados.save(traslado);
+		return conSuAtencion(List.of(traslados.save(traslado))).getFirst();
 	}
 
 	/** Lo que hay que calcular igual al pedir que al reprogramar. */
@@ -117,8 +120,12 @@ public class TrasladoService {
 				contactoTelefono, centro, destino, vacioComoNulo(datos.destinoDetalle()), horario);
 	}
 
-	private Traslado buscarPropio(Long solicitanteId, Long trasladoId) {
-		Traslado traslado = traslados.findById(trasladoId)
+	/**
+	 * Con la fila bloqueada: todo lo que el ciudadano hace sobre su traslado lo cambia, y el barrido puede estar
+	 * asignándolo en ese mismo momento. Sin el bloqueo, el que guarda último borra lo que hizo el otro.
+	 */
+	private Traslado buscarPropioParaActualizar(Long solicitanteId, Long trasladoId) {
+		Traslado traslado = traslados.buscarParaActualizar(trasladoId)
 				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
 		if (!traslado.esDe(solicitanteId)) {
 			throw new ConflictoException(CodigoError.TRASLADO_AJENO, "El traslado no es de este ciudadano.");
@@ -131,9 +138,12 @@ public class TrasladoService {
 			String destinoDetalle, Horario horario) {
 	}
 
-	/** Lo que el ciudadano ve en su pestaña: los próximos y el historial, lo más reciente primero. */
-	public List<Traslado> mios(Long solicitanteId) {
-		return traslados.findBySolicitanteIdOrderByFechaHoraCreacionDesc(solicitanteId);
+	/**
+	 * Lo que el ciudadano ve en su pestaña: los próximos y el historial, lo más reciente primero. Cada uno con su
+	 * unidad, porque en qué va es lo que decide si todavía se puede cancelar.
+	 */
+	public List<TrasladoConAtencion> mios(Long solicitanteId) {
+		return conSuAtencion(traslados.findBySolicitanteIdOrderByFechaHoraCreacionDesc(solicitanteId));
 	}
 
 	/** La tabla del panel. El día se calcula en la zona de la empresa: el servidor puede estar en UTC. */
@@ -151,45 +161,79 @@ public class TrasladoService {
 		return conSuAtencion(List.of(traslado)).getFirst();
 	}
 
-	/** La bandeja de problemas: los que siguen esperando unidad, el que primero se cae arriba de todo. */
+	/**
+	 * La bandeja de problemas: los que tienen una unidad atrasada, los que siguen esperando unidad, y los que se
+	 * vencieron sin ella hasta que alguien le avise a la familia.
+	 */
 	public List<TrasladoConAtencion> problemas() {
-		return conSuAtencion(traslados.buscarEsperandoUnidad());
+		return conSuAtencion(traslados.buscarProblemas(Instant.now()));
 	}
 
-	/** Una sola consulta para las atenciones de toda la lista, en vez de una por fila. */
+	/** El administrador ya le avisó a la familia que no hubo unidad: sale de la bandeja. */
+	@Transactional
+	public TrasladoConAtencion marcarFamiliaAvisada(Long trasladoId) {
+		Traslado traslado = traslados.buscarParaActualizar(trasladoId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
+		traslado.marcarFamiliaAvisada(Instant.now());
+		return conSuAtencion(List.of(traslados.save(traslado))).getFirst();
+	}
+
+	/**
+	 * Una sola consulta para las atenciones de toda la lista, en vez de una por fila. Un traslado devuelto tiene
+	 * varias: cuenta la última, y solo si el traslado sigue en sus manos o terminó con ella. Uno que volvió a
+	 * buscar unidad no tiene a nadie, aunque antes haya tenido.
+	 */
 	private List<TrasladoConAtencion> conSuAtencion(List<Traslado> lista) {
 		if (lista.isEmpty()) {
 			return List.of();
 		}
-		Map<Long, Atencion> porTraslado = atenciones
+		Map<Long, Atencion> ultimaPorTraslado = atenciones
 				.buscarPorTraslados(lista.stream().map(Traslado::getId).toList()).stream()
 				.collect(Collectors.toMap(atencion -> atencion.getTraslado().getId(), atencion -> atencion,
-						(uno, otro) -> uno));
-		return lista.stream().map(t -> new TrasladoConAtencion(t, porTraslado.get(t.getId()))).toList();
+						(masNueva, masVieja) -> masNueva));
+		return lista.stream()
+				.map(t -> new TrasladoConAtencion(t,
+						t.getEstado().isConUnidad() ? ultimaPorTraslado.get(t.getId()) : null))
+				.toList();
 	}
 
 	/**
 	 * Retirar el pedido. Mientras no haya unidad asignada no hay nada más que deshacer; con una unidad ya en
-	 * camino además hay que cancelar su atención y liberarla, y eso vive junto con la asignación.
+	 * camino además hay que cancelar su atención y liberarla.
+	 *
+	 * <p>Como en una central de verdad, se puede avisar que ya no hace falta mientras la unidad viene. Cuando ya
+	 * está en la puerta, eso se habla con la tripulación, que cierra el viaje con el motivo que corresponda: si no,
+	 * el paciente podría estar a bordo y la ambulancia quedaría libre en el sistema.
 	 */
 	@Transactional
 	public Traslado cancelar(Long solicitanteId, Long trasladoId) {
-		Traslado traslado = buscarPropio(solicitanteId, trasladoId);
+		Traslado traslado = buscarPropioParaActualizar(solicitanteId, trasladoId);
 		if (!traslado.getEstado().isVigente()) {
 			throw new ConflictoException(CodigoError.TRASLADO_FINALIZADO,
 					"El traslado ya terminó y no se puede cancelar.");
 		}
-		// Con la unidad ya en camino, cancelar también le devuelve la libertad: si no, queda tomada al pedo.
-		atenciones.buscarActivaPorTraslado(trasladoId).ifPresent(atencion -> {
-			atencion.cancelar(MotivoCancelacionAtencion.CANCELADA_POR_SOLICITANTE);
-			ambulancias.actualizarEstado(atencion.getAmbulancia().getId(), EstadoAmbulancia.DISPONIBLE);
-			eventos.publishEvent(new UnidadLiberada(atencion.getAmbulancia().getId()));
-		});
+		Atencion enCurso = atenciones.buscarActivaPorTraslado(trasladoId).orElse(null);
+		if (enCurso != null && enCurso.getHoraLlegada() != null) {
+			throw new ConflictoException(CodigoError.UNIDAD_EN_EL_LUGAR,
+					"La unidad ya llegó. Si no van a viajar, díselo a la tripulación.");
+		}
+		// Con la unidad en camino, cancelar también la deja libre: si no, quedaría tomada por un viaje que ya no existe.
+		if (enCurso != null) {
+			Long ambulanciaId = enCurso.getAmbulancia().getId();
+			enCurso.cancelar(MotivoCancelacionAtencion.CANCELADA_POR_SOLICITANTE);
+			ambulancias.actualizarEstado(ambulanciaId, EstadoAmbulancia.DISPONIBLE);
+			eventos.publishEvent(new UnidadLiberada(ambulanciaId));
+			eventos.publishEvent(new TrasladoRetirado(trasladoId, ambulanciaId,
+					MotivoCancelacionAtencion.CANCELADA_POR_SOLICITANTE));
+		}
 		traslado.cancelar(ciudadanos.buscarCiudadanoActivo(solicitanteId), Instant.now());
 		return traslados.save(traslado);
 	}
 
-	/** Nulo significa que viaja quien pide. Si no, tiene que ser alguien que él mismo registró. */
+	/**
+	 * Nulo significa que viaja quien pide. Si no, tiene que ser alguien que él mismo registró y que sigue en su
+	 * perfil: a quien quitó no se le piden viajes nuevos, aunque se esté repitiendo uno viejo.
+	 */
 	private Usuario resolverPasajero(Usuario solicitante, Long pasajeroId) {
 		if (pasajeroId == null || pasajeroId.equals(solicitante.getId())) {
 			return solicitante;
@@ -198,8 +242,13 @@ public class TrasladoService {
 			throw new ConflictoException(CodigoError.PASAJERO_AJENO,
 					"Solo se puede pedir un traslado para una persona propia.");
 		}
-		return usuarios.findById(pasajeroId)
+		Usuario pasajero = usuarios.findById(pasajeroId)
 				.orElseThrow(() -> new NoEncontradoException("No existe la persona " + pasajeroId + "."));
+		if (!pasajero.isActivo()) {
+			throw new ConflictoException(CodigoError.PASAJERO_AJENO,
+					"Esa persona ya no está en tu perfil. Elige quién viaja.");
+		}
+		return pasajero;
 	}
 
 	private CentroSalud resolverCentro(Long centroId) {
@@ -225,7 +274,7 @@ public class TrasladoService {
 	private void exigirQueLlegue(Horario horario, Instant ahora) {
 		if (horario.limiteSalida().isBefore(ahora)) {
 			throw new ConflictoException(CodigoError.HORA_INALCANZABLE,
-					"No se llega a esa hora. Elegí una más tarde.");
+					"No se llega a esa hora. Elige una más tarde.");
 		}
 	}
 

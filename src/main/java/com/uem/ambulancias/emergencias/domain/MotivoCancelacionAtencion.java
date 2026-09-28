@@ -9,6 +9,8 @@ public enum MotivoCancelacionAtencion {
 	RECHAZADA_POR_PARAMEDICO,
 	/** Solo en traslados: el solicitante retiró el pedido con la unidad ya en camino. */
 	CANCELADA_POR_SOLICITANTE,
+	/** Solo en traslados: la unidad no llegaba y el administrador se lo sacó para dárselo a otra. */
+	REASIGNADA,
 	OTRO
 
 }
