@@ -14,7 +14,10 @@ public record OperacionResponse(
 		/** Incidentes a los que todavía no va nadie. */
 		List<IncidenteSinCubrirResponse> incidentesSinCubrir,
 
-		/** Traslados que están buscando unidad y no la consiguen: la misma bandeja de {@code /traslados/problemas}. */
+		/**
+		 * Traslados que necesitan que alguien haga algo: la misma bandeja de {@code /traslados/problemas}. Cada uno
+		 * dice por qué en {@code problema}.
+		 */
 		List<TrasladoDelPanelResponse> trasladosSinCubrir,
 
 		/** La bitácora, del hito más nuevo al más viejo. */

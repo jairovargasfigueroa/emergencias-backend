@@ -54,6 +54,19 @@ public interface TrasladoRepository extends JpaRepository<Traslado, Long> {
 	List<Traslado> buscarEsperandoUnidad();
 
 	/**
+	 * La bandeja del administrador: los que esperan unidad y los que se vencieron sin ella mientras nadie le haya
+	 * avisado a la familia. Primero los que esperan, porque todavía se pueden salvar asignándolos a mano.
+	 */
+	@Query("""
+			select t from Traslado t
+			where t.estado = 'BUSCANDO_UNIDAD'
+			   or (t.estado = 'NO_CUBIERTO' and t.horaFamiliaAvisada is null)
+			order by case when t.estado = 'BUSCANDO_UNIDAD' then 0 else 1 end,
+			         case when t.horaDevolucion is null then 1 else 0 end, t.horaLimiteSalida asc
+			""")
+	List<Traslado> buscarProblemas();
+
+	/**
 	 * Lo mismo, pero solo los que una unidad de cierto tipo puede cubrir. Se usa cuando se libera una ambulancia:
 	 * en vez de esperar al próximo barrido, se revisa en el momento si hay alguien esperándola.
 	 *

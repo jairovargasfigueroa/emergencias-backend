@@ -130,6 +130,12 @@ public class Traslado {
 	 */
 	private Instant horaDevolucion;
 
+	/**
+	 * Cuándo el administrador le avisó a la familia que no se consiguió unidad. Hasta entonces el traslado sigue a
+	 * la vista en la bandeja: que un viaje no se cubra no puede pasar en silencio.
+	 */
+	private Instant horaFamiliaAvisada;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private EstadoTraslado estado;
@@ -299,6 +305,17 @@ public class Traslado {
 	/** Se pasó la última salida posible: hay que avisarle a la familia en vez de dejarla esperando. */
 	public void marcarNoCubierto() {
 		pasarA(EstadoTraslado.NO_CUBIERTO);
+	}
+
+	/** Ya se le avisó a la familia que no hubo unidad: el traslado sale de la bandeja de problemas. */
+	public void marcarFamiliaAvisada(Instant ahora) {
+		if (estado != EstadoTraslado.NO_CUBIERTO) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"Solo se marca el aviso a la familia en un traslado que quedó sin unidad.");
+		}
+		if (horaFamiliaAvisada == null) {
+			horaFamiliaAvisada = ahora;
+		}
 	}
 
 	public void cancelar(Usuario quien, Instant ahora) {

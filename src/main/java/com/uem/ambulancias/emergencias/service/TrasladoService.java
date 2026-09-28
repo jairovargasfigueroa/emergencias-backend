@@ -161,9 +161,21 @@ public class TrasladoService {
 		return conSuAtencion(List.of(traslado)).getFirst();
 	}
 
-	/** La bandeja de problemas: los que siguen esperando unidad, el que primero se cae arriba de todo. */
+	/**
+	 * La bandeja de problemas: los que siguen esperando unidad, y los que se vencieron sin ella hasta que alguien
+	 * le avise a la familia.
+	 */
 	public List<TrasladoConAtencion> problemas() {
-		return conSuAtencion(traslados.buscarEsperandoUnidad());
+		return conSuAtencion(traslados.buscarProblemas());
+	}
+
+	/** El administrador ya le avisó a la familia que no hubo unidad: sale de la bandeja. */
+	@Transactional
+	public TrasladoConAtencion marcarFamiliaAvisada(Long trasladoId) {
+		Traslado traslado = traslados.buscarParaActualizar(trasladoId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
+		traslado.marcarFamiliaAvisada(Instant.now());
+		return conSuAtencion(List.of(traslados.save(traslado))).getFirst();
 	}
 
 	/**

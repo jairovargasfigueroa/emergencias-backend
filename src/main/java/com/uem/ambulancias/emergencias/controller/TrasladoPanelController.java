@@ -41,7 +41,10 @@ public class TrasladoPanelController {
 		return trasladoService.delDia(dia).stream().map(TrasladoPanelController::respuesta).toList();
 	}
 
-	/** Los que siguen esperando unidad: es la bandeja donde el barrido deja lo que no pudo resolver solo. */
+	/**
+	 * La bandeja donde el barrido deja lo que no pudo resolver solo: los que siguen esperando unidad y los que se
+	 * vencieron sin ella hasta que alguien le avise a la familia.
+	 */
 	@GetMapping("/problemas")
 	public List<TrasladoDelPanelResponse> problemas() {
 		return trasladoService.problemas().stream().map(TrasladoPanelController::respuesta).toList();
@@ -57,6 +60,12 @@ public class TrasladoPanelController {
 			@Valid @RequestBody AsignarTrasladoRequest request) {
 		Atencion atencion = asignador.asignarA(trasladoId, request.ambulanciaId(), administradorId);
 		return TrasladoDelPanelResponse.de(atencion.getTraslado(), atencion);
+	}
+
+	/** Ya se le avisó a la familia que no se consiguió unidad: el traslado sale de la bandeja. */
+	@PostMapping("/{id}/familia-avisada")
+	public TrasladoDelPanelResponse marcarFamiliaAvisada(@PathVariable("id") Long trasladoId) {
+		return respuesta(trasladoService.marcarFamiliaAvisada(trasladoId));
 	}
 
 	private static TrasladoDelPanelResponse respuesta(TrasladoConAtencion fila) {
