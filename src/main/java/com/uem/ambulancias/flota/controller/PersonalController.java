@@ -1,6 +1,7 @@
 package com.uem.ambulancias.flota.controller;
 
 import java.util.List;
+import java.util.Set;
 
 import com.uem.ambulancias.flota.dto.AsignacionResponse;
 import com.uem.ambulancias.flota.dto.EditarParamedicoRequest;
@@ -39,7 +40,11 @@ public class PersonalController {
 
 	@GetMapping
 	public List<ParamedicoResponse> listar() {
-		return personalService.listarParamedicos().stream().map(PersonalController::aRespuesta).toList();
+		Set<Long> enTurno = personalService.paramedicosEnTurno();
+		return personalService.listarParamedicos().stream()
+				.map(personal -> ParamedicoResponse.de(personal.paramedico(), personal.asignacionVigente(),
+						enTurno.contains(personal.paramedico().getId())))
+				.toList();
 	}
 
 	@PutMapping("/{id}")
@@ -68,8 +73,9 @@ public class PersonalController {
 		return personalService.historialDeAsignaciones(id).stream().map(AsignacionResponse::de).toList();
 	}
 
-	private static ParamedicoResponse aRespuesta(ParamedicoConAsignacion personal) {
-		return ParamedicoResponse.de(personal.paramedico(), personal.asignacionVigente());
+	private ParamedicoResponse aRespuesta(ParamedicoConAsignacion personal) {
+		return ParamedicoResponse.de(personal.paramedico(), personal.asignacionVigente(),
+				personalService.estaEnTurno(personal.paramedico().getId()));
 	}
 
 }

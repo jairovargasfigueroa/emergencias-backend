@@ -20,6 +20,17 @@ public interface TurnoRepository extends JpaRepository<Turno, Long> {
 	@Query("select count(t) from Turno t where t.ambulancia.id = :ambulanciaId and t.fin is null")
 	long contarAbiertosPorAmbulancia(@Param("ambulanciaId") Long ambulanciaId);
 
+	/** Lo mismo para toda la flota de una vez: la lista del panel lo muestra en cada fila. */
+	@Query("""
+			select new com.uem.ambulancias.flota.repository.TripulantesEnTurno(t.ambulancia.id, count(t))
+			from Turno t where t.fin is null group by t.ambulancia.id
+			""")
+	List<TripulantesEnTurno> contarAbiertosPorUnidad();
+
+	/** Quiénes están trabajando ahora: la lista del personal lo dice en cada fila sin una consulta por persona. */
+	@Query("select t.paramedico.id from Turno t where t.fin is null")
+	List<Long> buscarParamedicosEnTurno();
+
 	/** Quiénes están de turno en cada una de esas unidades, para que el panel diga quién está adentro. */
 	@Query("""
 			select t from Turno t join fetch t.paramedico

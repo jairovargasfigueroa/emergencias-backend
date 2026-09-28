@@ -2,6 +2,8 @@ package com.uem.ambulancias.flota.service;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import com.uem.ambulancias.comun.error.CodigoError;
 import com.uem.ambulancias.comun.error.ConflictoException;
@@ -11,6 +13,7 @@ import com.uem.ambulancias.flota.domain.Asignacion;
 import com.uem.ambulancias.flota.domain.TipoUnidad;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.repository.AsignacionRepository;
+import com.uem.ambulancias.flota.repository.TripulantesEnTurno;
 import com.uem.ambulancias.flota.repository.TurnoRepository;
 import com.uem.ambulancias.usuarios.domain.RolUsuario;
 import com.uem.ambulancias.usuarios.domain.Usuario;
@@ -48,6 +51,16 @@ public class AmbulanciaService {
 
 	public List<Ambulancia> listar() {
 		return ambulancias.findAllByOrderByPlacaAsc();
+	}
+
+	/** Cuántos tienen turno abierto en cada unidad. Las que no aparecen no tienen a nadie. */
+	public Map<Long, Long> tripulantesEnTurno() {
+		return turnos.contarAbiertosPorUnidad().stream()
+				.collect(Collectors.toMap(TripulantesEnTurno::ambulanciaId, TripulantesEnTurno::cantidad));
+	}
+
+	public long tripulantesEnTurno(Long ambulanciaId) {
+		return turnos.contarAbiertosPorAmbulancia(ambulanciaId);
 	}
 
 	@Transactional
@@ -117,9 +130,18 @@ public class AmbulanciaService {
 	}
 
 
+	/**
+	 * Baja lógica. Atendiendo no se puede, y eso lo cuida la propia ambulancia. Con gente de turno adentro tampoco:
+	 * quedarían trabajando en una unidad que ya no existe para el sistema.
+	 */
 	@Transactional
 	public Ambulancia desactivar(Long id) {
 		Ambulancia ambulancia = buscarParaActualizar(id);
+		if (turnos.contarAbiertosPorAmbulancia(id) > 0) {
+			throw new ConflictoException(CodigoError.PARAMEDICO_EN_TURNO,
+					"La ambulancia " + ambulancia.getPlaca() + " tiene gente de turno. Ciérrales el turno antes de "
+							+ "desactivarla.");
+		}
 		ambulancia.desactivar();
 		return ambulancia;
 	}

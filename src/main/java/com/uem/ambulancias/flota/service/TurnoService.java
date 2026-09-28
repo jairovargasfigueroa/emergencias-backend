@@ -40,6 +40,11 @@ public class TurnoService {
 		return turnos.buscarAbiertoPorParamedico(paramedicoId);
 	}
 
+	/** Cuántos tienen turno abierto en esa unidad. */
+	public long tripulantesEnTurno(Long ambulanciaId) {
+		return turnos.contarAbiertosPorAmbulancia(ambulanciaId);
+	}
+
 	/**
 	 * La ambulancia con la que el paramédico trabaja ahora: la de su turno abierto. Para acudir a un incidente o marcar
 	 * un hito hay que estar de turno. Estar asignado no alcanza: con el compañero trabajando la unidad figura
