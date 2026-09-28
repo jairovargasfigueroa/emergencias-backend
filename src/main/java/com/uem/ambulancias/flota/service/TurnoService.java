@@ -41,6 +41,17 @@ public class TurnoService {
 	}
 
 	/**
+	 * La ambulancia con la que el paramédico trabaja ahora: la de su turno abierto. Para acudir a un incidente o marcar
+	 * un hito hay que estar de turno. Estar asignado no alcanza: con el compañero trabajando la unidad figura
+	 * disponible, pero el que está en su casa no está trabajando.
+	 */
+	public Long ambulanciaEnTurno(Long paramedicoId) {
+		return turnos.buscarAbiertoPorParamedico(paramedicoId)
+				.map(turno -> turno.getAmbulancia().getId())
+				.orElseThrow(() -> new ConflictoException(CodigoError.SIN_TURNO, "No estás de turno."));
+	}
+
+	/**
 	 * Entra a trabajar con la ambulancia de su asignación vigente. Si la unidad está averiada no pasa a disponible: la
 	 * avería manda sobre el turno, y él lo ve en pantalla.
 	 */

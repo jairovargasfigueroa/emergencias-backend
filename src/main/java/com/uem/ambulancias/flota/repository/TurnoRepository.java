@@ -1,5 +1,6 @@
 package com.uem.ambulancias.flota.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,5 +27,16 @@ public interface TurnoRepository extends JpaRepository<Turno, Long> {
 			order by t.inicio
 			""")
 	List<Turno> buscarAbiertosPorAmbulancias(@Param("ambulanciaIds") List<Long> ambulanciaIds);
+
+	/**
+	 * Quiénes están de turno en esas unidades y pueden recibir un aviso: activos y con un teléfono registrado. A ellos
+	 * se les avisa de un incidente, no a todos los asignados: el compañero que está en su casa no está trabajando.
+	 */
+	@Query("""
+			select t from Turno t join fetch t.paramedico p
+			where t.ambulancia.id in :ambulanciaIds and t.fin is null
+			  and p.activo = true and p.tokenPush is not null
+			""")
+	List<Turno> buscarAbiertosConAvisoPorAmbulancias(@Param("ambulanciaIds") Collection<Long> ambulanciaIds);
 
 }
