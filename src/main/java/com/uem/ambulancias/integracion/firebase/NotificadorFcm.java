@@ -9,6 +9,7 @@ import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
 import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
 import com.uem.ambulancias.emergencias.service.AvisoDeTraslado;
+import com.uem.ambulancias.emergencias.service.AvisoParaCiudadano;
 import com.uem.ambulancias.emergencias.service.IncidentePublicado;
 import com.uem.ambulancias.emergencias.service.NotificadorPush;
 
@@ -68,6 +69,23 @@ public class NotificadorFcm implements NotificadorPush {
 				.toList();
 		EscriturasFirebase.registrarFallo(mensajeria.sendEachAsync(mensajes),
 				"enviar el push de despacho del incidente " + incidente.id());
+	}
+
+	@Override
+	public void notificarCiudadanos(List<AvisoParaCiudadano> avisos) {
+		if (avisos.isEmpty()) {
+			return;
+		}
+		List<Message> mensajes = avisos.stream()
+				.map(aviso -> Message.builder()
+						.setToken(aviso.tokenPush())
+						.setNotification(Notification.builder().setTitle(aviso.titulo()).setBody(aviso.cuerpo()).build())
+						.putAllData(aviso.datos())
+						.setAndroidConfig(AndroidConfig.builder().setPriority(AndroidConfig.Priority.HIGH).build())
+						.build())
+				.toList();
+		EscriturasFirebase.registrarFallo(mensajeria.sendEachAsync(mensajes),
+				"enviar " + mensajes.size() + " avisos a ciudadanos (" + avisos.getFirst().titulo() + ")");
 	}
 
 	@Override

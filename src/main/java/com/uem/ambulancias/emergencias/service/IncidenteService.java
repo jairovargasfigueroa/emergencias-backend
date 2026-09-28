@@ -214,6 +214,8 @@ public class IncidenteService {
 		if (incidente.getEstado() == EstadoIncidente.ACTIVO) {
 			incidente.cambiarEstado(EstadoIncidente.EN_ATENCION);
 			incidentes.save(incidente);
+			// Es lo primero que quiere saber quien pidió la ambulancia: que alguien ya va.
+			eventos.publishEvent(new NovedadDelIncidente(idIncidente, NovedadDelIncidente.Tipo.UNIDAD_EN_CAMINO));
 		}
 		ambulancias.actualizarEstado(idAmbulancia, EstadoAmbulancia.EN_ATENCION);
 

@@ -18,6 +18,9 @@ public interface NotificadorPush {
 	/** Avisa a la tripulación de una unidad del traslado que le acaba de tocar. */
 	void notificarTrasladoAsignado(List<String> tokens, AvisoDeTraslado aviso);
 
+	/** Avisos a ciudadanos, ya armados: cada uno va a su teléfono con su texto y lo que abre al tocarlo. */
+	void notificarCiudadanos(List<AvisoParaCiudadano> avisos);
+
 	/**
 	 * Avisa a la tripulación que ese traslado ya no es suyo: {@code motivo} dice si lo canceló quien lo pidió o si
 	 * el administrador se lo pasó a otra unidad.

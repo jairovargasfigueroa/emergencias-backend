@@ -93,7 +93,12 @@ public class AtencionService {
 	@Transactional
 	public Atencion marcarLlegada(Long atencionId, Long paramedicoId, Point ubicacion) {
 		return aplicar(atencionId, paramedicoId, true, (atencion, incidente) -> {
+			// Se avisa de la primera unidad que llega: con dos unidades, la segunda no le cambia nada a quien espera.
+			boolean primeraEnLlegar = incidente != null && !atenciones.existeLlegadaVigentePorIncidente(incidente.getId());
 			atencion.marcarHito(EstadoAtencion.EN_EL_LUGAR, ubicacion);
+			if (primeraEnLlegar) {
+				eventos.publishEvent(new NovedadDelIncidente(incidente.getId(), NovedadDelIncidente.Tipo.UNIDAD_LLEGO));
+			}
 			return false;
 		});
 	}
@@ -380,6 +385,8 @@ public class AtencionService {
 			// I2: alguien sigue esperando, así que el incidente vuelve a esperar una unidad.
 			incidente.cambiarEstado(EstadoIncidente.ACTIVO);
 			incidentes.save(incidente);
+			eventos.publishEvent(
+					new NovedadDelIncidente(incidente.getId(), NovedadDelIncidente.Tipo.BUSCANDO_OTRA_UNIDAD));
 			return true;
 		}
 		// Alguien fue y resolvió sin trasladar: el desenlace sale de lo que encontró en el lugar.

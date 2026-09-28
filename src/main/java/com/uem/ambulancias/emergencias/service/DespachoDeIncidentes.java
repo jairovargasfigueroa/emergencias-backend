@@ -86,6 +86,7 @@ public class DespachoDeIncidentes {
 		incidente.cerrar(estadoPara(motivo), motivo, administrador);
 		incidentes.save(incidente);
 		eventos.publishEvent(new IncidenteActualizado(incidenteId, false));
+		eventos.publishEvent(new NovedadDelIncidente(incidenteId, NovedadDelIncidente.Tipo.CERRADO_POR_LA_CENTRAL));
 	}
 
 	/** Cómo queda el incidente según por qué lo cerró la central. */
