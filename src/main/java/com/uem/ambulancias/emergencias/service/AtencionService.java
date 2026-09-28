@@ -22,6 +22,7 @@ import com.uem.ambulancias.emergencias.repository.AlertaRepository;
 import com.uem.ambulancias.emergencias.repository.AtencionRepository;
 import com.uem.ambulancias.emergencias.repository.CentroSaludRepository;
 import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
+import com.uem.ambulancias.emergencias.repository.TrasladoRepository;
 import com.uem.ambulancias.flota.domain.EstadoAmbulancia;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.service.ServicioParamedicoService;
@@ -43,6 +44,7 @@ public class AtencionService {
 	private final AtencionRepository atenciones;
 	private final AlertaRepository alertas;
 	private final IncidenteRepository incidentes;
+	private final TrasladoRepository traslados;
 	private final AmbulanciaRepository ambulancias;
 	private final CentroSaludRepository centrosSalud;
 	private final ServicioParamedicoService servicioParamedico;
@@ -214,18 +216,24 @@ public class AtencionService {
 
 	/**
 	 * PB-05 R10: el cambio y su cascada se aplican con acceso exclusivo al incidente, así dos unidades del mismo
-	 * incidente que entregan o cancelan a la vez no evalúan un conteo desactualizado. Solo se permite sobre la atención
-	 * de la ambulancia en la que el paramédico está de turno. La publicación ocurre después del commit, con un solo
-	 * evento por operación.
+	 * incidente que entregan o cancelan a la vez no evalúan un conteo desactualizado. En un traslado lo exclusivo es
+	 * el traslado: el ciudadano puede estar cancelándolo mientras el paramédico marca un hito. Solo se permite sobre
+	 * la atención de la ambulancia en la que el paramédico está de turno. La publicación ocurre después del commit,
+	 * con un solo evento por operación.
+	 *
+	 * <p>Primero se bloquea de qué cuelga la atención y recién después se la lee: si otro cambio está en curso, así
+	 * se espera a que termine y se lee lo que dejó, en vez de trabajar sobre una copia vieja.
 	 */
 	private Atencion aplicar(Long atencionId, Long paramedicoId, boolean difundir, CambioDeAtencion cambio) {
-		Atencion atencion = atenciones.findById(atencionId)
-				.orElseThrow(() -> new NoEncontradoException("No existe la atención " + atencionId + "."));
-
-		// Una atención de traslado no cuelga de ningún incidente: no hay nada que bloquear ni que difundir.
 		Long incidenteId = atenciones.buscarIncidenteId(atencionId).orElse(null);
 		Incidente incidente = incidenteId == null ? null : incidentes.buscarParaActualizar(incidenteId)
 				.orElseThrow(() -> new NoEncontradoException("No existe el incidente " + incidenteId + "."));
+		if (incidenteId == null) {
+			atenciones.buscarTrasladoId(atencionId).ifPresent(traslados::buscarParaActualizar);
+		}
+
+		Atencion atencion = atenciones.findById(atencionId)
+				.orElseThrow(() -> new NoEncontradoException("No existe la atención " + atencionId + "."));
 
 		Long ambulanciaDelParamedico = turnoService.ambulanciaEnTurno(paramedicoId);
 		if (!atencion.getAmbulancia().getId().equals(ambulanciaDelParamedico)) {

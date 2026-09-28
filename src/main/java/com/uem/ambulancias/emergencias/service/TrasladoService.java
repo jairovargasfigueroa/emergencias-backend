@@ -71,7 +71,7 @@ public class TrasladoService {
 	 */
 	@Transactional
 	public Traslado reprogramar(Long solicitanteId, Long trasladoId, RegistrarTrasladoRequest datos) {
-		Traslado traslado = buscarPropio(solicitanteId, trasladoId);
+		Traslado traslado = buscarPropioParaActualizar(solicitanteId, trasladoId);
 		Pedido pedido = resolver(datos);
 		traslado.reprogramar(pedido.necesidades(), pedido.origen(), pedido.origenReferencia(),
 				pedido.contactoNombre(), pedido.contactoTelefono(), pedido.centro(), pedido.destino(),
@@ -83,7 +83,7 @@ public class TrasladoService {
 	@Transactional
 	public Traslado actualizarDetalles(Long solicitanteId, Long trasladoId, String origenReferencia,
 			String contactoNombre, String contactoTelefono, String observaciones) {
-		Traslado traslado = buscarPropio(solicitanteId, trasladoId);
+		Traslado traslado = buscarPropioParaActualizar(solicitanteId, trasladoId);
 		String nombre = vacioComoNulo(contactoNombre);
 		String telefono = vacioComoNulo(contactoTelefono);
 		exigirContactoCompleto(nombre, telefono);
@@ -117,8 +117,12 @@ public class TrasladoService {
 				contactoTelefono, centro, destino, vacioComoNulo(datos.destinoDetalle()), horario);
 	}
 
-	private Traslado buscarPropio(Long solicitanteId, Long trasladoId) {
-		Traslado traslado = traslados.findById(trasladoId)
+	/**
+	 * Con la fila bloqueada: todo lo que el ciudadano hace sobre su traslado lo cambia, y el barrido puede estar
+	 * asignándolo en ese mismo momento. Sin el bloqueo, el que guarda último borra lo que hizo el otro.
+	 */
+	private Traslado buscarPropioParaActualizar(Long solicitanteId, Long trasladoId) {
+		Traslado traslado = traslados.buscarParaActualizar(trasladoId)
 				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
 		if (!traslado.esDe(solicitanteId)) {
 			throw new ConflictoException(CodigoError.TRASLADO_AJENO, "El traslado no es de este ciudadano.");
@@ -174,7 +178,7 @@ public class TrasladoService {
 	 */
 	@Transactional
 	public Traslado cancelar(Long solicitanteId, Long trasladoId) {
-		Traslado traslado = buscarPropio(solicitanteId, trasladoId);
+		Traslado traslado = buscarPropioParaActualizar(solicitanteId, trasladoId);
 		if (!traslado.getEstado().isVigente()) {
 			throw new ConflictoException(CodigoError.TRASLADO_FINALIZADO,
 					"El traslado ya terminó y no se puede cancelar.");

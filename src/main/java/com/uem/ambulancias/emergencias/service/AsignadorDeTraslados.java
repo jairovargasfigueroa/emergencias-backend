@@ -67,21 +67,24 @@ public class AsignadorDeTraslados {
 	/**
 	 * Intenta darle unidad a un traslado. Vacío significa que en este instante no hay ninguna que sirva, no que
 	 * el traslado se haya caído: se reintenta mientras todavía se llegue a tiempo.
+	 *
+	 * <p>El traslado se bloquea antes de mirar su estado: el administrador puede estar asignándolo a mano en ese
+	 * mismo momento, y sin el bloqueo los dos lo veían esperando y salían dos unidades para el mismo viaje.
 	 */
 	@Transactional
 	public Optional<Atencion> intentarAsignar(Long trasladoId) {
-		Traslado traslado = traslados.findById(trasladoId).orElse(null);
+		Traslado traslado = traslados.buscarParaActualizar(trasladoId).orElse(null);
 		if (traslado == null || traslado.getEstado() != EstadoTraslado.BUSCANDO_UNIDAD) {
 			return Optional.empty();
 		}
 		List<String> tiposQueSirven = tiposQueCubren(traslado.tipoUnidadEfectivo());
 		List<Long> yaRechazaron = atenciones.buscarAmbulanciasQueRechazaron(trasladoId);
-		for (Ambulancia candidata : ambulancias.buscarDisponiblesParaTraslado(traslado.getOrigen().getY(),
+		for (Long candidataId : ambulancias.buscarIdsDisponiblesParaTraslado(traslado.getOrigen().getY(),
 				traslado.getOrigen().getX(), tiposQueSirven)) {
-			if (yaRechazaron.contains(candidata.getId())) {
+			if (yaRechazaron.contains(candidataId)) {
 				continue;
 			}
-			Optional<Atencion> asignada = tomar(traslado, candidata.getId(), null);
+			Optional<Atencion> asignada = tomar(traslado, candidataId, null);
 			if (asignada.isPresent()) {
 				return asignada;
 			}
@@ -97,13 +100,15 @@ public class AsignadorDeTraslados {
 	public Atencion asignarA(Long trasladoId, Long ambulanciaId, Long administradorId) {
 		Usuario administrador = usuarios.findByIdAndRol(administradorId, RolUsuario.ADMIN)
 				.orElseThrow(() -> new NoEncontradoException("No existe el administrador " + administradorId + "."));
-		Traslado traslado = traslados.findById(trasladoId)
+		Traslado traslado = traslados.buscarParaActualizar(trasladoId)
 				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
 		if (traslado.getEstado() != EstadoTraslado.BUSCANDO_UNIDAD) {
 			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
-					"El traslado no está esperando unidad.");
+					"El traslado ya no está esperando unidad: puede que el sistema se la haya asignado recién.");
 		}
-		Ambulancia elegida = ambulancias.findById(ambulanciaId)
+		// Bloqueada desde la primera lectura: si se leyera antes sin bloqueo, la que se bloquea después sería esa
+		// misma copia, y no se vería que en el medio se fue a una emergencia.
+		Ambulancia elegida = ambulancias.buscarParaActualizar(ambulanciaId)
 				.orElseThrow(() -> new NoEncontradoException("No existe la ambulancia " + ambulanciaId + "."));
 		if (!elegida.getTipoUnidad().cubreA(traslado.tipoUnidadEfectivo())) {
 			throw new ConflictoException(CodigoError.UNIDAD_INSUFICIENTE,

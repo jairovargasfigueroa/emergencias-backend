@@ -121,6 +121,9 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 	@Query("select a.incidente.id from Atencion a where a.id = :id")
 	Optional<Long> buscarIncidenteId(@Param("id") Long id);
 
+	@Query("select a.traslado.id from Atencion a where a.id = :id")
+	Optional<Long> buscarTrasladoId(@Param("id") Long id);
+
 	@Query("""
 			select a from Atencion a join fetch a.ambulancia
 			where a.incidente.id = :incidenteId and a.estado in :estados

@@ -8,6 +8,7 @@ import java.util.Optional;
 import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.flota.domain.Ambulancia;
 import com.uem.ambulancias.flota.domain.EstadoAmbulancia;
+import com.uem.ambulancias.flota.domain.TipoUnidad;
 
 import jakarta.persistence.LockModeType;
 import org.locationtech.jts.geom.Point;
@@ -41,15 +42,22 @@ public interface AmbulanciaRepository extends JpaRepository<Ambulancia, Long> {
 	/**
 	 * Lo mismo, pero solo las unidades cuyo tipo alcanza para el traslado. Los tipos que sirven se calculan en
 	 * Java sobre la escalera de la norma y llegan ya resueltos, para no meter esa regla en el SQL.
+	 *
+	 * <p>Devuelve solo los ids: quien asigna bloquea después la fila de cada candidata, y si la ambulancia ya
+	 * estuviera cargada, Hibernate le devolvería esta copia sin releerla y no vería que se fue a una emergencia.
 	 */
 	@Query(value = """
-			select a.* from ambulancia a
+			select a.id from ambulancia a
 			where a.estado = 'DISPONIBLE' and a.activa and a.tipo_unidad in (:tipos)
 			order by ST_Distance(a.ultima_posicion::geography,
 			                     ST_SetSRID(ST_MakePoint(:longitud, :latitud), 4326)::geography) asc nulls last
 			""", nativeQuery = true)
-	List<Ambulancia> buscarDisponiblesParaTraslado(@Param("latitud") double latitud,
+	List<Long> buscarIdsDisponiblesParaTraslado(@Param("latitud") double latitud,
 			@Param("longitud") double longitud, @Param("tipos") Collection<String> tipos);
+
+	/** El tipo de una unidad, sin cargarla: así una lectura posterior con bloqueo la trae fresca. */
+	@Query("select a.tipoUnidad from Ambulancia a where a.id = :id")
+	Optional<TipoUnidad> buscarTipoUnidad(@Param("id") Long id);
 
 	/** Lectura con bloqueo pesimista: serializa los cambios de estado de la misma ambulancia. */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)

@@ -46,16 +46,18 @@ public class PlanificadorDeTraslados {
 	@TransactionalEventListener
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public void alLiberarseUnaUnidad(UnidadLiberada evento) {
-		ambulancias.findById(evento.ambulanciaId()).ifPresent(unidad -> {
+		// Solo el tipo y los ids: la unidad y los traslados se leen después con su fila bloqueada, y si ya
+		// estuvieran cargados en esta transacción, Hibernate devolvería estas copias en vez de releerlos.
+		ambulancias.buscarTipoUnidad(evento.ambulanciaId()).ifPresent(tipoDeLaUnidad -> {
 			List<TipoUnidad> queCubre = TipoUnidad.ESCALERA.stream()
-					.filter(tipo -> unidad.getTipoUnidad().cubreA(tipo))
+					.filter(tipoDeLaUnidad::cubreA)
 					.toList();
 			if (queCubre.isEmpty()) {
 				return;
 			}
-			for (Traslado traslado : traslados.buscarEsperandoUnidadDeTipo(queCubre)) {
-				if (asignador.intentarAsignar(traslado.getId()).isPresent()) {
-					log.info("Traslado {} asignado a la unidad que acaba de liberarse", traslado.getId());
+			for (Long trasladoId : traslados.buscarIdsEsperandoUnidadDeTipo(queCubre)) {
+				if (asignador.intentarAsignar(trasladoId).isPresent()) {
+					log.info("Traslado {} asignado a la unidad que acaba de liberarse", trasladoId);
 					return;
 				}
 			}
