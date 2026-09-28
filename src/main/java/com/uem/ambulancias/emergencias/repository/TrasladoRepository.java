@@ -54,6 +54,21 @@ public interface TrasladoRepository extends JpaRepository<Traslado, Long> {
 	List<Traslado> buscarEsperandoUnidad();
 
 	/**
+	 * Los programados que salen entre {@code desde} y {@code hasta} y todavía no se recordaron. Solo los pedidos
+	 * antes de {@code pedidosAntesDe}: a quien lo pidió recién, no hace falta recordárselo. Con la fila bloqueada, por
+	 * si alguien lo está cambiando en ese momento.
+	 */
+	@Lock(LockModeType.PESSIMISTIC_WRITE)
+	@Query("""
+			select t from Traslado t
+			where t.estado = 'PROGRAMADO' and t.horaRecordatorio is null
+			  and t.horaSalidaEstimada >= :desde and t.horaSalidaEstimada < :hasta
+			  and t.fechaHoraCreacion < :pedidosAntesDe
+			""")
+	List<Traslado> buscarPorRecordar(@Param("desde") Instant desde, @Param("hasta") Instant hasta,
+			@Param("pedidosAntesDe") Instant pedidosAntesDe);
+
+	/**
 	 * La bandeja del administrador: los que tienen una unidad que ya debería haber llegado, los que esperan unidad
 	 * y los que se vencieron sin ella mientras nadie le haya avisado a la familia. Primero lo que todavía se puede
 	 * salvar: la familia que está esperando en la puerta, y después los que se pueden asignar a mano.

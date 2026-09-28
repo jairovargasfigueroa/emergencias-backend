@@ -67,7 +67,7 @@ public class ConsultaIncidentesService {
 
 	/** El incidente con todas sus alertas y atenciones. */
 	public IncidenteConAlertasYAtenciones detalle(Long incidenteId) {
-		Incidente incidente = incidentes.findById(incidenteId)
+		Incidente incidente = incidentes.buscarConQuienLoCerro(incidenteId)
 				.orElseThrow(() -> new NoEncontradoException("No existe el incidente " + incidenteId + "."));
 		return new IncidenteConAlertasYAtenciones(incidente, alertas.buscarPorIncidente(incidenteId),
 				atenciones.buscarPorIncidentes(List.of(incidenteId)));

@@ -4,6 +4,7 @@ import java.util.List;
 
 import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
 import com.uem.ambulancias.emergencias.service.AvisoDeTraslado;
+import com.uem.ambulancias.emergencias.service.AvisoParaCiudadano;
 import com.uem.ambulancias.emergencias.service.IncidentePublicado;
 import com.uem.ambulancias.emergencias.service.NotificadorPush;
 import com.uem.ambulancias.emergencias.service.PublicadorDeIncidentes;
@@ -55,6 +56,18 @@ public class PublicadorEnRegistro implements PublicadorDeIncidentes, PublicadorD
 	public void notificarNuevoIncidente(List<String> tokensPorCercania, IncidentePublicado incidente) {
 		log.info("Firebase apagado: no se envía push del incidente {} a {} teléfonos.", incidente.id(),
 				tokensPorCercania.size());
+	}
+
+	@Override
+	public void notificarIncidenteAsignado(List<String> tokens, IncidentePublicado incidente) {
+		log.info("Firebase apagado: no se avisa a {} teléfonos que los mandaron al incidente {}.", tokens.size(),
+				incidente.id());
+	}
+
+	@Override
+	public void notificarCiudadanos(List<AvisoParaCiudadano> avisos) {
+		avisos.forEach(aviso -> log.info("Firebase apagado: no se le avisa a un ciudadano \"{}\" ({}).", aviso.titulo(),
+				aviso.datos()));
 	}
 
 	@Override

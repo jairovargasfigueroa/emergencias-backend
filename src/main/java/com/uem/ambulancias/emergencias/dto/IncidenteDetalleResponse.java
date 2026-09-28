@@ -26,7 +26,9 @@ public record IncidenteDetalleResponse(
 		List<String> unidades,
 		long unidadesAcudiendo,
 		List<AlertaDeIncidenteResponse> alertas,
-		List<AtencionDeIncidenteResponse> atenciones) {
+		List<AtencionDeIncidenteResponse> atenciones,
+		/** El administrador que lo cerró a mano. Nulo si se cerró solo, por lo que pasó con sus unidades o alertas. */
+		String cerradoPor) {
 
 	/**
 	 * {@code alertas} con su emisor y {@code atenciones} con su ambulancia, su paramédico responsable y su centro de
@@ -47,7 +49,8 @@ public record IncidenteDetalleResponse(
 				resumen.unidades(),
 				resumen.unidadesAcudiendo(),
 				alertas.stream().map(AlertaDeIncidenteResponse::de).toList(),
-				atenciones.stream().map(AtencionDeIncidenteResponse::de).toList());
+				atenciones.stream().map(AtencionDeIncidenteResponse::de).toList(),
+				incidente.getCerradoPor() == null ? null : incidente.getCerradoPor().getNombreCompleto());
 	}
 
 }

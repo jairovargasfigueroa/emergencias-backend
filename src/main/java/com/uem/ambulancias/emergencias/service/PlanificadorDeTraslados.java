@@ -76,6 +76,11 @@ public class PlanificadorDeTraslados {
 		asignador.vencerLosQueNoLlegan(ahora).forEach(traslado -> log.warn(
 				"Traslado {} sin unidad y ya no llega a tiempo: queda como no cubierto", traslado.getId()));
 
+		int recordados = asignador.recordarLosDeManana(ahora);
+		if (recordados > 0) {
+			log.info("Traslados de mañana recordados a la familia: {}", recordados);
+		}
+
 		asignarPendientes(ahora);
 	}
 

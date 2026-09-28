@@ -13,11 +13,13 @@ import com.uem.ambulancias.usuarios.domain.Usuario;
 public record ServicioActualResponse(ParamedicoResponse paramedico, AmbulanciaResponse ambulancia, boolean enServicio,
 		TurnoResponse turno) {
 
-	public static ServicioActualResponse de(Usuario paramedico, Asignacion asignacionVigente, Turno turnoAbierto) {
+	/** {@code tripulantesEnTurno} son los que tienen turno abierto en su ambulancia, él incluido. */
+	public static ServicioActualResponse de(Usuario paramedico, Asignacion asignacionVigente, Turno turnoAbierto,
+			long tripulantesEnTurno) {
 		Ambulancia ambulancia = asignacionVigente == null ? null : asignacionVigente.getAmbulancia();
 		return new ServicioActualResponse(
-				ParamedicoResponse.de(paramedico, asignacionVigente),
-				ambulancia == null ? null : AmbulanciaResponse.de(ambulancia),
+				ParamedicoResponse.de(paramedico, asignacionVigente, turnoAbierto != null),
+				ambulancia == null ? null : AmbulanciaResponse.de(ambulancia, tripulantesEnTurno),
 				ambulancia != null && ambulancia.isActiva(),
 				turnoAbierto == null ? null : TurnoResponse.de(turnoAbierto));
 	}

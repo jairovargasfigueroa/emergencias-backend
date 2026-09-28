@@ -29,6 +29,12 @@ public class CiudadanoService {
 				.orElseGet(() -> usuarios.save(Usuario.registrarCiudadano(nombreCompleto.trim(), telefonoLimpio)));
 	}
 
+	/** A dónde mandarle los avisos. Un teléfono nuevo reemplaza al anterior. */
+	@Transactional
+	public void registrarDispositivo(Long ciudadanoId, String tokenPush) {
+		buscarCiudadanoActivo(ciudadanoId).registrarDispositivo(tokenPush.trim());
+	}
+
 	/** Emisor de una alerta: un ciudadano activo. */
 	public Usuario buscarCiudadanoActivo(Long id) {
 		return usuarios.findByIdAndRol(id, RolUsuario.CIUDADANO)

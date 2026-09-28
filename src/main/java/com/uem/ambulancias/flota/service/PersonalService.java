@@ -3,6 +3,7 @@ package com.uem.ambulancias.flota.service;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -69,10 +70,26 @@ public class PersonalService {
 				.toList();
 	}
 
-	/** Baja lógica: sus asignaciones siguen intactas. */
+	/** Quiénes tienen turno abierto ahora. */
+	public Set<Long> paramedicosEnTurno() {
+		return Set.copyOf(turnos.buscarParamedicosEnTurno());
+	}
+
+	public boolean estaEnTurno(Long paramedicoId) {
+		return turnos.buscarAbiertoPorParamedico(paramedicoId).isPresent();
+	}
+
+	/**
+	 * Baja lógica: sus asignaciones siguen intactas. No se puede con el turno abierto: su unidad seguiría figurando
+	 * con alguien adentro, y un traslado podría quedar a cargo de alguien dado de baja.
+	 */
 	@Transactional
 	public ParamedicoConAsignacion desactivarParamedico(Long id) {
 		Usuario paramedico = buscarParamedico(id);
+		if (estaEnTurno(id)) {
+			throw new ConflictoException(CodigoError.PARAMEDICO_EN_TURNO,
+					paramedico.getNombreCompleto() + " está en turno. Ciérrale el turno antes de desactivarlo.");
+		}
 		paramedico.desactivar();
 		return new ParamedicoConAsignacion(paramedico, asignaciones.buscarVigentePorParamedico(id).orElse(null));
 	}
@@ -134,6 +151,11 @@ public class PersonalService {
 			throw new ConflictoException(CodigoError.PARAMEDICO_EN_TURNO,
 					nombre + " está en turno. Tiene que salir de turno antes de cambiarle la ambulancia.");
 		}
+	}
+
+	/** Un paramédico con su asignación vigente, para responder después de cambiarle algo. */
+	public ParamedicoConAsignacion paramedico(Long id) {
+		return conAsignacion(buscarParamedico(id));
 	}
 
 	private ParamedicoConAsignacion conAsignacion(Usuario paramedico) {

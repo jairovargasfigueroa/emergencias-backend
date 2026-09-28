@@ -2,6 +2,7 @@ package com.uem.ambulancias.seguridad.controller;
 
 import com.uem.ambulancias.flota.dto.IdentificarParamedicoRequest;
 import com.uem.ambulancias.flota.dto.ParamedicoResponse;
+import com.uem.ambulancias.flota.service.TurnoService;
 import com.uem.ambulancias.seguridad.dto.IngresoAdminRequest;
 import com.uem.ambulancias.seguridad.dto.SesionResponse;
 import com.uem.ambulancias.seguridad.service.AutenticacionService;
@@ -26,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AutenticacionController {
 
 	private final AutenticacionService autenticacionService;
+	private final TurnoService turnoService;
 
 	/** Panel del administrador. */
 	@PostMapping("/admin")
@@ -38,8 +40,10 @@ public class AutenticacionController {
 	@PostMapping("/paramedico")
 	public SesionResponse.Paramedico paramedico(@Valid @RequestBody IdentificarParamedicoRequest request) {
 		AutenticacionService.SesionParamedico sesion = autenticacionService.ingresarParamedico(request.telefono());
+		Long paramedicoId = sesion.identificado().paramedico().getId();
 		return new SesionResponse.Paramedico(sesion.token(),
-				ParamedicoResponse.de(sesion.identificado().paramedico(), sesion.identificado().asignacionVigente()));
+				ParamedicoResponse.de(sesion.identificado().paramedico(), sesion.identificado().asignacionVigente(),
+						turnoService.turnoAbierto(paramedicoId).isPresent()));
 	}
 
 	/** App del ciudadano: el registro ligero (PB-02 R1) es su entrada; repetirlo devuelve el mismo usuario. */

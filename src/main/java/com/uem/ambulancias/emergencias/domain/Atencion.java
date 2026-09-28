@@ -137,6 +137,11 @@ public class Atencion {
 	@JoinColumn(name = "centro_salud_id")
 	private CentroSalud centroSalud;
 
+	/** Quién la cerró desde la central porque la tripulación no podía. Nulo en todas las demás. */
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "cerrada_por_id")
+	private Usuario cerradaPor;
+
 	/** ME-1 A0: la atención nace EN_CAMINO cuando la unidad toma o se suma al incidente. */
 	public static Atencion iniciar(Incidente incidente, Ambulancia ambulancia, Usuario paramedicoResponsable,
 			Instant horaToma) {
@@ -171,6 +176,11 @@ public class Atencion {
 
 	public boolean esDeTraslado() {
 		return traslado != null;
+	}
+
+	/** La mandó la central y no la tomó la tripulación por su cuenta. */
+	public void marcarDespachadaPor(Usuario administrador) {
+		asignadoPor = administrador;
 	}
 
 	/**
@@ -282,6 +292,46 @@ public class Atencion {
 		horaLiberacion = Instant.now();
 	}
 
+	/**
+	 * La central la cancela porque la tripulación no responde. Solo antes de tener al paciente: el caso sigue su camino
+	 * normal, con otra unidad si alguien la sigue esperando.
+	 */
+	public void cancelarDesdeLaCentral(Usuario administrador) {
+		if (estado != EstadoAtencion.EN_CAMINO && estado != EstadoAtencion.EN_EL_LUGAR) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"Con el paciente a bordo no se cancela: dala por entregada.");
+		}
+		cancelar(MotivoCancelacionAtencion.CERRADA_POR_CENTRAL);
+		cerradaPor = administrador;
+	}
+
+	/**
+	 * La central la da por entregada cuando la tripulación no pudo marcarlo: llevaba al paciente a bordo, así que el
+	 * viaje terminó en el destino. La hora es la de cuando se registra, no la real. Sin destino nuevo queda el que ya
+	 * tenía, que en un traslado es el del pedido. La unidad se libera en el mismo paso.
+	 */
+	public void entregarDesdeLaCentral(CentroSalud centroSalud, String destinoDescripcion, Usuario administrador,
+			Instant ahora) {
+		if (estado != EstadoAtencion.PACIENTE_RECOGIDO && estado != EstadoAtencion.EN_HOSPITAL) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"Solo se da por entregada una atención con el paciente a bordo.");
+		}
+		estado = EstadoAtencion.PACIENTE_ENTREGADO;
+		horaEntrega = ahora;
+		if (centroSalud != null || destinoDescripcion != null) {
+			this.centroSalud = centroSalud;
+			this.destinoDescripcion = destinoDescripcion;
+		}
+		horaLiberacion = ahora;
+		cerradaPor = administrador;
+	}
+
+	/** La central libera una unidad que ya había resuelto y no pudo marcar que quedó libre. */
+	public void liberarDesdeLaCentral(Usuario administrador) {
+		liberar();
+		cerradaPor = administrador;
+	}
+
 	/** La unidad sigue tomada por esta atención: trabajando, o ya resuelta pero todavía sin liberarse. */
 	public boolean ocupaLaUnidad() {
 		return estado.isActiva() || (estado.isResuelta() && horaLiberacion == null);
@@ -294,7 +344,8 @@ public class Atencion {
 	 */
 	public void cancelarPorLaTripulacion(MotivoCancelacionAtencion motivo) {
 		switch (motivo) {
-			case CANCELADA_POR_SOLICITANTE, REASIGNADA -> throw motivoInvalido("Ese motivo no lo elige la tripulación.");
+			case CANCELADA_POR_SOLICITANTE, REASIGNADA, CERRADA_POR_CENTRAL ->
+					throw motivoInvalido("Ese motivo no lo elige la tripulación.");
 			case RECHAZADA_POR_PARAMEDICO -> {
 				if (!esDeTraslado()) {
 					throw motivoInvalido("Solo un traslado se puede devolver.");

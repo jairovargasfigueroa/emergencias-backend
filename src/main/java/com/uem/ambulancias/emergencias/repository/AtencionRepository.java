@@ -92,6 +92,10 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 	@Query("select distinct a.ambulancia.id from Atencion a where a.traslado.id = :trasladoId")
 	List<Long> buscarAmbulanciasQueLoTuvieron(@Param("trasladoId") Long trasladoId);
 
+	/** Las unidades que ya estuvieron en ese incidente: el administrador lo ve al elegir a cuál mandar. */
+	@Query("select distinct a.ambulancia.id from Atencion a where a.incidente.id = :incidenteId")
+	List<Long> buscarAmbulanciasQueEstuvieron(@Param("incidenteId") Long incidenteId);
+
 	/**
 	 * Las atenciones no canceladas de varios traslados, en una sola consulta: es lo que la tabla del panel necesita.
 	 * De la más nueva a la más vieja, porque un traslado puede tener varias —la unidad que no correspondía y la que
@@ -193,7 +197,7 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 	 */
 	@Query("""
 			select a from Atencion a join fetch a.ambulancia left join fetch a.centroSalud
-			left join fetch a.paramedicoResponsable
+			left join fetch a.paramedicoResponsable left join fetch a.cerradaPor
 			where a.incidente.id in :incidenteIds
 			order by a.horaToma, a.id
 			""")
