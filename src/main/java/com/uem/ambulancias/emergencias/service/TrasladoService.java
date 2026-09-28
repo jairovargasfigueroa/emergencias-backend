@@ -266,7 +266,7 @@ public class TrasladoService {
 	private void exigirQueLlegue(Horario horario, Instant ahora) {
 		if (horario.limiteSalida().isBefore(ahora)) {
 			throw new ConflictoException(CodigoError.HORA_INALCANZABLE,
-					"No se llega a esa hora. Elegí una más tarde.");
+					"No se llega a esa hora. Elige una más tarde.");
 		}
 	}
 
