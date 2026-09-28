@@ -49,6 +49,8 @@ public record TrasladoResponse(
 		String contactoTelefono,
 
 		UbicacionResponse destino,
+		/** El centro del catálogo, si el destino es uno: la app del paramédico lo trae ya elegido al entregar. */
+		Long centroSaludDestinoId,
 		String centroSaludDestino,
 		String destinoDetalle,
 
@@ -86,6 +88,7 @@ public record TrasladoResponse(
 				traslado.getContactoNombre(),
 				traslado.getContactoTelefono(),
 				UbicacionResponse.de(traslado.getDestino()),
+				traslado.getCentroSaludDestino() == null ? null : traslado.getCentroSaludDestino().getId(),
 				traslado.getCentroSaludDestino() == null ? null : traslado.getCentroSaludDestino().getNombre(),
 				traslado.getDestinoDetalle(),
 				traslado.getFechaHoraCreacion());
