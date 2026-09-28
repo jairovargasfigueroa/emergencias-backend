@@ -96,12 +96,15 @@ public class NotificadorFcm implements NotificadorPush {
 	@Override
 	public void notificarTrasladoRetirado(List<String> tokens, AvisoDeTraslado aviso,
 			MotivoCancelacionAtencion motivo) {
-		if (motivo == MotivoCancelacionAtencion.CANCELADA_POR_SOLICITANTE) {
-			enviarATripulacion(tokens, aviso, "TRASLADO_CANCELADO", "Traslado cancelado",
-					aviso.pasajero() + " · Lo canceló quien lo pidió. Tu unidad quedó libre.");
-		} else {
-			enviarATripulacion(tokens, aviso, "TRASLADO_REASIGNADO", "Traslado reasignado",
+		switch (motivo) {
+			case CANCELADA_POR_SOLICITANTE -> enviarATripulacion(tokens, aviso, "TRASLADO_CANCELADO",
+					"Traslado cancelado", aviso.pasajero() + " · Lo canceló quien lo pidió. Tu unidad quedó libre.");
+			case REASIGNADA -> enviarATripulacion(tokens, aviso, "TRASLADO_REASIGNADO", "Traslado reasignado",
 					aviso.pasajero() + " · Se lo pasaron a otra unidad. Tu unidad quedó libre.");
+			// La central pudo dejar la unidad fuera de servicio: no se promete que quedó libre.
+			default -> enviarATripulacion(tokens, aviso, "TRASLADO_CERRADO_POR_CENTRAL",
+					"La central cerró tu traslado",
+					aviso.pasajero() + " · Lo cerró la central. Revisa en la app cómo quedó tu unidad.");
 		}
 	}
 
