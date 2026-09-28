@@ -160,16 +160,23 @@ public class TrasladoService {
 		return conSuAtencion(traslados.buscarEsperandoUnidad());
 	}
 
-	/** Una sola consulta para las atenciones de toda la lista, en vez de una por fila. */
+	/**
+	 * Una sola consulta para las atenciones de toda la lista, en vez de una por fila. Un traslado devuelto tiene
+	 * varias: cuenta la última, y solo si el traslado sigue en sus manos o terminó con ella. Uno que volvió a
+	 * buscar unidad no tiene a nadie, aunque antes haya tenido.
+	 */
 	private List<TrasladoConAtencion> conSuAtencion(List<Traslado> lista) {
 		if (lista.isEmpty()) {
 			return List.of();
 		}
-		Map<Long, Atencion> porTraslado = atenciones
+		Map<Long, Atencion> ultimaPorTraslado = atenciones
 				.buscarPorTraslados(lista.stream().map(Traslado::getId).toList()).stream()
 				.collect(Collectors.toMap(atencion -> atencion.getTraslado().getId(), atencion -> atencion,
-						(uno, otro) -> uno));
-		return lista.stream().map(t -> new TrasladoConAtencion(t, porTraslado.get(t.getId()))).toList();
+						(masNueva, masVieja) -> masNueva));
+		return lista.stream()
+				.map(t -> new TrasladoConAtencion(t,
+						t.getEstado().isConUnidad() ? ultimaPorTraslado.get(t.getId()) : null))
+				.toList();
 	}
 
 	/**
