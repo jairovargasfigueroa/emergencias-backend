@@ -81,10 +81,11 @@ public class AsignadorDeTraslados {
 			return Optional.empty();
 		}
 		List<String> tiposQueSirven = tiposQueCubren(traslado.tipoUnidadEfectivo());
-		List<Long> yaRechazaron = atenciones.buscarAmbulanciasQueRechazaron(trasladoId);
+		// Las que ya lo tuvieron y lo dejaron no entran: a mano, el administrador sí puede elegirlas.
+		List<Long> yaLoTuvieron = atenciones.buscarAmbulanciasQueLoTuvieron(trasladoId);
 		for (Long candidataId : ambulancias.buscarIdsDisponiblesParaTraslado(traslado.getOrigen().getY(),
 				traslado.getOrigen().getX(), tiposQueSirven)) {
-			if (yaRechazaron.contains(candidataId)) {
+			if (yaLoTuvieron.contains(candidataId)) {
 				continue;
 			}
 			Optional<Atencion> asignada = tomar(traslado, candidataId, null);

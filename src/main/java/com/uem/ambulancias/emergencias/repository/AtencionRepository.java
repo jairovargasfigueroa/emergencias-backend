@@ -85,14 +85,12 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 	boolean existsByIncidenteIdAndEstado(Long incidenteId, EstadoAtencion estado);
 
 	/**
-	 * Las unidades que ya rechazaron este traslado. Sin esto, el barrido le vuelve a ofrecer el mismo traslado a
-	 * la misma unidad —que suele ser la más cercana— y el rechazo entra en bucle hasta que el pedido se vence.
+	 * Las unidades que ya tuvieron este traslado. Si volvió a buscar unidad, todas lo dejaron por algo: lo
+	 * devolvieron, no correspondían, se averiaron o no llegaban. Sin esto, el barrido se lo vuelve a ofrecer a la
+	 * misma —que suele ser la más cercana— y el viaje entra en bucle hasta vencerse.
 	 */
-	@Query("""
-			select a.ambulancia.id from Atencion a
-			where a.traslado.id = :trasladoId and a.motivoCancelacion = 'RECHAZADA_POR_PARAMEDICO'
-			""")
-	List<Long> buscarAmbulanciasQueRechazaron(@Param("trasladoId") Long trasladoId);
+	@Query("select distinct a.ambulancia.id from Atencion a where a.traslado.id = :trasladoId")
+	List<Long> buscarAmbulanciasQueLoTuvieron(@Param("trasladoId") Long trasladoId);
 
 	/**
 	 * Las atenciones no canceladas de varios traslados, en una sola consulta: es lo que la tabla del panel necesita.
