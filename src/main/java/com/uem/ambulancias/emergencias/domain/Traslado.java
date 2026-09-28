@@ -139,6 +139,9 @@ public class Traslado {
 	 */
 	private Instant horaFamiliaAvisada;
 
+	/** Cuándo se le recordó a la familia, la noche anterior. Nulo mientras no se haya hecho. */
+	private Instant horaRecordatorio;
+
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
 	private EstadoTraslado estado;
@@ -227,6 +230,8 @@ public class Traslado {
 		this.horaLimiteSalida = horario.limiteSalida();
 		this.horaRecogidaDesde = horario.recogidaDesde();
 		this.horaRecogidaHasta = horario.recogidaHasta();
+		// Con otro día, el recordatorio que se mandó ya no dice nada: toca otro.
+		this.horaRecordatorio = null;
 		// Si movieron la cita para más tarde, deja de ser hora de salir y el pedido vuelve a esperar su día.
 		this.estado = horario.modo() == ModoHorario.INMEDIATO
 				? EstadoTraslado.BUSCANDO_UNIDAD
@@ -315,6 +320,11 @@ public class Traslado {
 	/** Se pasó la última salida posible: hay que avisarle a la familia en vez de dejarla esperando. */
 	public void marcarNoCubierto() {
 		pasarA(EstadoTraslado.NO_CUBIERTO);
+	}
+
+	/** Ya se le recordó a la familia la noche anterior: no se le repite. */
+	public void marcarRecordado(Instant ahora) {
+		horaRecordatorio = ahora;
 	}
 
 	/** Ya se le avisó a la familia que no hubo unidad: el traslado sale de la bandeja de problemas. */

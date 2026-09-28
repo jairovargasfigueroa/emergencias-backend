@@ -50,6 +50,9 @@ public record TrasladoProperties(
 		 */
 		@DefaultValue("15") int minutosEspera,
 
+		/** A qué hora del día anterior se le recuerda a la familia un traslado programado (0 a 23). */
+		@DefaultValue("19") int horaRecordatorio,
+
 		/** Unidad mínima para trasladar a alguien en camilla. */
 		@DefaultValue("II") TipoUnidad minimoParaCamilla,
 

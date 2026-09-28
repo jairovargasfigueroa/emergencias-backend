@@ -56,6 +56,8 @@ sga.traslados.minutos-aviso-temprano=120
 sga.traslados.minutos-posicion-vigente=5
 # Cuanto espera la tripulacion en la puerta a un paciente que no esta listo antes de poder retirarse.
 sga.traslados.minutos-espera=15
+# A que hora del dia anterior se le recuerda a la familia un traslado programado (0 a 23).
+sga.traslados.hora-recordatorio=19
 # Unidad minima segun lo que necesita el paciente. Depende de como este equipada la flota.
 sga.traslados.minimo-para-camilla=II
 sga.traslados.minimo-para-oxigeno=II

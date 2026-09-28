@@ -99,6 +99,10 @@ public class AtencionService {
 			if (primeraEnLlegar) {
 				eventos.publishEvent(new NovedadDelIncidente(incidente.getId(), NovedadDelIncidente.Tipo.UNIDAD_LLEGO));
 			}
+			if (atencion.getTraslado() != null) {
+				eventos.publishEvent(new NovedadDelTraslado(atencion.getTraslado().getId(),
+						NovedadDelTraslado.Tipo.UNIDAD_EN_LA_PUERTA));
+			}
 			return false;
 		});
 	}
@@ -354,6 +358,7 @@ public class AtencionService {
 
 	private void devolverABusqueda(Traslado traslado) {
 		traslado.devolverABusqueda(Instant.now(), config.busquedaTrasDevolucion(), config.acercamiento());
+		eventos.publishEvent(new NovedadDelTraslado(traslado.getId(), NovedadDelTraslado.Tipo.NUEVA_BUSQUEDA));
 	}
 
 	/**

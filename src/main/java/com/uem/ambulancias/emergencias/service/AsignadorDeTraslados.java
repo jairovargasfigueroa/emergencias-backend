@@ -1,6 +1,9 @@
 package com.uem.ambulancias.emergencias.service;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -64,8 +67,33 @@ public class AsignadorDeTraslados {
 	@Transactional
 	public List<Traslado> vencerLosQueNoLlegan(Instant ahora) {
 		List<Traslado> vencidos = traslados.buscarVencidos(ahora);
-		vencidos.forEach(Traslado::marcarNoCubierto);
+		vencidos.forEach(traslado -> {
+			traslado.marcarNoCubierto();
+			eventos.publishEvent(new NovedadDelTraslado(traslado.getId(), NovedadDelTraslado.Tipo.NO_CUBIERTO));
+		});
 		return traslados.saveAll(vencidos);
+	}
+
+	/**
+	 * La noche anterior se le recuerda a la familia el traslado de mañana, como la llamada de confirmación de una
+	 * central. Antes de la hora del recordatorio no hace nada; después, recuerda los de mañana que falten.
+	 */
+	@Transactional
+	public int recordarLosDeManana(Instant ahora) {
+		ZoneId zona = ZoneId.of(config.zona());
+		ZonedDateTime local = ahora.atZone(zona);
+		if (local.getHour() < config.horaRecordatorio()) {
+			return 0;
+		}
+		LocalDate manana = local.toLocalDate().plusDays(1);
+		Instant horaDeHoy = local.toLocalDate().atTime(config.horaRecordatorio(), 0).atZone(zona).toInstant();
+		List<Traslado> porRecordar = traslados.buscarPorRecordar(manana.atStartOfDay(zona).toInstant(),
+				manana.plusDays(1).atStartOfDay(zona).toInstant(), horaDeHoy);
+		porRecordar.forEach(traslado -> {
+			traslado.marcarRecordado(ahora);
+			eventos.publishEvent(new NovedadDelTraslado(traslado.getId(), NovedadDelTraslado.Tipo.RECORDATORIO));
+		});
+		return porRecordar.size();
 	}
 
 	/**
@@ -164,6 +192,7 @@ public class AsignadorDeTraslados {
 		ambulancias.actualizarEstado(ambulanciaId, EstadoAmbulancia.DISPONIBLE);
 		traslado.devolverABusqueda(Instant.now(), config.busquedaTrasDevolucion(), config.acercamiento());
 		eventos.publishEvent(new TrasladoRetirado(trasladoId, ambulanciaId, MotivoCancelacionAtencion.REASIGNADA));
+		eventos.publishEvent(new NovedadDelTraslado(trasladoId, NovedadDelTraslado.Tipo.NUEVA_BUSQUEDA));
 		eventos.publishEvent(new UnidadLiberada(ambulanciaId));
 		return traslados.save(traslado);
 	}
