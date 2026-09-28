@@ -21,7 +21,7 @@ public record TrasladoDelPanelResponse(
 			return new TrasladoDelPanelResponse(TrasladoResponse.de(traslado), null, null, null, null);
 		}
 		return new TrasladoDelPanelResponse(
-				TrasladoResponse.de(traslado),
+				TrasladoResponse.de(traslado, atencion),
 				atencion.getId(),
 				atencion.getAmbulancia().getPlaca(),
 				atencion.getEstado(),

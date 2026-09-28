@@ -6,6 +6,7 @@ import com.uem.ambulancias.comun.web.UsuarioActual;
 import com.uem.ambulancias.emergencias.dto.DetallesTrasladoRequest;
 import com.uem.ambulancias.emergencias.dto.RegistrarTrasladoRequest;
 import com.uem.ambulancias.emergencias.dto.TrasladoResponse;
+import com.uem.ambulancias.emergencias.service.TrasladoConAtencion;
 import com.uem.ambulancias.emergencias.service.TrasladoService;
 
 import jakarta.validation.Valid;
@@ -40,7 +41,7 @@ public class TrasladoController {
 
 	@GetMapping("/mios")
 	public List<TrasladoResponse> mios(@UsuarioActual Long ciudadanoId) {
-		return trasladoService.mios(ciudadanoId).stream().map(TrasladoResponse::de).toList();
+		return trasladoService.mios(ciudadanoId).stream().map(TrasladoController::respuesta).toList();
 	}
 
 	/** Cambiar el pedido entero. Solo se acepta mientras no haya una unidad en camino. */
@@ -54,14 +55,19 @@ public class TrasladoController {
 	@PutMapping("/{id}/detalles")
 	public TrasladoResponse actualizarDetalles(@PathVariable("id") Long trasladoId, @UsuarioActual Long ciudadanoId,
 			@Valid @RequestBody DetallesTrasladoRequest request) {
-		return TrasladoResponse.de(trasladoService.actualizarDetalles(ciudadanoId, trasladoId,
+		return respuesta(trasladoService.actualizarDetalles(ciudadanoId, trasladoId,
 				request.origenReferencia(), request.contactoNombre(), request.contactoTelefono(),
 				request.observaciones()));
 	}
 
+	/** Solo hasta que la unidad llega a la puerta: desde ahí lo resuelve la tripulación. */
 	@PostMapping("/{id}/cancelar")
 	public TrasladoResponse cancelar(@PathVariable("id") Long trasladoId, @UsuarioActual Long ciudadanoId) {
 		return TrasladoResponse.de(trasladoService.cancelar(ciudadanoId, trasladoId));
+	}
+
+	private static TrasladoResponse respuesta(TrasladoConAtencion fila) {
+		return TrasladoResponse.de(fila.traslado(), fila.atencion());
 	}
 
 }

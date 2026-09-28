@@ -2,6 +2,8 @@ package com.uem.ambulancias.emergencias.dto;
 
 import java.time.Instant;
 
+import com.uem.ambulancias.emergencias.domain.Atencion;
+import com.uem.ambulancias.emergencias.domain.EstadoAtencion;
 import com.uem.ambulancias.emergencias.domain.EstadoTraslado;
 import com.uem.ambulancias.emergencias.domain.ModoHorario;
 import com.uem.ambulancias.emergencias.domain.Movilidad;
@@ -16,6 +18,11 @@ public record TrasladoResponse(
 
 		Long id,
 		EstadoTraslado estado,
+		/**
+		 * En qué va la unidad que lo tiene: en camino, en la puerta, con el paciente a bordo. Nulo mientras no
+		 * salió nadie. Al ciudadano le dice hasta cuándo puede cancelar: hasta que la unidad llega.
+		 */
+		EstadoAtencion estadoUnidad,
 		ModoHorario modoHorario,
 		Instant horaCita,
 		Instant horaSalidaEstimada,
@@ -47,10 +54,17 @@ public record TrasladoResponse(
 
 		Instant fechaHoraCreacion) {
 
+	/** Sin atención: para cuando todavía no salió nadie, o quien lo pide no necesita saber en qué va la unidad. */
 	public static TrasladoResponse de(Traslado traslado) {
+		return de(traslado, null);
+	}
+
+	/** {@code atencion} es la que lo tiene ahora, o nula si no hay ninguna. */
+	public static TrasladoResponse de(Traslado traslado, Atencion atencion) {
 		return new TrasladoResponse(
 				traslado.getId(),
 				traslado.getEstado(),
+				atencion == null ? null : atencion.getEstado(),
 				traslado.getModoHorario(),
 				traslado.getHoraCita(),
 				traslado.getHoraSalidaEstimada(),

@@ -79,9 +79,12 @@ public class TrasladoService {
 		return traslados.save(traslado);
 	}
 
-	/** Corregir la referencia, el contacto y las observaciones. Se puede hasta con la unidad en camino. */
+	/**
+	 * Corregir la referencia, el contacto y las observaciones. Se puede hasta con la unidad en camino, así que la
+	 * respuesta lleva en qué va la unidad: la app reemplaza con ella lo que tenía.
+	 */
 	@Transactional
-	public Traslado actualizarDetalles(Long solicitanteId, Long trasladoId, String origenReferencia,
+	public TrasladoConAtencion actualizarDetalles(Long solicitanteId, Long trasladoId, String origenReferencia,
 			String contactoNombre, String contactoTelefono, String observaciones) {
 		Traslado traslado = buscarPropioParaActualizar(solicitanteId, trasladoId);
 		String nombre = vacioComoNulo(contactoNombre);
@@ -89,7 +92,7 @@ public class TrasladoService {
 		exigirContactoCompleto(nombre, telefono);
 		traslado.actualizarDetalles(vacioComoNulo(origenReferencia), nombre, telefono,
 				vacioComoNulo(observaciones));
-		return traslados.save(traslado);
+		return conSuAtencion(List.of(traslados.save(traslado))).getFirst();
 	}
 
 	/** Lo que hay que calcular igual al pedir que al reprogramar. */
@@ -135,9 +138,12 @@ public class TrasladoService {
 			String destinoDetalle, Horario horario) {
 	}
 
-	/** Lo que el ciudadano ve en su pestaña: los próximos y el historial, lo más reciente primero. */
-	public List<Traslado> mios(Long solicitanteId) {
-		return traslados.findBySolicitanteIdOrderByFechaHoraCreacionDesc(solicitanteId);
+	/**
+	 * Lo que el ciudadano ve en su pestaña: los próximos y el historial, lo más reciente primero. Cada uno con su
+	 * unidad, porque en qué va es lo que decide si todavía se puede cancelar.
+	 */
+	public List<TrasladoConAtencion> mios(Long solicitanteId) {
+		return conSuAtencion(traslados.findBySolicitanteIdOrderByFechaHoraCreacionDesc(solicitanteId));
 	}
 
 	/** La tabla del panel. El día se calcula en la zona de la empresa: el servidor puede estar en UTC. */
@@ -181,7 +187,11 @@ public class TrasladoService {
 
 	/**
 	 * Retirar el pedido. Mientras no haya unidad asignada no hay nada más que deshacer; con una unidad ya en
-	 * camino además hay que cancelar su atención y liberarla, y eso vive junto con la asignación.
+	 * camino además hay que cancelar su atención y liberarla.
+	 *
+	 * <p>Como en una central de verdad, se puede avisar que ya no hace falta mientras la unidad viene. Cuando ya
+	 * está en la puerta, eso se habla con la tripulación, que cierra el viaje con el motivo que corresponda: si no,
+	 * el paciente podría estar a bordo y la ambulancia quedaría libre en el sistema.
 	 */
 	@Transactional
 	public Traslado cancelar(Long solicitanteId, Long trasladoId) {
@@ -190,12 +200,17 @@ public class TrasladoService {
 			throw new ConflictoException(CodigoError.TRASLADO_FINALIZADO,
 					"El traslado ya terminó y no se puede cancelar.");
 		}
-		// Con la unidad ya en camino, cancelar también le devuelve la libertad: si no, queda tomada al pedo.
-		atenciones.buscarActivaPorTraslado(trasladoId).ifPresent(atencion -> {
-			atencion.cancelar(MotivoCancelacionAtencion.CANCELADA_POR_SOLICITANTE);
-			ambulancias.actualizarEstado(atencion.getAmbulancia().getId(), EstadoAmbulancia.DISPONIBLE);
-			eventos.publishEvent(new UnidadLiberada(atencion.getAmbulancia().getId()));
-		});
+		Atencion enCurso = atenciones.buscarActivaPorTraslado(trasladoId).orElse(null);
+		if (enCurso != null && enCurso.getHoraLlegada() != null) {
+			throw new ConflictoException(CodigoError.UNIDAD_EN_EL_LUGAR,
+					"La unidad ya llegó. Si no van a viajar, díselo a la tripulación.");
+		}
+		// Con la unidad en camino, cancelar también la deja libre: si no, quedaría tomada por un viaje que ya no existe.
+		if (enCurso != null) {
+			enCurso.cancelar(MotivoCancelacionAtencion.CANCELADA_POR_SOLICITANTE);
+			ambulancias.actualizarEstado(enCurso.getAmbulancia().getId(), EstadoAmbulancia.DISPONIBLE);
+			eventos.publishEvent(new UnidadLiberada(enCurso.getAmbulancia().getId()));
+		}
 		traslado.cancelar(ciudadanos.buscarCiudadanoActivo(solicitanteId), Instant.now());
 		return traslados.save(traslado);
 	}
