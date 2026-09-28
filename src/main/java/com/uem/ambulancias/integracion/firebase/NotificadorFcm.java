@@ -4,6 +4,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 import com.google.firebase.messaging.AndroidConfig;
+import com.google.firebase.messaging.AndroidNotification;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
@@ -25,6 +26,9 @@ public class NotificadorFcm implements NotificadorPush {
 	private static final int LARGO_MAXIMO_TEXTO = 100;
 
 	private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
+
+	/** El canal de Android de la app del ciudadano. */
+	private static final String CANAL_CIUDADANO = "avisos";
 
 	private final FirebaseMessaging mensajeria;
 
@@ -76,12 +80,17 @@ public class NotificadorFcm implements NotificadorPush {
 		if (avisos.isEmpty()) {
 			return;
 		}
+		// El canal es el que crea la app del ciudadano: con la app abierta, sin esto el aviso cae en un canal genérico.
+		AndroidConfig android = AndroidConfig.builder()
+				.setPriority(AndroidConfig.Priority.HIGH)
+				.setNotification(AndroidNotification.builder().setChannelId(CANAL_CIUDADANO).build())
+				.build();
 		List<Message> mensajes = avisos.stream()
 				.map(aviso -> Message.builder()
 						.setToken(aviso.tokenPush())
 						.setNotification(Notification.builder().setTitle(aviso.titulo()).setBody(aviso.cuerpo()).build())
 						.putAllData(aviso.datos())
-						.setAndroidConfig(AndroidConfig.builder().setPriority(AndroidConfig.Priority.HIGH).build())
+						.setAndroidConfig(android)
 						.build())
 				.toList();
 		EscriturasFirebase.registrarFallo(mensajeria.sendEachAsync(mensajes),
