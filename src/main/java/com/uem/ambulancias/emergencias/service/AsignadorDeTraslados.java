@@ -1,12 +1,15 @@
 package com.uem.ambulancias.emergencias.service;
 
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import com.uem.ambulancias.comun.error.CodigoError;
 import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.error.NoEncontradoException;
+import com.uem.ambulancias.comun.geo.Geo;
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.EstadoAtencion;
 import com.uem.ambulancias.emergencias.domain.EstadoTraslado;
@@ -95,6 +98,31 @@ public class AsignadorDeTraslados {
 			}
 		}
 		return Optional.empty();
+	}
+
+	/**
+	 * Las unidades que el administrador puede elegir para asignar a mano, de la más cercana al origen a la más
+	 * lejana: las disponibles cuyo tipo alcanza. Van también las que el barrido no usaría —sin posición reciente,
+	 * o que ya lo tuvieron y lo dejaron—, marcadas, porque quien asigna a mano puede saber algo que el sistema no.
+	 */
+	@Transactional(readOnly = true)
+	public List<UnidadCandidata> candidatas(Long trasladoId) {
+		Traslado traslado = traslados.findById(trasladoId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
+		TipoUnidad requerido = traslado.tipoUnidadEfectivo();
+		Set<Long> yaLoTuvieron = Set.copyOf(atenciones.buscarAmbulanciasQueLoTuvieron(trasladoId));
+		Instant posicionDesde = Instant.now().minus(config.posicionVigente());
+		return ambulancias.findAllByOrderByPlacaAsc().stream()
+				.filter(Ambulancia::puedeAtender)
+				.filter(unidad -> unidad.getTipoUnidad().cubreA(requerido))
+				.map(unidad -> new UnidadCandidata(unidad,
+						unidad.getUltimaPosicion() == null ? null
+								: Geo.metrosEntre(unidad.getUltimaPosicion(), traslado.getOrigen()),
+						unidad.getUltimaPosicionEn() != null && !unidad.getUltimaPosicionEn().isBefore(posicionDesde),
+						yaLoTuvieron.contains(unidad.getId())))
+				.sorted(Comparator.comparing(UnidadCandidata::distanciaMetros,
+						Comparator.nullsLast(Comparator.naturalOrder())))
+				.toList();
 	}
 
 	/**
