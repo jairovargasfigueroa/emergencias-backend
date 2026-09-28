@@ -66,7 +66,7 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 	}
 
 	@Query("""
-			select a from Atencion a join fetch a.ambulancia left join fetch a.centroSalud
+			select a from Atencion a join fetch a.ambulancia left join fetch a.centroSalud left join fetch a.incidente
 			left join fetch a.traslado t left join fetch t.pasajero left join fetch t.centroSaludDestino
 			where a.ambulancia.id = :ambulanciaId
 			  and (a.estado in :activos or (a.estado in :resueltos and a.horaLiberacion is null))

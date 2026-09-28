@@ -83,9 +83,10 @@ public class IncidenteController {
 		return respuesta(incidenteService.sumarse(idIncidente, idAmbulancia, paramedico), idIncidente);
 	}
 
-	/** Toda respuesta lleva si los emisores retiraron su pedido: es lo que el paramédico necesita para decidir. */
+	/** Toda respuesta lleva lo que se sabe del incidente y si los emisores retiraron su alerta. */
 	private AtencionResponse respuesta(Atencion atencion, Long idIncidente) {
-		return AtencionResponse.de(atencion, atencionService.emisoresCancelaron(idIncidente));
+		return AtencionResponse.de(atencion, atencionService.emisoresCancelaron(idIncidente),
+				atencionService.descripcionesDelIncidente(idIncidente));
 	}
 
 	/** Nunca se rechaza en silencio: 409 con lo necesario para decidir si sumarse sin otra consulta. */

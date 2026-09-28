@@ -59,6 +59,12 @@ public class AtencionService {
 		return !alertas.existeAlgunaVigente(incidenteId);
 	}
 
+	/** Lo que dejaron escrito quienes avisaron, para que el paramédico lo tenga aunque el incidente ya se haya cerrado. */
+	@Transactional(readOnly = true)
+	public List<String> descripcionesDelIncidente(Long incidenteId) {
+		return alertas.buscarDescripciones(incidenteId);
+	}
+
 	/**
 	 * La atención que tiene ocupada a la ambulancia del paramédico, si tiene una. Incluye la que ya entregó al
 	 * paciente y todavía no se liberó: la unidad sigue tomada y esa pantalla es la que ofrece liberarse.
