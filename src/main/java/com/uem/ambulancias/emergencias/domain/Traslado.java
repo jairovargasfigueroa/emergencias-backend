@@ -79,7 +79,10 @@ public class Traslado {
 	@Column(nullable = false)
 	private TipoUnidad tipoUnidadPedido;
 
-	/** Lo que de verdad hacía falta, cuando alguien lo corrige. Nulo mientras nadie lo toque. */
+	/**
+	 * Lo que de verdad hacía falta, cuando una tripulación lo corrige. Nulo mientras nadie lo toque, y siempre
+	 * mayor que el pedido cuando está puesto: si no, no habría hecho falta corregirlo.
+	 */
 	@Enumerated(EnumType.STRING)
 	private TipoUnidad tipoUnidadCorregido;
 
@@ -193,7 +196,8 @@ public class Traslado {
 	 * Cambiar el pedido entero. Solo mientras no haya salido nadie: con una unidad en camino, el paramédico ya
 	 * se fue con otra información, y mandarlo a otro lado sin avisarle no es una edición, es otro viaje.
 	 *
-	 * <p>Se limpia la corrección del tipo de unidad: se corrigió sobre datos que acaban de cambiar.
+	 * <p>La corrección de una tripulación se mantiene: la hizo alguien que tuvo al paciente enfrente. Solo deja de
+	 * hacer falta cuando lo que se pide ahora ya alcanza.
 	 */
 	public void reprogramar(Necesidades necesidades, Point origen, String origenReferencia, String contactoNombre,
 			String contactoTelefono, CentroSalud centroSaludDestino, Point destino, String destinoDetalle,
@@ -207,7 +211,9 @@ public class Traslado {
 		this.acompanantes = necesidades.acompanantes();
 		this.observaciones = necesidades.observaciones();
 		this.tipoUnidadPedido = tipoUnidadPedido;
-		this.tipoUnidadCorregido = null;
+		if (tipoUnidadCorregido != null && tipoUnidadPedido.cubreA(tipoUnidadCorregido)) {
+			this.tipoUnidadCorregido = null;
+		}
 		this.origen = origen;
 		this.origenReferencia = origenReferencia;
 		this.contactoNombre = contactoNombre;
@@ -256,11 +262,15 @@ public class Traslado {
 	}
 
 	/**
-	 * Se corrige cuando la unidad enviada no alcanzó. Sin esto el traslado vuelve a buscar el mismo tipo que ya
-	 * falló y el bucle no termina nunca.
+	 * La tripulación encontró al paciente distinto de lo que decía la ficha y la unidad no alcanza. Se corrige la
+	 * ficha con lo que vio —así la próxima tripulación sale sabiendo cómo está— y el tipo que hace falta, que nunca
+	 * baja. Sin esto el traslado vuelve a buscar el mismo tipo que ya falló y el bucle no termina nunca.
 	 */
-	public void corregirTipoUnidad(TipoUnidad tipo) {
-		tipoUnidadCorregido = tipo;
+	public void corregirNecesidades(Movilidad movilidad, boolean oxigeno, boolean equipo, TipoUnidad tipoNecesario) {
+		this.movilidad = movilidad;
+		this.requiereOxigeno = oxigeno;
+		this.requiereEquipo = equipo;
+		this.tipoUnidadCorregido = TipoUnidad.elMayor(tipoUnidadEfectivo(), tipoNecesario);
 	}
 
 	/** Llegó la hora de salir. */

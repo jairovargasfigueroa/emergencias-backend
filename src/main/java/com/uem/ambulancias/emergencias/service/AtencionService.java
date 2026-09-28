@@ -24,6 +24,7 @@ import com.uem.ambulancias.emergencias.repository.CentroSaludRepository;
 import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
 import com.uem.ambulancias.emergencias.repository.TrasladoRepository;
 import com.uem.ambulancias.flota.domain.EstadoAmbulancia;
+import com.uem.ambulancias.flota.domain.TipoUnidad;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.service.ServicioParamedicoService;
 import com.uem.ambulancias.flota.service.TurnoService;
@@ -157,15 +158,23 @@ public class AtencionService {
 
 	/**
 	 * Solo en traslados. El paciente no está como decía la ficha y esta unidad no lo puede llevar. El paramédico
-	 * corrige lo que ve, el sistema vuelve a derivar el tipo que hace falta, y el pedido regresa a la cola con el
-	 * requerimiento arreglado. Sin esto volvería a pedir el mismo tipo que acaba de fallar.
+	 * corrige lo que ve, el sistema vuelve a derivar el tipo que hace falta, y el pedido regresa a la cola con la
+	 * ficha arreglada. Sin esto volvería a pedir el mismo tipo que acaba de fallar.
+	 *
+	 * <p>Si con lo que marcó esta misma unidad alcanza, no es que no corresponda: se rechaza, para que un error al
+	 * marcar no mande el traslado a buscar otra unidad igual a la que ya está en la puerta.
 	 */
 	@Transactional
 	public Atencion cerrarPorUnidadQueNoCorresponde(Long atencionId, Long paramedicoId, Point ubicacion,
 			Movilidad movilidad, boolean oxigeno, boolean equipo) {
 		return aplicar(atencionId, paramedicoId, false, (atencion, incidente) -> {
 			Traslado traslado = exigirQueSeaTraslado(atencion);
-			traslado.corregirTipoUnidad(selector.sugerirPara(movilidad, oxigeno, equipo));
+			TipoUnidad necesario = selector.sugerirPara(movilidad, oxigeno, equipo);
+			if (atencion.getAmbulancia().getTipoUnidad().cubreA(necesario)) {
+				throw new ConflictoException(CodigoError.UNIDAD_ALCANZA,
+						"Con lo que marcaste, esta unidad alcanza para llevarlo.");
+			}
+			traslado.corregirNecesidades(movilidad, oxigeno, equipo, necesario);
 			atencion.cerrarSinTraslado(MotivoSinTraslado.UNIDAD_NO_CORRESPONDE, ubicacion);
 			return false;
 		});
