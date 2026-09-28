@@ -83,8 +83,9 @@ public class AsignadorDeTraslados {
 		List<String> tiposQueSirven = tiposQueCubren(traslado.tipoUnidadEfectivo());
 		// Las que ya lo tuvieron y lo dejaron no entran: a mano, el administrador sí puede elegirlas.
 		List<Long> yaLoTuvieron = atenciones.buscarAmbulanciasQueLoTuvieron(trasladoId);
+		Instant posicionDesde = Instant.now().minus(config.posicionVigente());
 		for (Long candidataId : ambulancias.buscarIdsDisponiblesParaTraslado(traslado.getOrigen().getY(),
-				traslado.getOrigen().getX(), tiposQueSirven)) {
+				traslado.getOrigen().getX(), tiposQueSirven, posicionDesde)) {
 			if (yaLoTuvieron.contains(candidataId)) {
 				continue;
 			}

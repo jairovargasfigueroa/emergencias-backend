@@ -43,17 +43,22 @@ public interface AmbulanciaRepository extends JpaRepository<Ambulancia, Long> {
 	 * Lo mismo, pero solo las unidades cuyo tipo alcanza para el traslado. Los tipos que sirven se calculan en
 	 * Java sobre la escalera de la norma y llegan ya resueltos, para no meter esa regla en el SQL.
 	 *
+	 * <p>Solo las que reportaron su posición desde {@code posicionDesde}: a una unidad sin GPS reciente no se le
+	 * asigna nada sola, porque no se sabe dónde está ni si su teléfono sigue prendido para enterarse.
+	 *
 	 * <p>Devuelve solo los ids: quien asigna bloquea después la fila de cada candidata, y si la ambulancia ya
 	 * estuviera cargada, Hibernate le devolvería esta copia sin releerla y no vería que se fue a una emergencia.
 	 */
 	@Query(value = """
 			select a.id from ambulancia a
 			where a.estado = 'DISPONIBLE' and a.activa and a.tipo_unidad in (:tipos)
+			  and a.ultima_posicion_en >= :posicionDesde
 			order by ST_Distance(a.ultima_posicion::geography,
-			                     ST_SetSRID(ST_MakePoint(:longitud, :latitud), 4326)::geography) asc nulls last
+			                     ST_SetSRID(ST_MakePoint(:longitud, :latitud), 4326)::geography) asc
 			""", nativeQuery = true)
 	List<Long> buscarIdsDisponiblesParaTraslado(@Param("latitud") double latitud,
-			@Param("longitud") double longitud, @Param("tipos") Collection<String> tipos);
+			@Param("longitud") double longitud, @Param("tipos") Collection<String> tipos,
+			@Param("posicionDesde") Instant posicionDesde);
 
 	/** El tipo de una unidad, sin cargarla: así una lectura posterior con bloqueo la trae fresca. */
 	@Query("select a.tipoUnidad from Ambulancia a where a.id = :id")

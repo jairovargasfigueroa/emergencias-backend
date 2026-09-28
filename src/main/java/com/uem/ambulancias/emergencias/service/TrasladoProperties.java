@@ -38,6 +38,12 @@ public record TrasladoProperties(
 		/** Con cuánta anticipación se avisa al administrador de un traslado que pinta mal. */
 		@DefaultValue("120") int minutosAvisoTemprano,
 
+		/**
+		 * El barrido solo le da un traslado a una unidad que reportó su posición hace menos de esto. Sin GPS
+		 * reciente no se sabe si está cerca, ni si el teléfono de la tripulación sigue prendido para enterarse.
+		 */
+		@DefaultValue("5") int minutosPosicionVigente,
+
 		/** Unidad mínima para trasladar a alguien en camilla. */
 		@DefaultValue("II") TipoUnidad minimoParaCamilla,
 
@@ -57,6 +63,10 @@ public record TrasladoProperties(
 
 	public Duration acercamiento() {
 		return Duration.ofMinutes(minutosAcercamiento);
+	}
+
+	public Duration posicionVigente() {
+		return Duration.ofMinutes(minutosPosicionVigente);
 	}
 
 }
