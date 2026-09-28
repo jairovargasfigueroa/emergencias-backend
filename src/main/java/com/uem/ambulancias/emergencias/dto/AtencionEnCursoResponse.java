@@ -51,14 +51,14 @@ public record AtencionEnCursoResponse(
 				atencion.getIncidente() == null ? null : atencion.getIncidente().getId(),
 				atencion.getTraslado() == null ? null : atencion.getTraslado().getId(),
 				origen == OrigenAtencion.TRASLADO ? atencion.getNombrePaciente() : referenciaIncidente,
-				hitos(atencion));
+				hitosDe(atencion));
 	}
 
 	/**
 	 * Los hitos ocurridos, del más viejo al más nuevo. Se ordena por hora y no por el orden de ME-1 porque el
 	 * aviso de paciente no listo no tiene lugar fijo en la escalera: cae donde la unidad lo haya marcado.
 	 */
-	private static List<Hito> hitos(Atencion atencion) {
+	public static List<Hito> hitosDe(Atencion atencion) {
 		List<Hito> ocurridos = new ArrayList<>();
 		for (TipoEventoAtencion tipo : TipoEventoAtencion.values()) {
 			Instant hora = tipo.horaEn(atencion);
