@@ -42,13 +42,14 @@ public interface TrasladoRepository extends JpaRepository<Traslado, Long> {
 	List<Traslado> buscarPorSalir(@Param("hasta") Instant hasta);
 
 	/**
-	 * Los que están esperando unidad, el más urgente primero. Ese orden es la regla de prioridad: cuando queda
-	 * una sola ambulancia se la lleva el que primero se cae, no el que primero pidió.
+	 * Los que están esperando unidad, en orden de prioridad: cuando queda una sola ambulancia se la lleva el que
+	 * primero se cae, no el que primero pidió. Antes que todos, los que una unidad devolvió: esa familia ya estaba
+	 * esperando y el viaje ya viene tarde.
 	 */
 	@Query("""
 			select t from Traslado t
 			where t.estado = 'BUSCANDO_UNIDAD'
-			order by t.horaLimiteSalida asc
+			order by case when t.horaDevolucion is null then 1 else 0 end, t.horaLimiteSalida asc
 			""")
 	List<Traslado> buscarEsperandoUnidad();
 
@@ -63,7 +64,7 @@ public interface TrasladoRepository extends JpaRepository<Traslado, Long> {
 			select t.id from Traslado t
 			where t.estado = 'BUSCANDO_UNIDAD'
 			  and coalesce(t.tipoUnidadCorregido, t.tipoUnidadPedido) in :tipos
-			order by t.horaLimiteSalida asc
+			order by case when t.horaDevolucion is null then 1 else 0 end, t.horaLimiteSalida asc
 			""")
 	List<Long> buscarIdsEsperandoUnidadDeTipo(@Param("tipos") Collection<TipoUnidad> tipos);
 

@@ -50,6 +50,7 @@ public class AtencionService {
 	private final ServicioParamedicoService servicioParamedico;
 	private final TurnoService turnoService;
 	private final SelectorDeUnidad selector;
+	private final TrasladoProperties config;
 	private final ApplicationEventPublisher eventos;
 
 	/**
@@ -258,7 +259,7 @@ public class AtencionService {
 	/**
 	 * El traslado sigue a su atención. Entregado es traslado cumplido; sin traslado es una salida que no llevó a
 	 * nadie. Y cuando la unidad se cae —rechazo, avería, la unidad no correspondía— el pedido no muere: vuelve a
-	 * la cola a buscar otra, porque la familia sigue necesitando el viaje.
+	 * la cola, primero en la fila, porque la familia sigue necesitando el viaje.
 	 */
 	private void sincronizarTraslado(Atencion atencion) {
 		Traslado traslado = atencion.getTraslado();
@@ -269,20 +270,24 @@ public class AtencionService {
 			case PACIENTE_ENTREGADO -> traslado.completar();
 			case SIN_TRASLADO -> {
 				if (atencion.getMotivoSinTraslado() == MotivoSinTraslado.UNIDAD_NO_CORRESPONDE) {
-					traslado.devolverABusqueda();
+					devolverABusqueda(traslado);
 				} else {
 					traslado.marcarNoRealizado();
 				}
 			}
 			case CANCELADA -> {
 				if (atencion.getMotivoCancelacion() != MotivoCancelacionAtencion.CANCELADA_POR_SOLICITANTE) {
-					traslado.devolverABusqueda();
+					devolverABusqueda(traslado);
 				}
 			}
 			default -> {
 				// Los hitos intermedios no mueven el estado del pedido: sigue asignado hasta que termine.
 			}
 		}
+	}
+
+	private void devolverABusqueda(Traslado traslado) {
+		traslado.devolverABusqueda(Instant.now(), config.busquedaTrasDevolucion(), config.acercamiento());
 	}
 
 	/**

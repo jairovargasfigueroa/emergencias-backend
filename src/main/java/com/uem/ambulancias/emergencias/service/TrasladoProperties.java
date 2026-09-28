@@ -1,5 +1,7 @@
 package com.uem.ambulancias.emergencias.service;
 
+import java.time.Duration;
+
 import com.uem.ambulancias.flota.domain.TipoUnidad;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -47,4 +49,14 @@ public record TrasladoProperties(
 
 		/** Zona horaria con la que el panel decide qué es "hoy". El servidor puede estar en UTC. */
 		@DefaultValue("America/La_Paz") String zona) {
+
+	/** La búsqueda que se le asegura a un traslado devuelto: la misma que tiene un pedido para ahora. */
+	public Duration busquedaTrasDevolucion() {
+		return Duration.ofMinutes(minutosVentanaInmediato);
+	}
+
+	public Duration acercamiento() {
+		return Duration.ofMinutes(minutosAcercamiento);
+	}
+
 }

@@ -1,5 +1,6 @@
 package com.uem.ambulancias.emergencias.domain;
 
+import java.time.Duration;
 import java.time.Instant;
 
 import com.uem.ambulancias.comun.error.CodigoError;
@@ -122,6 +123,12 @@ public class Traslado {
 	private Instant horaRecogidaDesde;
 
 	private Instant horaRecogidaHasta;
+
+	/**
+	 * La última vez que una unidad lo devolvió. Mientras esté puesta, el traslado va primero en la fila: la
+	 * familia ya estaba esperando, y en una central de verdad el viaje que se cayó se despacha antes que los demás.
+	 */
+	private Instant horaDevolucion;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
@@ -260,9 +267,24 @@ public class Traslado {
 		pasarA(EstadoTraslado.ASIGNADO);
 	}
 
-	/** El paramédico rechazó, o su unidad no correspondía: el pedido sigue vivo y vuelve a la cola. */
-	public void devolverABusqueda() {
+	/**
+	 * La unidad lo devolvió, no correspondía o se averió: el pedido sigue vivo y vuelve a la cola, primero en la
+	 * fila. Se le asegura al menos {@code busquedaNueva} para conseguir otra: nadie da por perdido un viaje porque
+	 * falló la primera unidad. Si eso corre el límite, corre también la ventana que ve la familia, porque la unidad
+	 * que vaya ahora ya no pasa a la hora que se le prometió.
+	 */
+	public void devolverABusqueda(Instant ahora, Duration busquedaNueva, Duration acercamiento) {
 		pasarA(EstadoTraslado.BUSCANDO_UNIDAD);
+		horaDevolucion = ahora;
+		Instant limiteNuevo = ahora.plus(busquedaNueva);
+		if (horaLimiteSalida.isBefore(limiteNuevo)) {
+			horaLimiteSalida = limiteNuevo;
+			horaRecogidaHasta = limiteNuevo.plus(acercamiento);
+			Instant recogidaPosible = ahora.plus(acercamiento);
+			if (horaRecogidaDesde.isBefore(recogidaPosible)) {
+				horaRecogidaDesde = recogidaPosible;
+			}
+		}
 	}
 
 	public void completar() {
