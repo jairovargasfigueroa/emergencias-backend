@@ -153,6 +153,11 @@ public class PersonalService {
 		}
 	}
 
+	/** Un paramédico con su asignación vigente, para responder después de cambiarle algo. */
+	public ParamedicoConAsignacion paramedico(Long id) {
+		return conAsignacion(buscarParamedico(id));
+	}
+
 	private ParamedicoConAsignacion conAsignacion(Usuario paramedico) {
 		return new ParamedicoConAsignacion(paramedico,
 				asignaciones.buscarVigentePorParamedico(paramedico.getId()).orElse(null));

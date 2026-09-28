@@ -9,6 +9,7 @@ import com.uem.ambulancias.flota.dto.ParamedicoResponse;
 import com.uem.ambulancias.flota.dto.RegistrarParamedicoRequest;
 import com.uem.ambulancias.flota.service.ParamedicoConAsignacion;
 import com.uem.ambulancias.flota.service.PersonalService;
+import com.uem.ambulancias.flota.service.TurnoService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -31,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class PersonalController {
 
 	private final PersonalService personalService;
+	private final TurnoService turnoService;
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
@@ -60,6 +62,13 @@ public class PersonalController {
 	@PostMapping("/{id}/activar")
 	public ParamedicoResponse activar(@PathVariable Long id) {
 		return aRespuesta(personalService.activarParamedico(id));
+	}
+
+	/** Le cierra el turno a alguien que se fue sin cerrarlo. No se puede con su unidad en plena atención. */
+	@PostMapping("/{id}/turno/cierre")
+	public ParamedicoResponse cerrarTurno(@PathVariable Long id) {
+		turnoService.terminarDesdeLaCentral(id);
+		return aRespuesta(personalService.paramedico(id));
 	}
 
 	/** Lo deja sin ambulancia, sin ponerlo en otra. */

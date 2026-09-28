@@ -88,12 +88,32 @@ public class TurnoService {
 	public Turno terminar(Long paramedicoId) {
 		Turno turno = turnos.buscarAbiertoPorParamedico(paramedicoId)
 				.orElseThrow(() -> new ConflictoException(CodigoError.TRANSICION_INVALIDA, "No tienes un turno abierto."));
-		Long ambulanciaId = turno.getAmbulancia().getId();
-		if (atenciones.buscarQueOcupaAmbulancia(ambulanciaId).isPresent()) {
+		if (atenciones.buscarQueOcupaAmbulancia(turno.getAmbulancia().getId()).isPresent()) {
 			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
 					"Tienes una atención en curso: termínala antes de salir de turno.");
 		}
+		return cerrar(turno);
+	}
 
+	/**
+	 * El administrador le cierra el turno a alguien que se fue sin cerrarlo, como hace el despachador de una central.
+	 * Sin esto su unidad sigue figurando con gente adentro y a él le siguen llegando avisos. Valen las mismas reglas
+	 * que cuando lo cierra él: con una atención en curso, primero hay que cerrar la atención.
+	 */
+	@Transactional
+	public Turno terminarDesdeLaCentral(Long paramedicoId) {
+		Turno turno = turnos.buscarAbiertoPorParamedico(paramedicoId)
+				.orElseThrow(() -> new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+						"Ese paramédico no tiene un turno abierto."));
+		if (atenciones.buscarQueOcupaAmbulancia(turno.getAmbulancia().getId()).isPresent()) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"Su unidad tiene una atención en curso: ciérrala antes de cerrarle el turno.");
+		}
+		return cerrar(turno);
+	}
+
+	private Turno cerrar(Turno turno) {
+		Long ambulanciaId = turno.getAmbulancia().getId();
 		turno.terminar(Instant.now());
 		if (turnos.contarAbiertosPorAmbulancia(ambulanciaId) == 0) {
 			Ambulancia ambulancia = ambulancias.buscarParaActualizar(ambulanciaId)
