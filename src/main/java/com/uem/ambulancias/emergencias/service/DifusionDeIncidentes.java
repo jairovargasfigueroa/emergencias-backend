@@ -11,9 +11,9 @@ import com.uem.ambulancias.emergencias.repository.AlertaRepository;
 import com.uem.ambulancias.emergencias.repository.AtencionRepository;
 import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
 import com.uem.ambulancias.flota.domain.Ambulancia;
-import com.uem.ambulancias.flota.domain.Asignacion;
+import com.uem.ambulancias.flota.domain.Turno;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
-import com.uem.ambulancias.flota.repository.AsignacionRepository;
+import com.uem.ambulancias.flota.repository.TurnoRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +27,7 @@ import org.springframework.transaction.event.TransactionalEventListener;
 /**
  * SEC-A: difunde los incidentes después del commit. Lo ven todas las unidades disponibles y activas; si no hay
  * ninguna, se publica igual. Un incidente que espera unidad (recién creado o que se quedó sin ninguna) además llega
- * por push a los paramédicos en servicio, del más cercano al más lejano.
+ * por push a los paramédicos de turno, del más cercano al más lejano.
  */
 @Slf4j
 @Component
@@ -38,7 +38,7 @@ public class DifusionDeIncidentes {
 	private final AlertaRepository alertas;
 	private final AtencionRepository atenciones;
 	private final AmbulanciaRepository ambulancias;
-	private final AsignacionRepository asignaciones;
+	private final TurnoRepository turnos;
 	private final PublicadorDeIncidentes publicador;
 	private final NotificadorPush notificador;
 
@@ -103,7 +103,10 @@ public class DifusionDeIncidentes {
 		return new SeguimientoPublicado(incidente.getId(), incidente.getEstado(), unidades);
 	}
 
-	/** Tokens push de los paramédicos en servicio en esas ambulancias, respetando el orden por cercanía. */
+	/**
+	 * Tokens push de quienes están de turno en esas ambulancias, respetando el orden por cercanía. Se mira el turno y
+	 * no la asignación: con el compañero trabajando la unidad figura disponible, pero el que está en su casa no trabaja.
+	 */
 	private List<String> tokensPorCercania(List<Ambulancia> disponiblesPorCercania) {
 		if (disponiblesPorCercania.isEmpty()) {
 			return List.of();
@@ -112,10 +115,9 @@ public class DifusionDeIncidentes {
 		for (int i = 0; i < disponiblesPorCercania.size(); i++) {
 			posicionPorAmbulancia.put(disponiblesPorCercania.get(i).getId(), i);
 		}
-		return asignaciones.buscarVigentesConPush(posicionPorAmbulancia.keySet()).stream()
-				.sorted(Comparator.comparing(
-						(Asignacion asignacion) -> posicionPorAmbulancia.get(asignacion.getAmbulancia().getId())))
-				.map(asignacion -> asignacion.getParamedico().getTokenPush())
+		return turnos.buscarAbiertosConAvisoPorAmbulancias(posicionPorAmbulancia.keySet()).stream()
+				.sorted(Comparator.comparing((Turno turno) -> posicionPorAmbulancia.get(turno.getAmbulancia().getId())))
+				.map(turno -> turno.getParamedico().getTokenPush())
 				.distinct()
 				.toList();
 	}

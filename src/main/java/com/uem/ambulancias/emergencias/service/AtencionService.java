@@ -25,6 +25,7 @@ import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
 import com.uem.ambulancias.flota.domain.EstadoAmbulancia;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.service.ServicioParamedicoService;
+import com.uem.ambulancias.flota.service.TurnoService;
 
 import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Point;
@@ -45,6 +46,7 @@ public class AtencionService {
 	private final AmbulanciaRepository ambulancias;
 	private final CentroSaludRepository centrosSalud;
 	private final ServicioParamedicoService servicioParamedico;
+	private final TurnoService turnoService;
 	private final SelectorDeUnidad selector;
 	private final ApplicationEventPublisher eventos;
 
@@ -55,6 +57,12 @@ public class AtencionService {
 	@Transactional(readOnly = true)
 	public boolean emisoresCancelaron(Long incidenteId) {
 		return !alertas.existeAlgunaVigente(incidenteId);
+	}
+
+	/** Lo que dejaron escrito quienes avisaron, para que el paramédico lo tenga aunque el incidente ya se haya cerrado. */
+	@Transactional(readOnly = true)
+	public List<String> descripcionesDelIncidente(Long incidenteId) {
+		return alertas.buscarDescripciones(incidenteId);
 	}
 
 	/**
@@ -207,7 +215,8 @@ public class AtencionService {
 	/**
 	 * PB-05 R10: el cambio y su cascada se aplican con acceso exclusivo al incidente, así dos unidades del mismo
 	 * incidente que entregan o cancelan a la vez no evalúan un conteo desactualizado. Solo se permite sobre la atención
-	 * de la ambulancia del paramédico. La publicación ocurre después del commit, con un solo evento por operación.
+	 * de la ambulancia en la que el paramédico está de turno. La publicación ocurre después del commit, con un solo
+	 * evento por operación.
 	 */
 	private Atencion aplicar(Long atencionId, Long paramedicoId, boolean difundir, CambioDeAtencion cambio) {
 		Atencion atencion = atenciones.findById(atencionId)
@@ -218,7 +227,7 @@ public class AtencionService {
 		Incidente incidente = incidenteId == null ? null : incidentes.buscarParaActualizar(incidenteId)
 				.orElseThrow(() -> new NoEncontradoException("No existe el incidente " + incidenteId + "."));
 
-		Long ambulanciaDelParamedico = servicioParamedico.ambulanciaAsignada(paramedicoId);
+		Long ambulanciaDelParamedico = turnoService.ambulanciaEnTurno(paramedicoId);
 		if (!atencion.getAmbulancia().getId().equals(ambulanciaDelParamedico)) {
 			throw new ConflictoException(CodigoError.ATENCION_AJENA,
 					"La atención " + atencionId + " no es de la ambulancia del paramédico.");

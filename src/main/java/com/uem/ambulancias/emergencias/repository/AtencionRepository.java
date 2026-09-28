@@ -21,12 +21,16 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 	}
 
 	/**
-	 * Si alguna unidad del incidente llegó al lugar alguna vez. Se pregunta por el hito, que queda congelado, y no
-	 * por el estado, que sigue avanzando: la unidad que ya está en el hospital, o la que canceló después de llegar,
-	 * igual estuvo ahí y vio lo que había.
+	 * Si alguna unidad llegó al lugar del incidente y sigue a cargo. Se pregunta por el hito, que queda congelado, y
+	 * no por el estado, que sigue avanzando: la unidad que ya va al destino igual llegó. La que canceló después de
+	 * llegar no cuenta: se fue, y ya no queda nadie en el lugar que decida por el ciudadano, que tiene que poder
+	 * retirar su alerta o sumar detalles para la próxima unidad.
 	 */
-	@Query("select count(a) > 0 from Atencion a where a.incidente.id = :incidenteId and a.horaLlegada is not null")
-	boolean existeLlegadaPorIncidente(@Param("incidenteId") Long incidenteId);
+	@Query("""
+			select count(a) > 0 from Atencion a
+			where a.incidente.id = :incidenteId and a.horaLlegada is not null and a.estado <> 'CANCELADA'
+			""")
+	boolean existeLlegadaVigentePorIncidente(@Param("incidenteId") Long incidenteId);
 
 	/** Atenciones activas del incidente con su ambulancia, en orden de toma. */
 	default List<Atencion> buscarActivasPorIncidente(Long idIncidente) {
@@ -62,7 +66,7 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 	}
 
 	@Query("""
-			select a from Atencion a join fetch a.ambulancia left join fetch a.centroSalud
+			select a from Atencion a join fetch a.ambulancia left join fetch a.centroSalud left join fetch a.incidente
 			left join fetch a.traslado t left join fetch t.pasajero left join fetch t.centroSaludDestino
 			where a.ambulancia.id = :ambulanciaId
 			  and (a.estado in :activos or (a.estado in :resueltos and a.horaLiberacion is null))

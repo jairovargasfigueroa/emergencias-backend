@@ -16,6 +16,7 @@ import com.uem.ambulancias.emergencias.service.ConsultaIncidentesService;
 import com.uem.ambulancias.emergencias.service.IncidenteConAlertasYAtenciones;
 import com.uem.ambulancias.emergencias.service.IncidenteService;
 import com.uem.ambulancias.flota.service.ServicioParamedicoService;
+import com.uem.ambulancias.flota.service.TurnoService;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 
 import lombok.RequiredArgsConstructor;
@@ -44,6 +45,7 @@ public class IncidenteController {
 	private final AtencionService atencionService;
 	private final ConsultaIncidentesService consultaIncidentesService;
 	private final ServicioParamedicoService servicioParamedicoService;
+	private final TurnoService turnoService;
 
 	/** Incidentes del filtro, del más reciente al más antiguo. La página empieza en 0 y el tamaño máximo es 100. */
 	@GetMapping
@@ -68,7 +70,7 @@ public class IncidenteController {
 	public AtencionResponse tomar(@PathVariable("id") Long idIncidente,
 			@UsuarioActual Long paramedicoId) {
 		Usuario paramedico = servicioParamedicoService.buscarParamedicoActivo(paramedicoId);
-		Long idAmbulancia = servicioParamedicoService.ambulanciaAsignada(paramedicoId);
+		Long idAmbulancia = turnoService.ambulanciaEnTurno(paramedicoId);
 		return respuesta(incidenteService.tomar(idIncidente, idAmbulancia, paramedico), idIncidente);
 	}
 
@@ -77,13 +79,14 @@ public class IncidenteController {
 	public AtencionResponse sumarse(@PathVariable("id") Long idIncidente,
 			@UsuarioActual Long paramedicoId) {
 		Usuario paramedico = servicioParamedicoService.buscarParamedicoActivo(paramedicoId);
-		Long idAmbulancia = servicioParamedicoService.ambulanciaAsignada(paramedicoId);
+		Long idAmbulancia = turnoService.ambulanciaEnTurno(paramedicoId);
 		return respuesta(incidenteService.sumarse(idIncidente, idAmbulancia, paramedico), idIncidente);
 	}
 
-	/** Toda respuesta lleva si los emisores retiraron su pedido: es lo que el paramédico necesita para decidir. */
+	/** Toda respuesta lleva lo que se sabe del incidente y si los emisores retiraron su alerta. */
 	private AtencionResponse respuesta(Atencion atencion, Long idIncidente) {
-		return AtencionResponse.de(atencion, atencionService.emisoresCancelaron(idIncidente));
+		return AtencionResponse.de(atencion, atencionService.emisoresCancelaron(idIncidente),
+				atencionService.descripcionesDelIncidente(idIncidente));
 	}
 
 	/** Nunca se rechaza en silencio: 409 con lo necesario para decidir si sumarse sin otra consulta. */

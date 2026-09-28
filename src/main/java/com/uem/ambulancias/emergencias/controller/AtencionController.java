@@ -43,13 +43,17 @@ public class AtencionController {
 	}
 
 	/**
-	 * Toda respuesta lleva si los emisores retiraron su pedido: es lo que el paramédico necesita para decidir. En
-	 * un traslado no aplica, porque no hay alertas que retirar: lo pidió una persona y ella misma lo cancela.
+	 * Toda respuesta de un incidente lleva lo que se sabe de él y si los emisores retiraron su alerta: es lo que el
+	 * paramédico necesita para decidir. En un traslado no aplica, porque no hay alertas: lo pidió una persona y ella
+	 * misma lo cancela.
 	 */
 	private AtencionResponse respuesta(Atencion atencion) {
-		boolean emisoresCancelaron = atencion.getIncidente() != null
-				&& atencionService.emisoresCancelaron(atencion.getIncidente().getId());
-		return AtencionResponse.de(atencion, emisoresCancelaron);
+		if (atencion.getIncidente() == null) {
+			return AtencionResponse.de(atencion, false, List.of());
+		}
+		Long incidenteId = atencion.getIncidente().getId();
+		return AtencionResponse.de(atencion, atencionService.emisoresCancelaron(incidenteId),
+				atencionService.descripcionesDelIncidente(incidenteId));
 	}
 
 	/** El historial de traslados del paramédico, del más reciente al más viejo. */
@@ -60,7 +64,7 @@ public class AtencionController {
 
 	/** En un traslado no hay alertas que retirar: lo pidió una persona y ella misma lo cancela. */
 	private static AtencionResponse sinAvisoDeEmisores(Atencion atencion) {
-		return AtencionResponse.de(atencion, false);
+		return AtencionResponse.de(atencion, false, List.of());
 	}
 
 	/** Solo en traslados: llegó y el paciente no estaba listo. Queda la hora, que es tiempo de unidad perdido. */
