@@ -31,6 +31,8 @@ public record TrasladoResponse(
 		Instant horaRecogidaDesde,
 		Instant horaRecogidaHasta,
 
+		/** Quién viaja: el propio solicitante o una persona suya. Con esto la app vuelve a pedir el mismo viaje. */
+		Long pasajeroId,
 		String pasajero,
 		Movilidad movilidad,
 		boolean oxigeno,
@@ -73,6 +75,7 @@ public record TrasladoResponse(
 				traslado.getHoraLimiteSalida(),
 				traslado.getHoraRecogidaDesde(),
 				traslado.getHoraRecogidaHasta(),
+				traslado.getPasajero().getId(),
 				traslado.getPasajero().getNombreCompleto(),
 				traslado.getMovilidad(),
 				traslado.isRequiereOxigeno(),

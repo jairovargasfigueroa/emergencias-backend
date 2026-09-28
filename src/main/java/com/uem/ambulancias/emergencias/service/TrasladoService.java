@@ -230,7 +230,10 @@ public class TrasladoService {
 		return traslados.save(traslado);
 	}
 
-	/** Nulo significa que viaja quien pide. Si no, tiene que ser alguien que él mismo registró. */
+	/**
+	 * Nulo significa que viaja quien pide. Si no, tiene que ser alguien que él mismo registró y que sigue en su
+	 * perfil: a quien quitó no se le piden viajes nuevos, aunque se esté repitiendo uno viejo.
+	 */
 	private Usuario resolverPasajero(Usuario solicitante, Long pasajeroId) {
 		if (pasajeroId == null || pasajeroId.equals(solicitante.getId())) {
 			return solicitante;
@@ -239,8 +242,13 @@ public class TrasladoService {
 			throw new ConflictoException(CodigoError.PASAJERO_AJENO,
 					"Solo se puede pedir un traslado para una persona propia.");
 		}
-		return usuarios.findById(pasajeroId)
+		Usuario pasajero = usuarios.findById(pasajeroId)
 				.orElseThrow(() -> new NoEncontradoException("No existe la persona " + pasajeroId + "."));
+		if (!pasajero.isActivo()) {
+			throw new ConflictoException(CodigoError.PASAJERO_AJENO,
+					"Esa persona ya no está en tu perfil. Elige quién viaja.");
+		}
+		return pasajero;
 	}
 
 	private CentroSalud resolverCentro(Long centroId) {
