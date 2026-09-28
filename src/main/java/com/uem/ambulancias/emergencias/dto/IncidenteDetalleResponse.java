@@ -28,7 +28,10 @@ public record IncidenteDetalleResponse(
 		List<AlertaDeIncidenteResponse> alertas,
 		List<AtencionDeIncidenteResponse> atenciones) {
 
-	/** {@code alertas} con su emisor y {@code atenciones} con su ambulancia y su centro de salud, ya ordenadas. */
+	/**
+	 * {@code alertas} con su emisor y {@code atenciones} con su ambulancia, su paramédico responsable y su centro de
+	 * salud, ya ordenadas.
+	 */
 	public static IncidenteDetalleResponse de(Incidente incidente, List<Alerta> alertas, List<Atencion> atenciones) {
 		IncidenteResumenResponse resumen = IncidenteResumenResponse.de(incidente, alertas.size(), atenciones);
 		return new IncidenteDetalleResponse(
