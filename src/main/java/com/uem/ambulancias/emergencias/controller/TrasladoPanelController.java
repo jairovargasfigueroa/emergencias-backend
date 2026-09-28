@@ -62,6 +62,15 @@ public class TrasladoPanelController {
 		return TrasladoDelPanelResponse.de(atencion.getTraslado(), atencion);
 	}
 
+	/**
+	 * Sacarle el traslado a la unidad que no llega y devolverlo a la búsqueda, primero en la fila. Solo mientras
+	 * la unidad viene en camino.
+	 */
+	@PostMapping("/{id}/devolver")
+	public TrasladoDelPanelResponse devolverABusqueda(@PathVariable("id") Long trasladoId) {
+		return TrasladoDelPanelResponse.de(asignador.devolverABusqueda(trasladoId), null);
+	}
+
 	/** Ya se le avisó a la familia que no se consiguió unidad: el traslado sale de la bandeja. */
 	@PostMapping("/{id}/familia-avisada")
 	public TrasladoDelPanelResponse marcarFamiliaAvisada(@PathVariable("id") Long trasladoId) {

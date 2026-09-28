@@ -162,11 +162,11 @@ public class TrasladoService {
 	}
 
 	/**
-	 * La bandeja de problemas: los que siguen esperando unidad, y los que se vencieron sin ella hasta que alguien
-	 * le avise a la familia.
+	 * La bandeja de problemas: los que tienen una unidad atrasada, los que siguen esperando unidad, y los que se
+	 * vencieron sin ella hasta que alguien le avise a la familia.
 	 */
 	public List<TrasladoConAtencion> problemas() {
-		return conSuAtencion(traslados.buscarProblemas());
+		return conSuAtencion(traslados.buscarProblemas(Instant.now()));
 	}
 
 	/** El administrador ya le avisó a la familia que no hubo unidad: sale de la bandeja. */

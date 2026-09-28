@@ -8,7 +8,9 @@ import com.uem.ambulancias.comun.error.CodigoError;
 import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.emergencias.domain.Atencion;
+import com.uem.ambulancias.emergencias.domain.EstadoAtencion;
 import com.uem.ambulancias.emergencias.domain.EstadoTraslado;
+import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
 import com.uem.ambulancias.emergencias.domain.Traslado;
 import com.uem.ambulancias.emergencias.repository.AtencionRepository;
 import com.uem.ambulancias.emergencias.repository.TrasladoRepository;
@@ -42,6 +44,7 @@ public class AsignadorDeTraslados {
 	private final AmbulanciaRepository ambulancias;
 	private final TurnoRepository turnos;
 	private final UsuarioRepository usuarios;
+	private final TrasladoProperties config;
 	private final ApplicationEventPublisher eventos;
 
 	/** Los programados a los que ya les llegó la hora de salir pasan a buscar unidad. */
@@ -117,6 +120,35 @@ public class AsignadorDeTraslados {
 		return tomar(traslado, ambulanciaId, administrador)
 				.orElseThrow(() -> new ConflictoException(CodigoError.AMBULANCIA_NO_DISPONIBLE,
 						"Esa unidad no está disponible o no tiene a nadie en turno."));
+	}
+
+	/**
+	 * El administrador le saca el traslado a la unidad que lo tiene y lo devuelve a la búsqueda, primero en la
+	 * fila. Es lo que hace un despachador cuando ve que una unidad no llega: la llama, y si hace falta manda otra.
+	 * Solo mientras la unidad viene en camino: en la puerta o con el paciente a bordo, sacársela no arregla nada.
+	 */
+	@Transactional
+	public Traslado devolverABusqueda(Long trasladoId) {
+		Traslado traslado = traslados.buscarParaActualizar(trasladoId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
+		Atencion enCurso = traslado.getEstado() == EstadoTraslado.ASIGNADO
+				? atenciones.buscarActivaPorTraslado(trasladoId).orElse(null)
+				: null;
+		if (enCurso == null) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"El traslado no tiene una unidad a la que sacárselo.");
+		}
+		if (enCurso.getEstado() != EstadoAtencion.EN_CAMINO) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"La unidad ya llegó: desde ahí el traslado lo resuelve la tripulación.");
+		}
+		Long ambulanciaId = enCurso.getAmbulancia().getId();
+		enCurso.cancelar(MotivoCancelacionAtencion.REASIGNADA);
+		ambulancias.actualizarEstado(ambulanciaId, EstadoAmbulancia.DISPONIBLE);
+		traslado.devolverABusqueda(Instant.now(), config.busquedaTrasDevolucion(), config.acercamiento());
+		eventos.publishEvent(new TrasladoRetirado(trasladoId, ambulanciaId, MotivoCancelacionAtencion.REASIGNADA));
+		eventos.publishEvent(new UnidadLiberada(ambulanciaId));
+		return traslados.save(traslado);
 	}
 
 	/**
