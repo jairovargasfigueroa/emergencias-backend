@@ -7,7 +7,7 @@ import com.uem.ambulancias.comun.web.UsuarioActual;
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.dto.AsignarTrasladoRequest;
 import com.uem.ambulancias.emergencias.dto.TrasladoDelPanelResponse;
-import com.uem.ambulancias.emergencias.dto.UnidadParaTrasladoResponse;
+import com.uem.ambulancias.emergencias.dto.UnidadCandidataResponse;
 import com.uem.ambulancias.emergencias.service.AsignadorDeTraslados;
 import com.uem.ambulancias.emergencias.service.TrasladoConAtencion;
 import com.uem.ambulancias.emergencias.service.TrasladoService;
@@ -58,8 +58,8 @@ public class TrasladoPanelController {
 
 	/** Con qué unidades se puede asignar a mano, de la más cercana al origen a la más lejana. */
 	@GetMapping("/{id}/unidades")
-	public List<UnidadParaTrasladoResponse> unidades(@PathVariable("id") Long trasladoId) {
-		return asignador.candidatas(trasladoId).stream().map(UnidadParaTrasladoResponse::de).toList();
+	public List<UnidadCandidataResponse> unidades(@PathVariable("id") Long trasladoId) {
+		return asignador.candidatas(trasladoId).stream().map(UnidadCandidataResponse::de).toList();
 	}
 
 	@PostMapping("/{id}/asignar")

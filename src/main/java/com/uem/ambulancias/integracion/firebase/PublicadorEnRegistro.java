@@ -58,6 +58,12 @@ public class PublicadorEnRegistro implements PublicadorDeIncidentes, PublicadorD
 	}
 
 	@Override
+	public void notificarIncidenteAsignado(List<String> tokens, IncidentePublicado incidente) {
+		log.info("Firebase apagado: no se avisa a {} teléfonos que los mandaron al incidente {}.", tokens.size(),
+				incidente.id());
+	}
+
+	@Override
 	public void notificarTrasladoAsignado(List<String> tokens, AvisoDeTraslado aviso) {
 		log.info("Firebase apagado: no se envía push del traslado {} a {} teléfonos de la tripulación.",
 				aviso.trasladoId(), tokens.size());

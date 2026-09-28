@@ -8,6 +8,9 @@ import java.util.function.BiConsumer;
 
 import com.uem.ambulancias.emergencias.domain.CentroSalud;
 import com.uem.ambulancias.emergencias.domain.Traslado;
+import com.uem.ambulancias.emergencias.repository.AlertaRepository;
+import com.uem.ambulancias.emergencias.repository.AtencionRepository;
+import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
 import com.uem.ambulancias.emergencias.repository.TrasladoRepository;
 import com.uem.ambulancias.flota.repository.TurnoRepository;
 
@@ -35,6 +38,9 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class AvisoAlParamedico {
 
 	private final TrasladoRepository traslados;
+	private final IncidenteRepository incidentes;
+	private final AlertaRepository alertas;
+	private final AtencionRepository atenciones;
 	private final TurnoRepository turnos;
 	private final NotificadorPush notificador;
 	private final TrasladoProperties config;
@@ -52,11 +58,37 @@ public class AvisoAlParamedico {
 				(tokens, aviso) -> notificador.notificarTrasladoRetirado(tokens, aviso, evento.motivo()));
 	}
 
+	/** La central los mandó a una emergencia: no la eligieron ellos, así que no tienen por qué estar mirando la app. */
+	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+	@Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+	public void avisarDespacho(IncidenteDespachado evento) {
+		try {
+			List<String> tokens = tokensDeLaTripulacion(evento.ambulanciaId());
+			if (tokens.isEmpty()) {
+				log.info("Nadie de turno en la ambulancia {} tiene un teléfono registrado: el incidente {} solo se "
+						+ "verá en la app.", evento.ambulanciaId(), evento.incidenteId());
+				return;
+			}
+			incidentes.findById(evento.incidenteId()).ifPresent(incidente -> notificador.notificarIncidenteAsignado(
+					tokens, new IncidentePublicado(incidente.getId(), incidente.getUbicacion().getY(),
+							incidente.getUbicacion().getX(), incidente.getEstado(), incidente.getFechaHoraCreacion(),
+							incidente.getCantidadAfectados(), alertas.buscarDescripciones(incidente.getId()),
+							atenciones.buscarActivasPorIncidente(incidente.getId()).size())));
+		} catch (RuntimeException e) {
+			log.error("No se pudo avisar del incidente {} a la ambulancia {}.", evento.incidenteId(),
+					evento.ambulanciaId(), e);
+		}
+	}
+
+	private List<String> tokensDeLaTripulacion(Long ambulanciaId) {
+		return turnos.buscarAbiertosConAvisoPorAmbulancias(List.of(ambulanciaId)).stream()
+				.map(turno -> turno.getParamedico().getTokenPush())
+				.toList();
+	}
+
 	private void avisar(Long trasladoId, Long ambulanciaId, BiConsumer<List<String>, AvisoDeTraslado> enviar) {
 		try {
-			List<String> tokens = turnos.buscarAbiertosConAvisoPorAmbulancias(List.of(ambulanciaId)).stream()
-					.map(turno -> turno.getParamedico().getTokenPush())
-					.toList();
+			List<String> tokens = tokensDeLaTripulacion(ambulanciaId);
 			if (tokens.isEmpty()) {
 				// Nadie abrió la app en un teléfono todavía: no hay a dónde mandarlo y no es un error.
 				log.info("Nadie de turno en la ambulancia {} tiene un teléfono registrado: el traslado {} solo se "

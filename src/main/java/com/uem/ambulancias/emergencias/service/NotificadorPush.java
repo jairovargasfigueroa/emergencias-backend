@@ -12,6 +12,9 @@ public interface NotificadorPush {
 	/** Avisa del incidente a esos teléfonos, ya ordenados del más cercano al más lejano. */
 	void notificarNuevoIncidente(List<String> tokensPorCercania, IncidentePublicado incidente);
 
+	/** Avisa a la tripulación de una unidad que la central la mandó a esa emergencia. */
+	void notificarIncidenteAsignado(List<String> tokens, IncidentePublicado incidente);
+
 	/** Avisa a la tripulación de una unidad del traslado que le acaba de tocar. */
 	void notificarTrasladoAsignado(List<String> tokens, AvisoDeTraslado aviso);
 

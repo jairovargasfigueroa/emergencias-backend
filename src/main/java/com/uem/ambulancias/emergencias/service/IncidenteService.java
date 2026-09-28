@@ -171,6 +171,17 @@ public class IncidenteService {
 		return crearAtencion(idIncidente, idAmbulancia, paramedico, false);
 	}
 
+	/**
+	 * La central manda una unidad: el mismo camino que tomar o sumarse, sin exigir que el incidente esté libre. Si ya
+	 * tiene una unidad trabajando, la nueva se suma.
+	 */
+	@Transactional
+	public Atencion despachar(Long idIncidente, Long idAmbulancia, Usuario responsable, Usuario administrador) {
+		Atencion atencion = crearAtencion(idIncidente, idAmbulancia, responsable, false);
+		atencion.marcarDespachadaPor(administrador);
+		return atencion;
+	}
+
 	/** Ambulancias que acuden al incidente (atenciones activas), para el contexto del 409. */
 	@Transactional(readOnly = true)
 	public List<Ambulancia> unidadesAcudiendo(Long idIncidente) {

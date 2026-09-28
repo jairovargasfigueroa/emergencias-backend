@@ -1,15 +1,12 @@
 package com.uem.ambulancias.emergencias.service;
 
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import com.uem.ambulancias.comun.error.CodigoError;
 import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.error.NoEncontradoException;
-import com.uem.ambulancias.comun.geo.Geo;
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.EstadoAtencion;
 import com.uem.ambulancias.emergencias.domain.EstadoTraslado;
@@ -48,6 +45,7 @@ public class AsignadorDeTraslados {
 	private final TurnoRepository turnos;
 	private final UsuarioRepository usuarios;
 	private final TrasladoProperties config;
+	private final CandidatasCercanas candidatasCercanas;
 	private final ApplicationEventPublisher eventos;
 
 	/** Los programados a los que ya les llegó la hora de salir pasan a buscar unidad. */
@@ -110,19 +108,8 @@ public class AsignadorDeTraslados {
 		Traslado traslado = traslados.findById(trasladoId)
 				.orElseThrow(() -> new NoEncontradoException("No existe el traslado " + trasladoId + "."));
 		TipoUnidad requerido = traslado.tipoUnidadEfectivo();
-		Set<Long> yaLoTuvieron = Set.copyOf(atenciones.buscarAmbulanciasQueLoTuvieron(trasladoId));
-		Instant posicionDesde = Instant.now().minus(config.posicionVigente());
-		return ambulancias.findAllByOrderByPlacaAsc().stream()
-				.filter(Ambulancia::puedeAtender)
-				.filter(unidad -> unidad.getTipoUnidad().cubreA(requerido))
-				.map(unidad -> new UnidadCandidata(unidad,
-						unidad.getUltimaPosicion() == null ? null
-								: Geo.metrosEntre(unidad.getUltimaPosicion(), traslado.getOrigen()),
-						unidad.getUltimaPosicionEn() != null && !unidad.getUltimaPosicionEn().isBefore(posicionDesde),
-						yaLoTuvieron.contains(unidad.getId())))
-				.sorted(Comparator.comparing(UnidadCandidata::distanciaMetros,
-						Comparator.nullsLast(Comparator.naturalOrder())))
-				.toList();
+		return candidatasCercanas.alrededorDe(traslado.getOrigen(), unidad -> unidad.getTipoUnidad().cubreA(requerido),
+				atenciones.buscarAmbulanciasQueLoTuvieron(trasladoId));
 	}
 
 	/**

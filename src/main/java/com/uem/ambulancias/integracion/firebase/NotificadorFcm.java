@@ -49,6 +49,28 @@ public class NotificadorFcm implements NotificadorPush {
 	}
 
 	@Override
+	public void notificarIncidenteAsignado(List<String> tokens, IncidentePublicado incidente) {
+		if (tokens.isEmpty()) {
+			return;
+		}
+		Notification notificacion = Notification.builder()
+				.setTitle("Te enviaron a una emergencia")
+				.setBody(resumen(incidente))
+				.build();
+		List<Message> mensajes = tokens.stream()
+				.map(token -> Message.builder()
+						.setToken(token)
+						.setNotification(notificacion)
+						.putData("incidenteId", String.valueOf(incidente.id()))
+						.putData("tipo", "INCIDENTE_ASIGNADO")
+						.setAndroidConfig(AndroidConfig.builder().setPriority(AndroidConfig.Priority.HIGH).build())
+						.build())
+				.toList();
+		EscriturasFirebase.registrarFallo(mensajeria.sendEachAsync(mensajes),
+				"enviar el push de despacho del incidente " + incidente.id());
+	}
+
+	@Override
 	public void notificarTrasladoAsignado(List<String> tokens, AvisoDeTraslado aviso) {
 		enviarATripulacion(tokens, aviso, "TRASLADO_ASIGNADO", "Traslado asignado", resumen(aviso));
 	}

@@ -178,6 +178,11 @@ public class Atencion {
 		return traslado != null;
 	}
 
+	/** La mandó la central y no la tomó la tripulación por su cuenta. */
+	public void marcarDespachadaPor(Usuario administrador) {
+		asignadoPor = administrador;
+	}
+
 	/**
 	 * Solo en traslados. Deja la marca, arranca la espera y no cambia el estado: la unidad sigue en la puerta, y
 	 * si sube al paciente o se retira lo decide la tripulación cuando pase la tolerancia.

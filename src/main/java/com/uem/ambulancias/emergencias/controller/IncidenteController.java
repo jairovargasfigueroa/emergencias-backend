@@ -1,24 +1,30 @@
 package com.uem.ambulancias.emergencias.controller;
 
+import java.util.List;
+
 import com.uem.ambulancias.comun.error.ManejadorErrores;
 import com.uem.ambulancias.comun.web.UsuarioActual;
 import com.uem.ambulancias.comun.web.PaginaResponse;
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.Incidente;
 import com.uem.ambulancias.emergencias.dto.AtencionResponse;
+import com.uem.ambulancias.emergencias.dto.DespacharUnidadRequest;
 import com.uem.ambulancias.emergencias.dto.FiltroEstadoIncidente;
 import com.uem.ambulancias.emergencias.dto.IncidenteDetalleResponse;
 import com.uem.ambulancias.emergencias.dto.IncidenteResumenResponse;
 import com.uem.ambulancias.emergencias.dto.UnidadAcudiendoResponse;
+import com.uem.ambulancias.emergencias.dto.UnidadCandidataResponse;
 import com.uem.ambulancias.emergencias.exception.IncidenteYaTomadoException;
 import com.uem.ambulancias.emergencias.service.AtencionService;
 import com.uem.ambulancias.emergencias.service.ConsultaIncidentesService;
+import com.uem.ambulancias.emergencias.service.DespachoDeIncidentes;
 import com.uem.ambulancias.emergencias.service.IncidenteConAlertasYAtenciones;
 import com.uem.ambulancias.emergencias.service.IncidenteService;
 import com.uem.ambulancias.flota.service.ServicioParamedicoService;
 import com.uem.ambulancias.flota.service.TurnoService;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -26,6 +32,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -46,6 +53,7 @@ public class IncidenteController {
 	private final ConsultaIncidentesService consultaIncidentesService;
 	private final ServicioParamedicoService servicioParamedicoService;
 	private final TurnoService turnoService;
+	private final DespachoDeIncidentes despacho;
 
 	/** Incidentes del filtro, del más reciente al más antiguo. La página empieza en 0 y el tamaño máximo es 100. */
 	@GetMapping
@@ -63,6 +71,20 @@ public class IncidenteController {
 	public IncidenteDetalleResponse detalle(@PathVariable("id") Long idIncidente) {
 		IncidenteConAlertasYAtenciones detalle = consultaIncidentesService.detalle(idIncidente);
 		return IncidenteDetalleResponse.de(detalle.incidente(), detalle.alertas(), detalle.atenciones());
+	}
+
+	/** Con qué unidades se puede mandar a mano, de la más cercana al lugar a la más lejana. */
+	@GetMapping("/{id}/unidades")
+	public List<UnidadCandidataResponse> unidades(@PathVariable("id") Long idIncidente) {
+		return despacho.candidatas(idIncidente).stream().map(UnidadCandidataResponse::de).toList();
+	}
+
+	/** La central manda una unidad. Si el incidente ya tiene una trabajando, la nueva se suma. */
+	@PostMapping("/{id}/despacho")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void despachar(@PathVariable("id") Long idIncidente, @UsuarioActual Long administradorId,
+			@Valid @RequestBody DespacharUnidadRequest request) {
+		despacho.despachar(idIncidente, request.ambulanciaId(), administradorId);
 	}
 
 	@PostMapping("/{id}/tomar")
