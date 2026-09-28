@@ -7,6 +7,7 @@ import com.google.firebase.messaging.AndroidConfig;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.Message;
 import com.google.firebase.messaging.Notification;
+import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
 import com.uem.ambulancias.emergencias.service.AvisoDeTraslado;
 import com.uem.ambulancias.emergencias.service.IncidentePublicado;
 import com.uem.ambulancias.emergencias.service.NotificadorPush;
@@ -15,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * Envía el push con Firebase Cloud Messaging. Los datos {@code incidenteId} y {@code trasladoId} permiten a la
- * app abrir directo lo que se avisa.
+ * app abrir directo lo que se avisa; en los traslados, {@code tipo} le dice además si se lo dieron o se lo sacaron.
  */
 @RequiredArgsConstructor
 public class NotificadorFcm implements NotificadorPush {
@@ -48,18 +49,39 @@ public class NotificadorFcm implements NotificadorPush {
 	}
 
 	@Override
-	public void notificarTrasladoAsignado(String tokenPush, AvisoDeTraslado aviso) {
-		Message mensaje = Message.builder()
-				.setToken(tokenPush)
-				.setNotification(Notification.builder()
-						.setTitle("Traslado asignado")
-						.setBody(resumen(aviso))
+	public void notificarTrasladoAsignado(List<String> tokens, AvisoDeTraslado aviso) {
+		enviarATripulacion(tokens, aviso, "TRASLADO_ASIGNADO", "Traslado asignado", resumen(aviso));
+	}
+
+	@Override
+	public void notificarTrasladoRetirado(List<String> tokens, AvisoDeTraslado aviso,
+			MotivoCancelacionAtencion motivo) {
+		if (motivo == MotivoCancelacionAtencion.CANCELADA_POR_SOLICITANTE) {
+			enviarATripulacion(tokens, aviso, "TRASLADO_CANCELADO", "Traslado cancelado",
+					aviso.pasajero() + " · Lo canceló quien lo pidió. Tu unidad quedó libre.");
+		} else {
+			enviarATripulacion(tokens, aviso, "TRASLADO_REASIGNADO", "Traslado reasignado",
+					aviso.pasajero() + " · Se lo pasaron a otra unidad. Tu unidad quedó libre.");
+		}
+	}
+
+	private void enviarATripulacion(List<String> tokens, AvisoDeTraslado aviso, String tipo, String titulo,
+			String cuerpo) {
+		if (tokens.isEmpty()) {
+			return;
+		}
+		Notification notificacion = Notification.builder().setTitle(titulo).setBody(cuerpo).build();
+		List<Message> mensajes = tokens.stream()
+				.map(token -> Message.builder()
+						.setToken(token)
+						.setNotification(notificacion)
+						.putData("trasladoId", String.valueOf(aviso.trasladoId()))
+						.putData("tipo", tipo)
+						.setAndroidConfig(AndroidConfig.builder().setPriority(AndroidConfig.Priority.HIGH).build())
 						.build())
-				.putData("trasladoId", String.valueOf(aviso.trasladoId()))
-				.setAndroidConfig(AndroidConfig.builder().setPriority(AndroidConfig.Priority.HIGH).build())
-				.build();
-		EscriturasFirebase.registrarFallo(mensajeria.sendAsync(mensaje),
-				"enviar el push del traslado " + aviso.trasladoId());
+				.toList();
+		EscriturasFirebase.registrarFallo(mensajeria.sendEachAsync(mensajes),
+				"enviar el push " + tipo + " del traslado " + aviso.trasladoId());
 	}
 
 	private static String resumen(IncidentePublicado incidente) {

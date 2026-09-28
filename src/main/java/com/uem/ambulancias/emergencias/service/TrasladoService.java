@@ -207,9 +207,12 @@ public class TrasladoService {
 		}
 		// Con la unidad en camino, cancelar también la deja libre: si no, quedaría tomada por un viaje que ya no existe.
 		if (enCurso != null) {
+			Long ambulanciaId = enCurso.getAmbulancia().getId();
 			enCurso.cancelar(MotivoCancelacionAtencion.CANCELADA_POR_SOLICITANTE);
-			ambulancias.actualizarEstado(enCurso.getAmbulancia().getId(), EstadoAmbulancia.DISPONIBLE);
-			eventos.publishEvent(new UnidadLiberada(enCurso.getAmbulancia().getId()));
+			ambulancias.actualizarEstado(ambulanciaId, EstadoAmbulancia.DISPONIBLE);
+			eventos.publishEvent(new UnidadLiberada(ambulanciaId));
+			eventos.publishEvent(new TrasladoRetirado(trasladoId, ambulanciaId,
+					MotivoCancelacionAtencion.CANCELADA_POR_SOLICITANTE));
 		}
 		traslado.cancelar(ciudadanos.buscarCiudadanoActivo(solicitanteId), Instant.now());
 		return traslados.save(traslado);

@@ -2,6 +2,7 @@ package com.uem.ambulancias.integracion.firebase;
 
 import java.util.List;
 
+import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
 import com.uem.ambulancias.emergencias.service.AvisoDeTraslado;
 import com.uem.ambulancias.emergencias.service.IncidentePublicado;
 import com.uem.ambulancias.emergencias.service.NotificadorPush;
@@ -57,9 +58,16 @@ public class PublicadorEnRegistro implements PublicadorDeIncidentes, PublicadorD
 	}
 
 	@Override
-	public void notificarTrasladoAsignado(String tokenPush, AvisoDeTraslado aviso) {
-		log.info("Firebase apagado: no se envía push del traslado {} al paramédico que lo tomó.",
-				aviso.trasladoId());
+	public void notificarTrasladoAsignado(List<String> tokens, AvisoDeTraslado aviso) {
+		log.info("Firebase apagado: no se envía push del traslado {} a {} teléfonos de la tripulación.",
+				aviso.trasladoId(), tokens.size());
+	}
+
+	@Override
+	public void notificarTrasladoRetirado(List<String> tokens, AvisoDeTraslado aviso,
+			MotivoCancelacionAtencion motivo) {
+		log.info("Firebase apagado: no se avisa a {} teléfonos que el traslado {} ya no es suyo ({}).",
+				tokens.size(), aviso.trasladoId(), motivo);
 	}
 
 }

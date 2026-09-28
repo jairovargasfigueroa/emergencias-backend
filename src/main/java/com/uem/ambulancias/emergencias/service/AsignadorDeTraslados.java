@@ -137,8 +137,8 @@ public class AsignadorDeTraslados {
 		ambulancia.cambiarEstado(EstadoAmbulancia.EN_ATENCION);
 		traslado.asignar();
 		traslados.save(traslado);
-		// El responsable está manejando, no mirando la app: si no se le avisa, se entera recién cuando la abre.
-		eventos.publishEvent(new TrasladoAsignado(traslado.getId(), responsable.getId()));
+		// La tripulación está manejando, no mirando la app: si no se le avisa, se entera recién cuando la abre.
+		eventos.publishEvent(new TrasladoAsignado(traslado.getId(), ambulanciaId));
 		return Optional.of(atencion);
 	}
 
