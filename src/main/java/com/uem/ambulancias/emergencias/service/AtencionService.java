@@ -307,7 +307,8 @@ public class AtencionService {
 	/**
 	 * estados.md, Cascadas: solo con el incidente EN_ATENCION y sin atenciones activas. Una entrega manda sobre todo
 	 * (I3, ATENDIDO). Si nadie entregó pero alguien resolvió sin trasladar, el desenlace sale del motivo: nadie en el
-	 * lugar es FALSA_ALARMA y ya se lo habían llevado es ATENDIDO_EXTERNAMENTE. Si no pasó ninguna, vuelve a ACTIVO (I2).
+	 * lugar es FALSA_ALARMA y ya se lo habían llevado es ATENDIDO_EXTERNAMENTE. Si no pasó ninguna, vuelve a ACTIVO (I2),
+	 * salvo que todos hayan retirado su pedido: entonces no queda nadie a quien ir a buscar y se cancela.
 	 *
 	 * @return si el incidente volvió a ACTIVO, o sea que quedó abierto y otra vez sin ninguna unidad en camino.
 	 */
@@ -322,7 +323,14 @@ public class AtencionService {
 		}
 		List<MotivoSinTraslado> sinTraslado = atenciones.buscarMotivosSinTraslado(incidente.getId());
 		if (sinTraslado.isEmpty()) {
-			// I2: nadie llegó a resolver nada, el incidente vuelve a esperar una unidad.
+			// Nadie llegó a resolver nada. Si todos retiraron su pedido y la unidad se volvió, como haría una central,
+			// el caso se cierra: reabrirlo mandaría otra ambulancia, y un aviso a todas, por alguien que ya dijo que no.
+			if (!alertas.existeAlgunaVigente(incidente.getId())) {
+				incidente.cambiarEstado(EstadoIncidente.CANCELADO);
+				incidentes.save(incidente);
+				return false;
+			}
+			// I2: alguien sigue esperando, así que el incidente vuelve a esperar una unidad.
 			incidente.cambiarEstado(EstadoIncidente.ACTIVO);
 			incidentes.save(incidente);
 			return true;
