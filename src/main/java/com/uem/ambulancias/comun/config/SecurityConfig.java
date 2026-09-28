@@ -64,6 +64,7 @@ public class SecurityConfig {
 						// ME-1 M5: la ambulancia vuelve de una avería desde la app (PB-05 R11) o desde el panel.
 						.requestMatchers(HttpMethod.POST, "/ambulancias/*/reactivar").hasAnyRole(PARAMEDICO, ADMIN)
 						// Lo que usa la app del ciudadano.
+						.requestMatchers("/ciudadanos/actual/**").hasRole(CIUDADANO)
 						.requestMatchers("/alertas/**").hasRole(CIUDADANO)
 						.requestMatchers("/personas/**").hasRole(CIUDADANO)
 						.requestMatchers(HttpMethod.POST, "/traslados", "/traslados/*/cancelar").hasRole(CIUDADANO)
