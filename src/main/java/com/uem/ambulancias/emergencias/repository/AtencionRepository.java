@@ -177,9 +177,13 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 			""")
 	List<Atencion> buscarConHitosDesde(@Param("desde") Instant desde);
 
-	/** Todas las atenciones de esos incidentes, con su ambulancia y su centro de salud, en orden de toma. */
+	/**
+	 * Todas las atenciones de esos incidentes, con su ambulancia, su paramédico responsable y su centro de salud, en
+	 * orden de toma.
+	 */
 	@Query("""
 			select a from Atencion a join fetch a.ambulancia left join fetch a.centroSalud
+			left join fetch a.paramedicoResponsable
 			where a.incidente.id in :incidenteIds
 			order by a.horaToma, a.id
 			""")

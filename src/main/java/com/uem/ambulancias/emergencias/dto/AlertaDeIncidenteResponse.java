@@ -4,6 +4,7 @@ import java.time.Instant;
 
 import com.uem.ambulancias.emergencias.domain.Alerta;
 import com.uem.ambulancias.emergencias.domain.EstadoAlerta;
+import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAlerta;
 import com.uem.ambulancias.emergencias.domain.OrigenUbicacion;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 
@@ -11,7 +12,8 @@ import org.locationtech.jts.geom.Point;
 
 /**
  * Alerta en el detalle de un incidente. {@code latitud} y {@code longitud} son las de la ubicación efectiva: la
- * ajustada si existe; si no, la original.
+ * ajustada si existe; si no, la original. El motivo y la hora de cancelación vienen solo si el ciudadano retiró su
+ * pedido; {@code emisorEsPaciente}, solo si además contestó quién necesitaba la ambulancia.
  */
 public record AlertaDeIncidenteResponse(
 		Long id,
@@ -22,7 +24,10 @@ public record AlertaDeIncidenteResponse(
 		double longitud,
 		Integer cantidadAfectados,
 		String descripcion,
-		Emisor emisor) {
+		Emisor emisor,
+		MotivoCancelacionAlerta motivoCancelacion,
+		Instant horaCancelacion,
+		Boolean emisorEsPaciente) {
 
 	/** Ciudadano que emitió la alerta. */
 	public record Emisor(Long id, String nombreCompleto, String telefono) {
@@ -41,7 +46,10 @@ public record AlertaDeIncidenteResponse(
 				ubicacion.getX(),
 				alerta.getCantidadAfectados(),
 				alerta.getDescripcion(),
-				new Emisor(emisor.getId(), emisor.getNombreCompleto(), emisor.getTelefono()));
+				new Emisor(emisor.getId(), emisor.getNombreCompleto(), emisor.getTelefono()),
+				alerta.getMotivoCancelacion(),
+				alerta.getHoraCancelacion(),
+				alerta.getEmisorEsPaciente());
 	}
 
 }
