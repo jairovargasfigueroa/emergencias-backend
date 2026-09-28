@@ -212,7 +212,7 @@ public class AtencionService {
 	@Transactional
 	public Atencion cancelar(Long atencionId, Long paramedicoId, MotivoCancelacionAtencion motivo) {
 		return aplicar(atencionId, paramedicoId, true, (atencion, incidente) -> {
-			atencion.cancelar(motivo);
+			atencion.cancelarPorLaTripulacion(motivo);
 			ambulancias.actualizarEstado(atencion.getAmbulancia().getId(),
 					motivo == MotivoCancelacionAtencion.AVERIA ? EstadoAmbulancia.FUERA_DE_SERVICIO : EstadoAmbulancia.DISPONIBLE);
 			return evaluarSiHayIncidente(incidente);

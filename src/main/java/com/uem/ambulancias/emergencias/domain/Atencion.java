@@ -287,6 +287,43 @@ public class Atencion {
 		return estado.isActiva() || (estado.isResuelta() && horaLiberacion == null);
 	}
 
+	/**
+	 * La cancelación que pide la propia tripulación. No puede usar los motivos del sistema —el solicitante que
+	 * cancela, el administrador que reasigna—, y en un traslado hay motivos que solo tienen sentido antes de tener al
+	 * paciente: devolverlo es de antes de llegar, y desviarse a otra cosa, de antes de subirlo.
+	 */
+	public void cancelarPorLaTripulacion(MotivoCancelacionAtencion motivo) {
+		switch (motivo) {
+			case CANCELADA_POR_SOLICITANTE, REASIGNADA -> throw motivoInvalido("Ese motivo no lo elige la tripulación.");
+			case RECHAZADA_POR_PARAMEDICO -> {
+				if (!esDeTraslado()) {
+					throw motivoInvalido("Solo un traslado se puede devolver.");
+				}
+				if (estado != EstadoAtencion.EN_CAMINO) {
+					throw motivoInvalido("Un traslado se devuelve antes de llegar a buscar al paciente.");
+				}
+			}
+			case DESVIADA -> {
+				if (esDeTraslado() && estado != EstadoAtencion.EN_CAMINO && estado != EstadoAtencion.EN_EL_LUGAR) {
+					throw motivoInvalido("Con el paciente a bordo, la unidad no se puede desviar.");
+				}
+			}
+			case NO_SE_ENCONTRO_PACIENTE -> {
+				if (esDeTraslado()) {
+					throw motivoInvalido("En un traslado, si no hay nadie en la puerta se cierra sin traslado.");
+				}
+			}
+			default -> {
+				// Avería y otro motivo pueden pasar en cualquier momento.
+			}
+		}
+		cancelar(motivo);
+	}
+
+	private static ConflictoException motivoInvalido(String mensaje) {
+		return new ConflictoException(CodigoError.VALIDACION, mensaje);
+	}
+
 	/** ME-1 A4: desde cualquier estado activo y con motivo. CANCELADA es terminal: nunca se reabre. */
 	public void cancelar(MotivoCancelacionAtencion motivo) {
 		if (motivo == null) {
