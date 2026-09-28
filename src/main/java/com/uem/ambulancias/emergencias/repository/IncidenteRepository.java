@@ -27,17 +27,18 @@ public interface IncidenteRepository extends JpaRepository<Incidente, Long> {
 	Optional<Incidente> buscarParaActualizar(@Param("id") Long id);
 
 	/**
-	 * SEC-A.1: incidente ACTIVO o EN_ATENCION a menos de {@code radioM} metros del punto y creado hace menos de
-	 * {@code ventanaMin} minutos. Si varios cumplen, devuelve el más cercano.
+	 * SEC-A.1: el incidente ACTIVO o EN_ATENCION a menos de {@code radioM} metros del punto y creado hace menos de
+	 * {@code ventanaMin} minutos; si varios cumplen, el más cercano. Devuelve solo el id porque esta búsqueda no
+	 * bloquea: quien agrupa lo vuelve a leer bloqueado y confirma que siga abierto.
 	 */
-	default Optional<Incidente> buscarActivoCercano(Point punto, int radioM, int ventanaMin) {
+	default Optional<Long> buscarIdAbiertoCercano(Point punto, int radioM, int ventanaMin) {
 		Instant creadoDesde = Instant.now().minus(Duration.ofMinutes(ventanaMin));
-		return buscarAbiertoMasCercano(punto.getY(), punto.getX(), radioM, creadoDesde);
+		return buscarIdAbiertoMasCercano(punto.getY(), punto.getX(), radioM, creadoDesde);
 	}
 
 	@Query(value = """
 			with punto as (select ST_SetSRID(ST_MakePoint(:longitud, :latitud), 4326)::geography as g)
-			select i.* from incidente i, punto
+			select i.id from incidente i, punto
 			where i.estado in ('ACTIVO', 'EN_ATENCION')
 			  and i.fecha_hora_creacion > :creadoDesde
 			  and ST_DWithin(i.ubicacion::geography, punto.g, :radioM)
@@ -45,7 +46,7 @@ public interface IncidenteRepository extends JpaRepository<Incidente, Long> {
 			order by ST_Distance(i.ubicacion::geography, punto.g)
 			limit 1
 			""", nativeQuery = true)
-	Optional<Incidente> buscarAbiertoMasCercano(@Param("latitud") double latitud, @Param("longitud") double longitud,
+	Optional<Long> buscarIdAbiertoMasCercano(@Param("latitud") double latitud, @Param("longitud") double longitud,
 			@Param("radioM") double radioM, @Param("creadoDesde") Instant creadoDesde);
 
 	/** Consulta del panel: incidentes en alguno de esos estados, con el orden y la página del pedido. */

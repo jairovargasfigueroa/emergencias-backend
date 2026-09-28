@@ -48,9 +48,14 @@ public class IncidenteService {
 	public Incidente agruparAlerta(Alerta alerta) {
 		bloqueoDeAgrupacion.adquirir();
 
+		// La búsqueda no bloquea, y una unidad pudo cerrar el incidente en ese mismo instante. Por eso se lo vuelve a
+		// leer bloqueado y se confirma que siga abierto: si no, la alerta quedaba sumada a un caso ya terminado y a
+		// nadie le llegaba el aviso. Si se cerró en el medio, la alerta abre un incidente nuevo.
 		Point ubicacion = alerta.getUbicacionEfectiva();
 		Incidente incidente = incidentes
-				.buscarActivoCercano(ubicacion, agrupacion.radioM(), agrupacion.ventanaMin())
+				.buscarIdAbiertoCercano(ubicacion, agrupacion.radioM(), agrupacion.ventanaMin())
+				.flatMap(incidentes::buscarParaActualizar)
+				.filter(cercano -> cercano.getEstado().isAbierto())
 				.orElse(null);
 		boolean nuevo = incidente == null;
 		if (nuevo) {
