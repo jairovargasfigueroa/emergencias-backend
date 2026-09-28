@@ -36,7 +36,9 @@ public record AtencionDeIncidenteResponse(
 		String nombrePaciente,
 		String documentoPaciente,
 		Centro centroSalud,
-		String destinoDescripcion) {
+		String destinoDescripcion,
+		/** El administrador que la cerró porque la tripulación no podía. Nulo si la cerró la tripulación. */
+		String cerradaPor) {
 
 	/** Paramédico que responde por la atención. */
 	public record Responsable(Long id, String nombreCompleto, String telefono) {
@@ -75,7 +77,8 @@ public record AtencionDeIncidenteResponse(
 				atencion.getDocumentoPaciente(),
 				atencion.getCentroSalud() == null ? null
 						: new Centro(atencion.getCentroSalud().getId(), atencion.getCentroSalud().getNombre()),
-				atencion.getDestinoDescripcion());
+				atencion.getDestinoDescripcion(),
+				atencion.getCerradaPor() == null ? null : atencion.getCerradaPor().getNombreCompleto());
 	}
 
 }

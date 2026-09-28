@@ -9,6 +9,7 @@ import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.CentroSalud;
+import com.uem.ambulancias.emergencias.domain.CierreDesdeLaCentral;
 import com.uem.ambulancias.emergencias.domain.EstadoAtencion;
 import com.uem.ambulancias.emergencias.domain.EstadoIncidente;
 import com.uem.ambulancias.emergencias.domain.EstadoTraslado;
@@ -28,6 +29,9 @@ import com.uem.ambulancias.flota.domain.TipoUnidad;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.service.ServicioParamedicoService;
 import com.uem.ambulancias.flota.service.TurnoService;
+import com.uem.ambulancias.usuarios.domain.RolUsuario;
+import com.uem.ambulancias.usuarios.domain.Usuario;
+import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Point;
@@ -50,6 +54,7 @@ public class AtencionService {
 	private final CentroSaludRepository centrosSalud;
 	private final ServicioParamedicoService servicioParamedico;
 	private final TurnoService turnoService;
+	private final UsuarioRepository usuarios;
 	private final SelectorDeUnidad selector;
 	private final TrasladoProperties config;
 	private final ApplicationEventPublisher eventos;
@@ -230,16 +235,64 @@ public class AtencionService {
 	}
 
 	/**
+	 * La central cierra una atención que la tripulación no puede cerrar —se quedó sin teléfono o sin señal—, como
+	 * haría un despachador después de hablar con ella por otro medio. La unidad queda fuera de servicio salvo que el
+	 * administrador sepa que está bien: a una unidad con la que no se habla no hay que mandarle nada.
+	 */
+	@Transactional
+	public Atencion cerrarDesdeLaCentral(Long atencionId, Long administradorId, CierreDesdeLaCentral cierre,
+			boolean dejarDisponible, Long centroSaludId, String destinoDescripcion) {
+		Usuario administrador = usuarios.findByIdAndRol(administradorId, RolUsuario.ADMIN)
+				.orElseThrow(() -> new NoEncontradoException("No existe el administrador " + administradorId + "."));
+		CentroSalud centroSalud = centroSaludId == null ? null : centrosSalud.findByIdAndActivoTrue(centroSaludId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el centro de salud " + centroSaludId + "."));
+		Atencion cerrada = aplicarSobre(atencionId, true, (atencion, incidente) -> {
+			switch (cierre) {
+				case CANCELAR -> atencion.cancelarDesdeLaCentral(administrador);
+				case DAR_POR_ENTREGADA -> atencion.entregarDesdeLaCentral(centroSalud, destinoDescripcion,
+						administrador, Instant.now());
+				case LIBERAR -> atencion.liberarDesdeLaCentral(administrador);
+			}
+			ambulancias.actualizarEstado(atencion.getAmbulancia().getId(),
+					dejarDisponible ? EstadoAmbulancia.DISPONIBLE : EstadoAmbulancia.FUERA_DE_SERVICIO);
+			return evaluarSiHayIncidente(incidente);
+		});
+		Long ambulanciaId = cerrada.getAmbulancia().getId();
+		if (cierre == CierreDesdeLaCentral.CANCELAR && cerrada.getTraslado() != null) {
+			// Por si la tripulación vuelve a tener señal: que sepa que ese traslado ya no es suyo.
+			eventos.publishEvent(new TrasladoRetirado(cerrada.getTraslado().getId(), ambulanciaId,
+					MotivoCancelacionAtencion.CERRADA_POR_CENTRAL));
+		}
+		if (dejarDisponible) {
+			eventos.publishEvent(new UnidadLiberada(ambulanciaId));
+		}
+		return cerrada;
+	}
+
+	/**
+	 * Un cambio pedido por el paramédico: solo sobre la atención de la ambulancia en la que está de turno.
+	 */
+	private Atencion aplicar(Long atencionId, Long paramedicoId, boolean difundir, CambioDeAtencion cambio) {
+		return aplicarSobre(atencionId, difundir, (atencion, incidente) -> {
+			Long ambulanciaDelParamedico = turnoService.ambulanciaEnTurno(paramedicoId);
+			if (!atencion.getAmbulancia().getId().equals(ambulanciaDelParamedico)) {
+				throw new ConflictoException(CodigoError.ATENCION_AJENA,
+						"La atención " + atencionId + " no es de la ambulancia del paramédico.");
+			}
+			return cambio.ejecutar(atencion, incidente);
+		});
+	}
+
+	/**
 	 * PB-05 R10: el cambio y su cascada se aplican con acceso exclusivo al incidente, así dos unidades del mismo
 	 * incidente que entregan o cancelan a la vez no evalúan un conteo desactualizado. En un traslado lo exclusivo es
-	 * el traslado: el ciudadano puede estar cancelándolo mientras el paramédico marca un hito. Solo se permite sobre
-	 * la atención de la ambulancia en la que el paramédico está de turno. La publicación ocurre después del commit,
-	 * con un solo evento por operación.
+	 * el traslado: el ciudadano puede estar cancelándolo mientras el paramédico marca un hito. La publicación ocurre
+	 * después del commit, con un solo evento por operación.
 	 *
 	 * <p>Primero se bloquea de qué cuelga la atención y recién después se la lee: si otro cambio está en curso, así
 	 * se espera a que termine y se lee lo que dejó, en vez de trabajar sobre una copia vieja.
 	 */
-	private Atencion aplicar(Long atencionId, Long paramedicoId, boolean difundir, CambioDeAtencion cambio) {
+	private Atencion aplicarSobre(Long atencionId, boolean difundir, CambioDeAtencion cambio) {
 		Long incidenteId = atenciones.buscarIncidenteId(atencionId).orElse(null);
 		Incidente incidente = incidenteId == null ? null : incidentes.buscarParaActualizar(incidenteId)
 				.orElseThrow(() -> new NoEncontradoException("No existe el incidente " + incidenteId + "."));
@@ -249,12 +302,6 @@ public class AtencionService {
 
 		Atencion atencion = atenciones.findById(atencionId)
 				.orElseThrow(() -> new NoEncontradoException("No existe la atención " + atencionId + "."));
-
-		Long ambulanciaDelParamedico = turnoService.ambulanciaEnTurno(paramedicoId);
-		if (!atencion.getAmbulancia().getId().equals(ambulanciaDelParamedico)) {
-			throw new ConflictoException(CodigoError.ATENCION_AJENA,
-					"La atención " + atencionId + " no es de la ambulancia del paramédico.");
-		}
 
 		boolean sinUnidades = cambio.ejecutar(atencion, incidente);
 		sincronizarTraslado(atencion);

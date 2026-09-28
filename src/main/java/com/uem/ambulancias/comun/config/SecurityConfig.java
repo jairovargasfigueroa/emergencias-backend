@@ -77,7 +77,7 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/traslados/*/asignar", "/traslados/*/devolver",
 								"/traslados/*/familia-avisada")
 						.hasRole(ADMIN)
-						.requestMatchers(HttpMethod.GET, "/operacion").hasRole(ADMIN)
+						.requestMatchers("/operacion/**", "/operacion").hasRole(ADMIN)
 						.requestMatchers("/ambulancias/**", "/asignaciones/**", "/paramedicos/**").hasRole(ADMIN)
 						.anyRequest().authenticated())
 				.oauth2ResourceServer(recurso -> recurso.jwt(jwt -> jwt.jwtAuthenticationConverter(convertidor)))
