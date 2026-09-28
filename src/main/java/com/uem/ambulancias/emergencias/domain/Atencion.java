@@ -1,5 +1,6 @@
 package com.uem.ambulancias.emergencias.domain;
 
+import java.time.Duration;
 import java.time.Instant;
 
 import com.uem.ambulancias.comun.error.CodigoError;
@@ -89,6 +90,12 @@ public class Atencion {
 	 */
 	private Instant horaAvisoNoListo;
 
+	/**
+	 * Solo en traslados: hasta cuándo espera la tripulación a ese paciente. Se fija al marcar que no estaba listo,
+	 * con la tolerancia de ese momento, y antes de esa hora la unidad no puede retirarse por ese motivo.
+	 */
+	private Instant esperaHasta;
+
 	private String nombrePaciente;
 
 	private String documentoPaciente;
@@ -167,12 +174,17 @@ public class Atencion {
 	}
 
 	/**
-	 * Solo en traslados. Deja la marca y no cambia el estado: la unidad sigue en el lugar, esperando o por
-	 * retirarse, y eso lo decide el paramédico después.
+	 * Solo en traslados. Deja la marca, arranca la espera y no cambia el estado: la unidad sigue en la puerta, y
+	 * si sube al paciente o se retira lo decide la tripulación cuando pase la tolerancia.
 	 */
-	public void marcarPacienteNoListo(Instant ahora) {
+	public void marcarPacienteNoListo(Instant ahora, Duration espera) {
+		if (estado != EstadoAtencion.EN_EL_LUGAR) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"Que el paciente no está listo se marca en la puerta, con la unidad ya en el lugar.");
+		}
 		if (horaAvisoNoListo == null) {
 			horaAvisoNoListo = ahora;
+			esperaHasta = ahora.plus(espera);
 		}
 	}
 
@@ -225,13 +237,33 @@ public class Atencion {
 		if (motivo == null) {
 			throw new IllegalArgumentException("El motivo del cierre sin traslado es obligatorio.");
 		}
+		if (!motivo.valePara(OrigenAtencion.de(this))) {
+			throw new ConflictoException(CodigoError.VALIDACION, "Ese motivo no corresponde a esta atención.");
+		}
 		if (estado != EstadoAtencion.EN_EL_LUGAR) {
 			throw transicionInvalida(EstadoAtencion.SIN_TRASLADO);
+		}
+		if (motivo == MotivoSinTraslado.PACIENTE_NO_LISTO) {
+			exigirEsperaCumplida();
 		}
 		estado = EstadoAtencion.SIN_TRASLADO;
 		motivoSinTraslado = motivo;
 		horaSinTraslado = Instant.now();
 		ubicacionSinTraslado = ubicacion;
+	}
+
+	/**
+	 * Retirarse porque el paciente no estaba listo es de después de la espera, como en cualquier servicio de
+	 * traslados: primero se avisa que no está listo, y recién cuando pasa la tolerancia la unidad se puede ir.
+	 */
+	private void exigirEsperaCumplida() {
+		if (esperaHasta == null) {
+			throw new ConflictoException(CodigoError.ESPERA_EN_CURSO,
+					"Primero marca que el paciente no está listo: desde ahí corre el tiempo de espera.");
+		}
+		if (Instant.now().isBefore(esperaHasta)) {
+			throw new ConflictoException(CodigoError.ESPERA_EN_CURSO, "Todavía no terminó el tiempo de espera.");
+		}
 	}
 
 	/**

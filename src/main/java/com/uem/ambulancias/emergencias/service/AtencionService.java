@@ -124,6 +124,10 @@ public class AtencionService {
 	 */
 	@Transactional
 	public Atencion cerrarSinTraslado(Long atencionId, Long paramedicoId, Point ubicacion, MotivoSinTraslado motivo) {
+		if (motivo == MotivoSinTraslado.UNIDAD_NO_CORRESPONDE) {
+			throw new ConflictoException(CodigoError.VALIDACION,
+					"Para decir que la unidad no corresponde hay que corregir la ficha: usa esa opción.");
+		}
 		return aplicar(atencionId, paramedicoId, true, (atencion, incidente) -> {
 			atencion.cerrarSinTraslado(motivo, ubicacion);
 			return evaluarSiHayIncidente(incidente);
@@ -144,14 +148,15 @@ public class AtencionService {
 	}
 
 	/**
-	 * Solo en traslados. La unidad llegó y el paciente no estaba listo: queda la marca con su hora y la atención
-	 * sigue donde está. Si espera o se retira lo decide el paramédico después, y eso ya son otros botones.
+	 * Solo en traslados. La unidad llegó y el paciente no estaba listo: queda la marca con su hora, arranca el
+	 * tiempo de espera y la atención sigue donde está. Pasada la espera, la tripulación decide si sigue esperando o
+	 * se retira, y eso ya son otros botones.
 	 */
 	@Transactional
 	public Atencion marcarPacienteNoListo(Long atencionId, Long paramedicoId) {
 		return aplicar(atencionId, paramedicoId, false, (atencion, incidente) -> {
 			exigirQueSeaTraslado(atencion);
-			atencion.marcarPacienteNoListo(Instant.now());
+			atencion.marcarPacienteNoListo(Instant.now(), config.espera());
 			return false;
 		});
 	}

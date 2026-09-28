@@ -44,6 +44,12 @@ public record TrasladoProperties(
 		 */
 		@DefaultValue("5") int minutosPosicionVigente,
 
+		/**
+		 * Cuánto espera la tripulación en la puerta a un paciente que no está listo antes de poder retirarse. Es la
+		 * tolerancia de cualquier servicio de traslados: pasado ese tiempo, el viaje se da por fallido.
+		 */
+		@DefaultValue("15") int minutosEspera,
+
 		/** Unidad mínima para trasladar a alguien en camilla. */
 		@DefaultValue("II") TipoUnidad minimoParaCamilla,
 
@@ -67,6 +73,10 @@ public record TrasladoProperties(
 
 	public Duration posicionVigente() {
 		return Duration.ofMinutes(minutosPosicionVigente);
+	}
+
+	public Duration espera() {
+		return Duration.ofMinutes(minutosEspera);
 	}
 
 }
