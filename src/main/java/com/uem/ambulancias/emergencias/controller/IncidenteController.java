@@ -8,6 +8,7 @@ import com.uem.ambulancias.comun.web.PaginaResponse;
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.Incidente;
 import com.uem.ambulancias.emergencias.dto.AtencionResponse;
+import com.uem.ambulancias.emergencias.dto.CerrarIncidenteRequest;
 import com.uem.ambulancias.emergencias.dto.DespacharUnidadRequest;
 import com.uem.ambulancias.emergencias.dto.FiltroEstadoIncidente;
 import com.uem.ambulancias.emergencias.dto.IncidenteDetalleResponse;
@@ -85,6 +86,14 @@ public class IncidenteController {
 	public void despachar(@PathVariable("id") Long idIncidente, @UsuarioActual Long administradorId,
 			@Valid @RequestBody DespacharUnidadRequest request) {
 		despacho.despachar(idIncidente, request.ambulanciaId(), administradorId);
+	}
+
+	/** La central cierra un incidente que no se va a atender. Solo sin unidades trabajándolo. */
+	@PostMapping("/{id}/cierre")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void cerrar(@PathVariable("id") Long idIncidente, @UsuarioActual Long administradorId,
+			@Valid @RequestBody CerrarIncidenteRequest request) {
+		despacho.cerrar(idIncidente, administradorId, request.motivo());
 	}
 
 	@PostMapping("/{id}/tomar")

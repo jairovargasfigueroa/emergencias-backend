@@ -6,7 +6,9 @@ import com.uem.ambulancias.comun.error.CodigoError;
 import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.emergencias.domain.Atencion;
+import com.uem.ambulancias.emergencias.domain.EstadoIncidente;
 import com.uem.ambulancias.emergencias.domain.Incidente;
+import com.uem.ambulancias.emergencias.domain.MotivoCierreIncidente;
 import com.uem.ambulancias.emergencias.repository.AtencionRepository;
 import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
 import com.uem.ambulancias.flota.domain.Turno;
@@ -61,6 +63,38 @@ public class DespachoDeIncidentes {
 		Atencion atencion = incidenteService.despachar(incidenteId, ambulanciaId, responsable, administrador);
 		eventos.publishEvent(new IncidenteDespachado(incidenteId, ambulanciaId));
 		return atencion;
+	}
+
+	/**
+	 * La central cierra una emergencia que no se va a atender: falsa alarma, ya la atendieron por otro medio, no hay
+	 * cobertura u otro motivo. Solo sin unidades trabajándola: si hay alguna, el caso lo cierra ella con lo que
+	 * encuentre. Queda registrado quién lo cerró, y el incidente sale del mapa de las unidades.
+	 */
+	@Transactional
+	public void cerrar(Long incidenteId, Long administradorId, MotivoCierreIncidente motivo) {
+		Usuario administrador = usuarios.findByIdAndRol(administradorId, RolUsuario.ADMIN)
+				.orElseThrow(() -> new NoEncontradoException("No existe el administrador " + administradorId + "."));
+		Incidente incidente = incidentes.buscarParaActualizar(incidenteId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el incidente " + incidenteId + "."));
+		if (!incidente.getEstado().isAbierto()) {
+			throw new ConflictoException(CodigoError.INCIDENTE_CERRADO, "El incidente ya está cerrado.");
+		}
+		if (atenciones.existeActivaPorIncidente(incidenteId)) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"Hay unidades trabajando en este incidente: lo cierran ellas, o cierra primero sus atenciones.");
+		}
+		incidente.cerrar(estadoPara(motivo), motivo, administrador);
+		incidentes.save(incidente);
+		eventos.publishEvent(new IncidenteActualizado(incidenteId, false));
+	}
+
+	/** Cómo queda el incidente según por qué lo cerró la central. */
+	private static EstadoIncidente estadoPara(MotivoCierreIncidente motivo) {
+		return switch (motivo) {
+			case FALSA_ALARMA_VERIFICADA -> EstadoIncidente.FALSA_ALARMA;
+			case ATENDIDO_EXTERNAMENTE -> EstadoIncidente.ATENDIDO_EXTERNAMENTE;
+			case SIN_COBERTURA, OTRO -> EstadoIncidente.CANCELADO;
+		};
 	}
 
 }

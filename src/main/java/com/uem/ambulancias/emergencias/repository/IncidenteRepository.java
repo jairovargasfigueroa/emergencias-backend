@@ -26,6 +26,10 @@ public interface IncidenteRepository extends JpaRepository<Incidente, Long> {
 	@Query("select i from Incidente i where i.id = :id")
 	Optional<Incidente> buscarParaActualizar(@Param("id") Long id);
 
+	/** El incidente con quien lo cerró a mano, si fue una persona: el detalle del panel lo nombra. */
+	@Query("select i from Incidente i left join fetch i.cerradoPor where i.id = :id")
+	Optional<Incidente> buscarConQuienLoCerro(@Param("id") Long id);
+
 	/**
 	 * SEC-A.1: el incidente ACTIVO o EN_ATENCION a menos de {@code radioM} metros del punto y creado hace menos de
 	 * {@code ventanaMin} minutos; si varios cumplen, el más cercano. Devuelve solo el id porque esta búsqueda no
