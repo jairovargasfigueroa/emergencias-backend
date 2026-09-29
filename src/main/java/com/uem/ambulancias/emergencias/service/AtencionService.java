@@ -29,6 +29,7 @@ import com.uem.ambulancias.flota.domain.TipoUnidad;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.service.ServicioParamedicoService;
 import com.uem.ambulancias.flota.service.TurnoService;
+import com.uem.ambulancias.flota.service.UnidadActualizada;
 import com.uem.ambulancias.usuarios.domain.RolUsuario;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
@@ -314,6 +315,8 @@ public class AtencionService {
 
 		boolean sinUnidades = cambio.ejecutar(atencion, incidente);
 		sincronizarTraslado(atencion);
+		// Lo ve también el resto de la tripulación, y la unidad misma cuando la cierra la central.
+		eventos.publishEvent(new UnidadActualizada(atencion.getAmbulancia().getId()));
 		if (difundir && incidenteId != null) {
 			// Un solo evento por operación: si el incidente volvió a ACTIVO, ese mismo evento pide avisar a las unidades.
 			eventos.publishEvent(new IncidenteActualizado(incidenteId, sinUnidades));

@@ -23,6 +23,7 @@ import com.uem.ambulancias.flota.domain.TipoUnidad;
 import com.uem.ambulancias.flota.domain.Turno;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.repository.TurnoRepository;
+import com.uem.ambulancias.flota.service.UnidadActualizada;
 import com.uem.ambulancias.usuarios.domain.RolUsuario;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
@@ -194,6 +195,7 @@ public class AsignadorDeTraslados {
 		eventos.publishEvent(new TrasladoRetirado(trasladoId, ambulanciaId, MotivoCancelacionAtencion.REASIGNADA));
 		eventos.publishEvent(new NovedadDelTraslado(trasladoId, NovedadDelTraslado.Tipo.NUEVA_BUSQUEDA));
 		eventos.publishEvent(new UnidadLiberada(ambulanciaId));
+		eventos.publishEvent(new UnidadActualizada(ambulanciaId));
 		return traslados.save(traslado);
 	}
 
@@ -217,6 +219,7 @@ public class AsignadorDeTraslados {
 		traslados.save(traslado);
 		// La tripulación está manejando, no mirando la app: si no se le avisa, se entera recién cuando la abre.
 		eventos.publishEvent(new TrasladoAsignado(traslado.getId(), ambulanciaId));
+		eventos.publishEvent(new UnidadActualizada(ambulanciaId));
 		return Optional.of(atencion);
 	}
 

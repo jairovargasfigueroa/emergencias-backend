@@ -8,7 +8,9 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.uem.ambulancias.emergencias.service.IncidentePublicado;
 import com.uem.ambulancias.emergencias.service.PublicadorDeIncidentes;
+import com.uem.ambulancias.emergencias.service.PublicadorDeUnidades;
 import com.uem.ambulancias.emergencias.service.SeguimientoPublicado;
+import com.uem.ambulancias.emergencias.service.UnidadPublicada;
 import com.uem.ambulancias.flota.service.PosicionActualizada;
 import com.uem.ambulancias.flota.service.PublicadorDePosiciones;
 
@@ -20,7 +22,7 @@ import lombok.RequiredArgsConstructor;
  * {@code forEach} y no con {@code val()} del nodo padre, que puede convertirlos en arreglo.
  */
 @RequiredArgsConstructor
-public class PublicadorFirebase implements PublicadorDeIncidentes, PublicadorDePosiciones {
+public class PublicadorFirebase implements PublicadorDeIncidentes, PublicadorDePosiciones, PublicadorDeUnidades {
 
 	/** Un hijo por incidente abierto, con su id como clave. Lo escuchan las apps del paramédico. */
 	static final String INCIDENTES_ABIERTOS = "incidentes-abiertos";
@@ -30,6 +32,9 @@ public class PublicadorFirebase implements PublicadorDeIncidentes, PublicadorDeP
 
 	/** Posición en vivo de cada ambulancia en servicio, con su id como clave. */
 	static final String POSICIONES = "posiciones";
+
+	/** Un hijo por unidad, con su id como clave. Lo escucha la app de la tripulación de esa unidad. */
+	static final String UNIDADES = "unidades";
 
 	private final FirebaseDatabase baseDatos;
 
@@ -103,6 +108,20 @@ public class PublicadorFirebase implements PublicadorDeIncidentes, PublicadorDeP
 				nodoPosicion.setValueAsync(posicion(posicion.latitud(), posicion.longitud(), posicion.momento())),
 				"copiar al seguimiento del incidente " + incidenteId + " la posición de la ambulancia "
 						+ posicion.ambulanciaId());
+	}
+
+	@Override
+	public void publicarUnidad(UnidadPublicada unidad) {
+		Map<String, Object> valores = new HashMap<>();
+		valores.put("ambulanciaId", unidad.ambulanciaId());
+		valores.put("estado", unidad.estado().name());
+		if (unidad.atencionId() != null) {
+			valores.put("atencionId", unidad.atencionId());
+		}
+		// Cambia en cada publicación: aunque el estado siga igual, que el nodo se mueva es el aviso para la app.
+		valores.put("actualizadoEn", Instant.now().toString());
+		EscriturasFirebase.registrarFallo(nodo(UNIDADES, unidad.ambulanciaId()).setValueAsync(valores),
+				"publicar el estado de la ambulancia " + unidad.ambulanciaId());
 	}
 
 	private DatabaseReference nodo(String raiz, Long id) {

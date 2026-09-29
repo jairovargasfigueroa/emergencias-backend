@@ -8,7 +8,9 @@ import com.uem.ambulancias.emergencias.service.AvisoParaCiudadano;
 import com.uem.ambulancias.emergencias.service.IncidentePublicado;
 import com.uem.ambulancias.emergencias.service.NotificadorPush;
 import com.uem.ambulancias.emergencias.service.PublicadorDeIncidentes;
+import com.uem.ambulancias.emergencias.service.PublicadorDeUnidades;
 import com.uem.ambulancias.emergencias.service.SeguimientoPublicado;
+import com.uem.ambulancias.emergencias.service.UnidadPublicada;
 import com.uem.ambulancias.flota.service.PosicionActualizada;
 import com.uem.ambulancias.flota.service.PublicadorDePosiciones;
 
@@ -18,7 +20,8 @@ import lombok.extern.slf4j.Slf4j;
  * Reemplazo cuando Firebase está apagado ({@code sga.firebase.habilitado=false}): solo deja registro.
  */
 @Slf4j
-public class PublicadorEnRegistro implements PublicadorDeIncidentes, PublicadorDePosiciones, NotificadorPush {
+public class PublicadorEnRegistro
+		implements PublicadorDeIncidentes, PublicadorDePosiciones, PublicadorDeUnidades, NotificadorPush {
 
 	@Override
 	public void publicarIncidenteAbierto(IncidentePublicado incidente) {
@@ -50,6 +53,12 @@ public class PublicadorEnRegistro implements PublicadorDeIncidentes, PublicadorD
 	@Override
 	public void retirarPosicion(Long ambulanciaId) {
 		log.info("Firebase apagado: no se retira la posición de la ambulancia {}.", ambulanciaId);
+	}
+
+	@Override
+	public void publicarUnidad(UnidadPublicada unidad) {
+		log.debug("Firebase apagado: no se publica el estado de la ambulancia {} ({}).", unidad.ambulanciaId(),
+				unidad.estado());
 	}
 
 	@Override

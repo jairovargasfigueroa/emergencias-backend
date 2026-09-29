@@ -20,6 +20,7 @@ import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,7 @@ public class AmbulanciaService {
 	private final AsignacionRepository asignaciones;
 	private final TurnoRepository turnos;
 	private final UsuarioRepository usuarios;
+	private final ApplicationEventPublisher eventos;
 
 	/** La placa se guarda sin espacios y en mayúsculas, y es única (R5). */
 	@Transactional
@@ -67,6 +69,7 @@ public class AmbulanciaService {
 	public Ambulancia marcarFueraDeServicio(Long id) {
 		Ambulancia ambulancia = buscarParaActualizar(id);
 		ambulancia.marcarFueraDeServicio();
+		eventos.publishEvent(new UnidadActualizada(id));
 		return ambulancia;
 	}
 
@@ -80,6 +83,7 @@ public class AmbulanciaService {
 		exigirQueSeaSuUnidad(id, usuarioId);
 		Ambulancia ambulancia = buscarParaActualizar(id);
 		ambulancia.reactivar(turnos.contarAbiertosPorAmbulancia(id) > 0);
+		eventos.publishEvent(new UnidadActualizada(id));
 		return ambulancia;
 	}
 
@@ -94,6 +98,7 @@ public class AmbulanciaService {
 		try {
 			ambulancia.corregirDatos(placaNormalizada, tipoUnidad);
 			ambulancias.flush();
+			eventos.publishEvent(new UnidadActualizada(id));
 			return ambulancia;
 		} catch (DataIntegrityViolationException e) {
 			// Otra petición se quedó con la misma placa entre la verificación y el guardado.
@@ -106,6 +111,7 @@ public class AmbulanciaService {
 	public Ambulancia activar(Long id) {
 		Ambulancia ambulancia = buscarParaActualizar(id);
 		ambulancia.activar();
+		eventos.publishEvent(new UnidadActualizada(id));
 		return ambulancia;
 	}
 
@@ -143,6 +149,7 @@ public class AmbulanciaService {
 							+ "desactivarla.");
 		}
 		ambulancia.desactivar();
+		eventos.publishEvent(new UnidadActualizada(id));
 		return ambulancia;
 	}
 
