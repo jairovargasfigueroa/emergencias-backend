@@ -27,4 +27,7 @@ public interface NotificadorPush {
 	 */
 	void notificarTrasladoRetirado(List<String> tokens, AvisoDeTraslado aviso, MotivoCancelacionAtencion motivo);
 
+	/** Avisos a paramédicos, ya armados: cada uno va a su teléfono con su texto y su tipo. */
+	void notificarParamedicos(List<AvisoParaParamedico> avisos);
+
 }

@@ -110,7 +110,9 @@ public class TurnoService {
 			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
 					"Su unidad tiene una atención en curso: ciérrala antes de cerrarle el turno.");
 		}
-		return cerrar(turno);
+		Turno cerrado = cerrar(turno);
+		eventos.publishEvent(new TurnoCerradoPorLaCentral(paramedicoId));
+		return cerrado;
 	}
 
 	private Turno cerrar(Turno turno) {

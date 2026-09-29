@@ -27,6 +27,7 @@ import com.uem.ambulancias.emergencias.repository.TrasladoRepository;
 import com.uem.ambulancias.flota.domain.EstadoAmbulancia;
 import com.uem.ambulancias.flota.domain.TipoUnidad;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
+import com.uem.ambulancias.flota.service.NovedadDeLaUnidad;
 import com.uem.ambulancias.flota.service.ServicioParamedicoService;
 import com.uem.ambulancias.flota.service.TurnoService;
 import com.uem.ambulancias.flota.service.UnidadActualizada;
@@ -276,7 +277,20 @@ public class AtencionService {
 		if (dejarDisponible) {
 			eventos.publishEvent(new UnidadLiberada(ambulanciaId));
 		}
+		// Un traslado cancelado ya tiene su aviso, el de que se lo sacaron: no se le manda otro por lo mismo.
+		if (cierre != CierreDesdeLaCentral.CANCELAR || cerrada.getTraslado() == null) {
+			eventos.publishEvent(new NovedadDeLaUnidad(ambulanciaId, novedadDe(cierre)));
+		}
 		return cerrada;
+	}
+
+	/** Qué se le dice a la tripulación según cómo cerró la central su atención. */
+	private static NovedadDeLaUnidad.Tipo novedadDe(CierreDesdeLaCentral cierre) {
+		return switch (cierre) {
+			case CANCELAR -> NovedadDeLaUnidad.Tipo.ATENCION_CANCELADA_POR_CENTRAL;
+			case DAR_POR_ENTREGADA -> NovedadDeLaUnidad.Tipo.ATENCION_ENTREGADA_POR_CENTRAL;
+			case LIBERAR -> NovedadDeLaUnidad.Tipo.UNIDAD_LIBERADA_POR_CENTRAL;
+		};
 	}
 
 	/**

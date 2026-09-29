@@ -5,6 +5,7 @@ import java.util.List;
 import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
 import com.uem.ambulancias.emergencias.service.AvisoDeTraslado;
 import com.uem.ambulancias.emergencias.service.AvisoParaCiudadano;
+import com.uem.ambulancias.emergencias.service.AvisoParaParamedico;
 import com.uem.ambulancias.emergencias.service.IncidentePublicado;
 import com.uem.ambulancias.emergencias.service.NotificadorPush;
 import com.uem.ambulancias.emergencias.service.PublicadorDeIncidentes;
@@ -77,6 +78,12 @@ public class PublicadorEnRegistro
 	public void notificarCiudadanos(List<AvisoParaCiudadano> avisos) {
 		avisos.forEach(aviso -> log.info("Firebase apagado: no se le avisa a un ciudadano \"{}\" ({}).", aviso.titulo(),
 				aviso.datos()));
+	}
+
+	@Override
+	public void notificarParamedicos(List<AvisoParaParamedico> avisos) {
+		avisos.forEach(aviso -> log.info("Firebase apagado: no se le avisa a un paramédico \"{}\" ({}).",
+				aviso.titulo(), aviso.datos()));
 	}
 
 	@Override

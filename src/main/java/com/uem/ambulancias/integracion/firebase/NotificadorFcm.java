@@ -11,6 +11,7 @@ import com.google.firebase.messaging.Notification;
 import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
 import com.uem.ambulancias.emergencias.service.AvisoDeTraslado;
 import com.uem.ambulancias.emergencias.service.AvisoParaCiudadano;
+import com.uem.ambulancias.emergencias.service.AvisoParaParamedico;
 import com.uem.ambulancias.emergencias.service.IncidentePublicado;
 import com.uem.ambulancias.emergencias.service.NotificadorPush;
 
@@ -115,6 +116,24 @@ public class NotificadorFcm implements NotificadorPush {
 					"La central cerró tu traslado",
 					aviso.pasajero() + " · Lo cerró la central. Revisa en la app cómo quedó tu unidad.");
 		}
+	}
+
+	@Override
+	public void notificarParamedicos(List<AvisoParaParamedico> avisos) {
+		if (avisos.isEmpty()) {
+			return;
+		}
+		AndroidConfig android = AndroidConfig.builder().setPriority(AndroidConfig.Priority.HIGH).build();
+		List<Message> mensajes = avisos.stream()
+				.map(aviso -> Message.builder()
+						.setToken(aviso.tokenPush())
+						.setNotification(Notification.builder().setTitle(aviso.titulo()).setBody(aviso.cuerpo()).build())
+						.putAllData(aviso.datos())
+						.setAndroidConfig(android)
+						.build())
+				.toList();
+		EscriturasFirebase.registrarFallo(mensajeria.sendEachAsync(mensajes),
+				"enviar " + mensajes.size() + " avisos a paramédicos (" + avisos.getFirst().titulo() + ")");
 	}
 
 	private void enviarATripulacion(List<String> tokens, AvisoDeTraslado aviso, String tipo, String titulo,
