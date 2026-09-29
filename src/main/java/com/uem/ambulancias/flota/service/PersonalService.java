@@ -18,6 +18,7 @@ import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,7 @@ public class PersonalService {
 	private final UsuarioRepository usuarios;
 	private final AsignacionRepository asignaciones;
 	private final TurnoRepository turnos;
+	private final ApplicationEventPublisher eventos;
 
 	/**
 	 * El teléfono es hoy la única credencial del paramédico: con eso y nada más entra a su app. Por eso no puede
@@ -139,10 +141,12 @@ public class PersonalService {
 	public ParamedicoConAsignacion quitarDeLaUnidad(Long id) {
 		Usuario paramedico = buscarParamedico(id);
 		exigirQueNoEsteEnTurno(id, paramedico.getNombreCompleto());
-		asignaciones.buscarVigentePorParamedico(id)
+		Asignacion vigente = asignaciones.buscarVigentePorParamedico(id)
 				.orElseThrow(() -> new ConflictoException(CodigoError.TRANSICION_INVALIDA,
-						paramedico.getNombreCompleto() + " no tiene ninguna ambulancia asignada."))
-				.cerrar(Instant.now());
+						paramedico.getNombreCompleto() + " no tiene ninguna ambulancia asignada."));
+		vigente.cerrar(Instant.now());
+		// Su app escucha esa unidad: así se entera de que ya no tiene ambulancia.
+		eventos.publishEvent(new UnidadActualizada(vigente.getAmbulancia().getId()));
 		return new ParamedicoConAsignacion(paramedico, null);
 	}
 

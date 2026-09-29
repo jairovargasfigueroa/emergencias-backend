@@ -20,6 +20,7 @@ import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +34,7 @@ public class AmbulanciaService {
 	private final AsignacionRepository asignaciones;
 	private final TurnoRepository turnos;
 	private final UsuarioRepository usuarios;
+	private final ApplicationEventPublisher eventos;
 
 	/** La placa se guarda sin espacios y en mayúsculas, y es única (R5). */
 	@Transactional
@@ -67,6 +69,9 @@ public class AmbulanciaService {
 	public Ambulancia marcarFueraDeServicio(Long id) {
 		Ambulancia ambulancia = buscarParaActualizar(id);
 		ambulancia.marcarFueraDeServicio();
+		eventos.publishEvent(new UnidadActualizada(id));
+		// A mano solo la marca la central: la tripulación la deja así cancelando por avería.
+		eventos.publishEvent(new NovedadDeLaUnidad(id, NovedadDeLaUnidad.Tipo.FUERA_DE_SERVICIO));
 		return ambulancia;
 	}
 
@@ -77,9 +82,16 @@ public class AmbulanciaService {
 	 */
 	@Transactional
 	public Ambulancia reactivar(Long id, Long usuarioId) {
-		exigirQueSeaSuUnidad(id, usuarioId);
+		Usuario usuario = usuarios.findById(usuarioId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el usuario " + usuarioId + "."));
+		exigirQueSeaSuUnidad(id, usuario);
 		Ambulancia ambulancia = buscarParaActualizar(id);
 		ambulancia.reactivar(turnos.contarAbiertosPorAmbulancia(id) > 0);
+		eventos.publishEvent(new UnidadActualizada(id));
+		// Si la reactivó la central, la tripulación puede estar esperando con la app cerrada.
+		if (usuario.getRol() == RolUsuario.ADMIN) {
+			eventos.publishEvent(new NovedadDeLaUnidad(id, NovedadDeLaUnidad.Tipo.REACTIVADA));
+		}
 		return ambulancia;
 	}
 
@@ -94,6 +106,7 @@ public class AmbulanciaService {
 		try {
 			ambulancia.corregirDatos(placaNormalizada, tipoUnidad);
 			ambulancias.flush();
+			eventos.publishEvent(new UnidadActualizada(id));
 			return ambulancia;
 		} catch (DataIntegrityViolationException e) {
 			// Otra petición se quedó con la misma placa entre la verificación y el guardado.
@@ -106,16 +119,15 @@ public class AmbulanciaService {
 	public Ambulancia activar(Long id) {
 		Ambulancia ambulancia = buscarParaActualizar(id);
 		ambulancia.activar();
+		eventos.publishEvent(new UnidadActualizada(id));
 		return ambulancia;
 	}
 
-	private void exigirQueSeaSuUnidad(Long ambulanciaId, Long usuarioId) {
-		Usuario usuario = usuarios.findById(usuarioId)
-				.orElseThrow(() -> new NoEncontradoException("No existe el usuario " + usuarioId + "."));
+	private void exigirQueSeaSuUnidad(Long ambulanciaId, Usuario usuario) {
 		if (usuario.getRol() != RolUsuario.PARAMEDICO) {
 			return;
 		}
-		boolean esSuUnidad = asignaciones.buscarVigentePorParamedico(usuarioId)
+		boolean esSuUnidad = asignaciones.buscarVigentePorParamedico(usuario.getId())
 				.filter(asignacion -> asignacion.getAmbulancia().getId().equals(ambulanciaId))
 				.isPresent();
 		if (!esSuUnidad) {
@@ -143,6 +155,7 @@ public class AmbulanciaService {
 							+ "desactivarla.");
 		}
 		ambulancia.desactivar();
+		eventos.publishEvent(new UnidadActualizada(id));
 		return ambulancia;
 	}
 

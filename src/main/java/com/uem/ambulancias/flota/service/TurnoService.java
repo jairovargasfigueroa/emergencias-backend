@@ -77,6 +77,7 @@ public class TurnoService {
 		if (ambulancia.getEstado() == EstadoAmbulancia.SIN_TURNO) {
 			ambulancia.cambiarEstado(EstadoAmbulancia.DISPONIBLE);
 		}
+		eventos.publishEvent(new UnidadActualizada(ambulanciaId));
 		return turno;
 	}
 
@@ -109,7 +110,9 @@ public class TurnoService {
 			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
 					"Su unidad tiene una atención en curso: ciérrala antes de cerrarle el turno.");
 		}
-		return cerrar(turno);
+		Turno cerrado = cerrar(turno);
+		eventos.publishEvent(new TurnoCerradoPorLaCentral(paramedicoId));
+		return cerrado;
 	}
 
 	private Turno cerrar(Turno turno) {
@@ -125,6 +128,8 @@ public class TurnoService {
 			// Se avisa aunque la unidad quede averiada: de cualquier modo ya no hay quién reporte su posición.
 			eventos.publishEvent(new UnidadSinTripulacion(ambulanciaId));
 		}
+		// Cambió quiénes están adentro, quede alguien o no: y si lo cerró la central, él no tocó nada.
+		eventos.publishEvent(new UnidadActualizada(ambulanciaId));
 		return turno;
 	}
 

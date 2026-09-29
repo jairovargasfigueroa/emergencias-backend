@@ -24,6 +24,7 @@ import com.uem.ambulancias.emergencias.repository.TrasladoRepository;
 import com.uem.ambulancias.flota.domain.EstadoAmbulancia;
 import com.uem.ambulancias.flota.domain.TipoUnidad;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
+import com.uem.ambulancias.flota.service.UnidadActualizada;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 import com.uem.ambulancias.usuarios.service.CiudadanoService;
@@ -92,6 +93,9 @@ public class TrasladoService {
 		exigirContactoCompleto(nombre, telefono);
 		traslado.actualizarDetalles(vacioComoNulo(origenReferencia), nombre, telefono,
 				vacioComoNulo(observaciones));
+		// Con la unidad en camino, la tripulación tiene que ver el contacto y la referencia nuevos.
+		atenciones.buscarActivaPorTraslado(trasladoId)
+				.ifPresent(atencion -> eventos.publishEvent(new UnidadActualizada(atencion.getAmbulancia().getId())));
 		return conSuAtencion(List.of(traslados.save(traslado))).getFirst();
 	}
 
@@ -223,6 +227,7 @@ public class TrasladoService {
 			enCurso.cancelar(MotivoCancelacionAtencion.CANCELADA_POR_SOLICITANTE);
 			ambulancias.actualizarEstado(ambulanciaId, EstadoAmbulancia.DISPONIBLE);
 			eventos.publishEvent(new UnidadLiberada(ambulanciaId));
+			eventos.publishEvent(new UnidadActualizada(ambulanciaId));
 			eventos.publishEvent(new TrasladoRetirado(trasladoId, ambulanciaId,
 					MotivoCancelacionAtencion.CANCELADA_POR_SOLICITANTE));
 		}

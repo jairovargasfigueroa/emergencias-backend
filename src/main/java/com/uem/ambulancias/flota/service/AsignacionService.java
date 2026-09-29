@@ -17,6 +17,7 @@ import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ public class AsignacionService {
 	private final AmbulanciaRepository ambulancias;
 	private final AsignacionRepository asignaciones;
 	private final TurnoRepository turnos;
+	private final ApplicationEventPublisher eventos;
 
 	/**
 	 * Asigna un paramédico activo a una ambulancia activa (R2). Si ya tiene una asignación vigente con
@@ -70,6 +72,8 @@ public class AsignacionService {
 				throw new ReasignacionRequiereConfirmacionException(actual);
 			}
 			actual.cerrar(ahora);
+			// Quien se va de esa unidad lo ve en su app, que es la que escucha.
+			eventos.publishEvent(new UnidadActualizada(actual.getAmbulancia().getId()));
 		}
 		return asignaciones.save(Asignacion.iniciar(paramedico, ambulancia, ahora));
 	}

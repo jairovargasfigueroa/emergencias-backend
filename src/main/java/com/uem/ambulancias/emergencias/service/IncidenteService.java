@@ -19,6 +19,7 @@ import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
 import com.uem.ambulancias.flota.domain.Ambulancia;
 import com.uem.ambulancias.flota.domain.EstadoAmbulancia;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
+import com.uem.ambulancias.flota.service.UnidadActualizada;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 
 import lombok.RequiredArgsConstructor;
@@ -220,6 +221,8 @@ public class IncidenteService {
 		ambulancias.actualizarEstado(idAmbulancia, EstadoAmbulancia.EN_ATENCION);
 
 		eventos.publishEvent(new IncidenteActualizado(idIncidente, false));
+		// Si la mandó la central, la tripulación no tocó nada: se entera por acá.
+		eventos.publishEvent(new UnidadActualizada(idAmbulancia));
 		return atencion;
 	}
 
