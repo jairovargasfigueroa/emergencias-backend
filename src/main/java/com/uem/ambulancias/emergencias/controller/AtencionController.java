@@ -1,5 +1,7 @@
 package com.uem.ambulancias.emergencias.controller;
 
+import java.util.List;
+
 import com.uem.ambulancias.comun.geo.Geo;
 import com.uem.ambulancias.comun.web.UsuarioActual;
 import com.uem.ambulancias.comun.web.Textos;
@@ -11,6 +13,7 @@ import com.uem.ambulancias.emergencias.dto.EntregaRequest;
 import com.uem.ambulancias.emergencias.dto.RecogidaRequest;
 import com.uem.ambulancias.emergencias.dto.SinTrasladoRequest;
 import com.uem.ambulancias.emergencias.dto.UbicacionRequest;
+import com.uem.ambulancias.emergencias.dto.UnidadNoCorrespondeRequest;
 import com.uem.ambulancias.emergencias.service.AtencionService;
 
 import jakarta.validation.Valid;
@@ -39,9 +42,44 @@ public class AtencionController {
 				.orElseGet(() -> ResponseEntity.noContent().build());
 	}
 
-	/** Toda respuesta lleva si los emisores retiraron su pedido: es lo que el paramédico necesita para decidir. */
+	/**
+	 * Toda respuesta de un incidente lleva lo que se sabe de él y si los emisores retiraron su alerta: es lo que el
+	 * paramédico necesita para decidir. En un traslado no aplica, porque no hay alertas: lo pidió una persona y ella
+	 * misma lo cancela.
+	 */
 	private AtencionResponse respuesta(Atencion atencion) {
-		return AtencionResponse.de(atencion, atencionService.emisoresCancelaron(atencion.getIncidente().getId()));
+		if (atencion.getIncidente() == null) {
+			return AtencionResponse.de(atencion, false, List.of());
+		}
+		Long incidenteId = atencion.getIncidente().getId();
+		return AtencionResponse.de(atencion, atencionService.emisoresCancelaron(incidenteId),
+				atencionService.descripcionesDelIncidente(incidenteId));
+	}
+
+	/** El historial de traslados del paramédico, del más reciente al más viejo. */
+	@GetMapping("/paramedicos/actual/traslados")
+	public List<AtencionResponse> misTraslados(@UsuarioActual Long paramedicoId) {
+		return atencionService.trasladosDe(paramedicoId).stream().map(AtencionController::sinAvisoDeEmisores).toList();
+	}
+
+	/** En un traslado no hay alertas que retirar: lo pidió una persona y ella misma lo cancela. */
+	private static AtencionResponse sinAvisoDeEmisores(Atencion atencion) {
+		return AtencionResponse.de(atencion, false, List.of());
+	}
+
+	/** Solo en traslados: llegó y el paciente no estaba listo. Queda la hora, que es tiempo de unidad perdido. */
+	@PostMapping("/atenciones/{id}/no-listo")
+	public AtencionResponse marcarPacienteNoListo(@PathVariable Long id, @UsuarioActual Long paramedicoId) {
+		return respuesta(atencionService.marcarPacienteNoListo(id, paramedicoId));
+	}
+
+	/** Solo en traslados: el paciente necesita más de lo que esta unidad puede dar. */
+	@PostMapping("/atenciones/{id}/unidad-no-corresponde")
+	public AtencionResponse unidadNoCorresponde(@PathVariable Long id, @UsuarioActual Long paramedicoId,
+			@Valid @RequestBody UnidadNoCorrespondeRequest request) {
+		return respuesta(atencionService.cerrarPorUnidadQueNoCorresponde(id, paramedicoId,
+				Geo.punto(request.latitud(), request.longitud()), request.movilidad(), request.oxigeno(),
+				request.equipo()));
 	}
 
 	@PostMapping("/atenciones/{id}/llegada")

@@ -1,5 +1,6 @@
 package com.uem.ambulancias.emergencias.service;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -8,19 +9,31 @@ import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.CentroSalud;
+import com.uem.ambulancias.emergencias.domain.CierreDesdeLaCentral;
 import com.uem.ambulancias.emergencias.domain.EstadoAtencion;
 import com.uem.ambulancias.emergencias.domain.EstadoIncidente;
+import com.uem.ambulancias.emergencias.domain.EstadoTraslado;
 import com.uem.ambulancias.emergencias.domain.Incidente;
 import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
 import com.uem.ambulancias.emergencias.domain.MotivoCierreIncidente;
 import com.uem.ambulancias.emergencias.domain.MotivoSinTraslado;
+import com.uem.ambulancias.emergencias.domain.Movilidad;
+import com.uem.ambulancias.emergencias.domain.Traslado;
 import com.uem.ambulancias.emergencias.repository.AlertaRepository;
 import com.uem.ambulancias.emergencias.repository.AtencionRepository;
 import com.uem.ambulancias.emergencias.repository.CentroSaludRepository;
 import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
+import com.uem.ambulancias.emergencias.repository.TrasladoRepository;
 import com.uem.ambulancias.flota.domain.EstadoAmbulancia;
+import com.uem.ambulancias.flota.domain.TipoUnidad;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
+import com.uem.ambulancias.flota.service.NovedadDeLaUnidad;
 import com.uem.ambulancias.flota.service.ServicioParamedicoService;
+import com.uem.ambulancias.flota.service.TurnoService;
+import com.uem.ambulancias.flota.service.UnidadActualizada;
+import com.uem.ambulancias.usuarios.domain.RolUsuario;
+import com.uem.ambulancias.usuarios.domain.Usuario;
+import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 
 import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Point;
@@ -38,9 +51,14 @@ public class AtencionService {
 	private final AtencionRepository atenciones;
 	private final AlertaRepository alertas;
 	private final IncidenteRepository incidentes;
+	private final TrasladoRepository traslados;
 	private final AmbulanciaRepository ambulancias;
 	private final CentroSaludRepository centrosSalud;
 	private final ServicioParamedicoService servicioParamedico;
+	private final TurnoService turnoService;
+	private final UsuarioRepository usuarios;
+	private final SelectorDeUnidad selector;
+	private final TrasladoProperties config;
 	private final ApplicationEventPublisher eventos;
 
 	/**
@@ -52,6 +70,12 @@ public class AtencionService {
 		return !alertas.existeAlgunaVigente(incidenteId);
 	}
 
+	/** Lo que dejaron escrito quienes avisaron, para que el paramédico lo tenga aunque el incidente ya se haya cerrado. */
+	@Transactional(readOnly = true)
+	public List<String> descripcionesDelIncidente(Long incidenteId) {
+		return alertas.buscarDescripciones(incidenteId);
+	}
+
 	/**
 	 * La atención que tiene ocupada a la ambulancia del paramédico, si tiene una. Incluye la que ya entregó al
 	 * paciente y todavía no se liberó: la unidad sigue tomada y esa pantalla es la que ofrece liberarse.
@@ -61,11 +85,26 @@ public class AtencionService {
 		return atenciones.buscarQueOcupaAmbulancia(servicioParamedico.ambulanciaAsignada(paramedicoId));
 	}
 
+	/** Los traslados que hizo este paramédico: lo que ve en su historial. */
+	@Transactional(readOnly = true)
+	public List<Atencion> trasladosDe(Long paramedicoId) {
+		return atenciones.buscarTrasladosDeParamedico(paramedicoId);
+	}
+
 	/** ME-1 A1. */
 	@Transactional
 	public Atencion marcarLlegada(Long atencionId, Long paramedicoId, Point ubicacion) {
 		return aplicar(atencionId, paramedicoId, true, (atencion, incidente) -> {
+			// Se avisa de la primera unidad que llega: con dos unidades, la segunda no le cambia nada a quien espera.
+			boolean primeraEnLlegar = incidente != null && !atenciones.existeLlegadaVigentePorIncidente(incidente.getId());
 			atencion.marcarHito(EstadoAtencion.EN_EL_LUGAR, ubicacion);
+			if (primeraEnLlegar) {
+				eventos.publishEvent(new NovedadDelIncidente(incidente.getId(), NovedadDelIncidente.Tipo.UNIDAD_LLEGO));
+			}
+			if (atencion.getTraslado() != null) {
+				eventos.publishEvent(new NovedadDelTraslado(atencion.getTraslado().getId(),
+						NovedadDelTraslado.Tipo.UNIDAD_EN_LA_PUERTA));
+			}
 			return false;
 		});
 	}
@@ -101,20 +140,73 @@ public class AtencionService {
 	 */
 	@Transactional
 	public Atencion cerrarSinTraslado(Long atencionId, Long paramedicoId, Point ubicacion, MotivoSinTraslado motivo) {
+		if (motivo == MotivoSinTraslado.UNIDAD_NO_CORRESPONDE) {
+			throw new ConflictoException(CodigoError.VALIDACION,
+					"Para decir que la unidad no corresponde hay que corregir la ficha: usa esa opción.");
+		}
 		return aplicar(atencionId, paramedicoId, true, (atencion, incidente) -> {
 			atencion.cerrarSinTraslado(motivo, ubicacion);
-			return evaluarIncidente(incidente);
+			return evaluarSiHayIncidente(incidente);
 		});
 	}
 
 	/** La unidad termina de entregar, limpia y queda libre (M2). Recién acá puede recibir otra emergencia. */
 	@Transactional
 	public Atencion liberar(Long atencionId, Long paramedicoId) {
-		return aplicar(atencionId, paramedicoId, false, (atencion, incidente) -> {
-			atencion.liberar();
-			ambulancias.actualizarEstado(atencion.getAmbulancia().getId(), EstadoAmbulancia.DISPONIBLE);
+		Atencion atencion = aplicar(atencionId, paramedicoId, false, (a, incidente) -> {
+			a.liberar();
+			ambulancias.actualizarEstado(a.getAmbulancia().getId(), EstadoAmbulancia.DISPONIBLE);
 			return false;
 		});
+		// Puede haber un traslado esperando justo esta unidad: mejor enterarse ahora que en el próximo barrido.
+		eventos.publishEvent(new UnidadLiberada(atencion.getAmbulancia().getId()));
+		return atencion;
+	}
+
+	/**
+	 * Solo en traslados. La unidad llegó y el paciente no estaba listo: queda la marca con su hora, arranca el
+	 * tiempo de espera y la atención sigue donde está. Pasada la espera, la tripulación decide si sigue esperando o
+	 * se retira, y eso ya son otros botones.
+	 */
+	@Transactional
+	public Atencion marcarPacienteNoListo(Long atencionId, Long paramedicoId) {
+		return aplicar(atencionId, paramedicoId, false, (atencion, incidente) -> {
+			exigirQueSeaTraslado(atencion);
+			atencion.marcarPacienteNoListo(Instant.now(), config.espera());
+			return false;
+		});
+	}
+
+	/**
+	 * Solo en traslados. El paciente no está como decía la ficha y esta unidad no lo puede llevar. El paramédico
+	 * corrige lo que ve, el sistema vuelve a derivar el tipo que hace falta, y el pedido regresa a la cola con la
+	 * ficha arreglada. Sin esto volvería a pedir el mismo tipo que acaba de fallar.
+	 *
+	 * <p>Si con lo que marcó esta misma unidad alcanza, no es que no corresponda: se rechaza, para que un error al
+	 * marcar no mande el traslado a buscar otra unidad igual a la que ya está en la puerta.
+	 */
+	@Transactional
+	public Atencion cerrarPorUnidadQueNoCorresponde(Long atencionId, Long paramedicoId, Point ubicacion,
+			Movilidad movilidad, boolean oxigeno, boolean equipo) {
+		return aplicar(atencionId, paramedicoId, false, (atencion, incidente) -> {
+			Traslado traslado = exigirQueSeaTraslado(atencion);
+			TipoUnidad necesario = selector.sugerirPara(movilidad, oxigeno, equipo);
+			if (atencion.getAmbulancia().getTipoUnidad().cubreA(necesario)) {
+				throw new ConflictoException(CodigoError.UNIDAD_ALCANZA,
+						"Con lo que marcaste, esta unidad alcanza para llevarlo.");
+			}
+			traslado.corregirNecesidades(movilidad, oxigeno, equipo, necesario);
+			atencion.cerrarSinTraslado(MotivoSinTraslado.UNIDAD_NO_CORRESPONDE, ubicacion);
+			return false;
+		});
+	}
+
+	private Traslado exigirQueSeaTraslado(Atencion atencion) {
+		Traslado traslado = atencion.getTraslado();
+		if (traslado == null) {
+			throw new ConflictoException(CodigoError.VALIDACION, "Esta acción es solo de los traslados.");
+		}
+		return traslado;
 	}
 
 	/**
@@ -128,7 +220,7 @@ public class AtencionService {
 				.orElseThrow(() -> new NoEncontradoException("No existe el centro de salud " + centroSaludId + "."));
 		return aplicar(atencionId, paramedicoId, true, (atencion, incidente) -> {
 			atencion.entregar(ubicacion, centroSalud, destinoDescripcion);
-			return evaluarIncidente(incidente);
+			return evaluarSiHayIncidente(incidente);
 		});
 	}
 
@@ -136,10 +228,10 @@ public class AtencionService {
 	@Transactional
 	public Atencion cancelar(Long atencionId, Long paramedicoId, MotivoCancelacionAtencion motivo) {
 		return aplicar(atencionId, paramedicoId, true, (atencion, incidente) -> {
-			atencion.cancelar(motivo);
+			atencion.cancelarPorLaTripulacion(motivo);
 			ambulancias.actualizarEstado(atencion.getAmbulancia().getId(),
 					motivo == MotivoCancelacionAtencion.AVERIA ? EstadoAmbulancia.FUERA_DE_SERVICIO : EstadoAmbulancia.DISPONIBLE);
-			return evaluarIncidente(incidente);
+			return evaluarSiHayIncidente(incidente);
 		});
 	}
 
@@ -154,36 +246,143 @@ public class AtencionService {
 	}
 
 	/**
-	 * PB-05 R10: el cambio y su cascada se aplican con acceso exclusivo al incidente, así dos unidades del mismo
-	 * incidente que entregan o cancelan a la vez no evalúan un conteo desactualizado. Solo se permite sobre la atención
-	 * de la ambulancia del paramédico. La publicación ocurre después del commit, con un solo evento por operación.
+	 * La central cierra una atención que la tripulación no puede cerrar —se quedó sin teléfono o sin señal—, como
+	 * haría un despachador después de hablar con ella por otro medio. La unidad queda fuera de servicio salvo que el
+	 * administrador sepa que está bien: a una unidad con la que no se habla no hay que mandarle nada.
+	 */
+	@Transactional
+	public Atencion cerrarDesdeLaCentral(Long atencionId, Long administradorId, CierreDesdeLaCentral cierre,
+			boolean dejarDisponible, Long centroSaludId, String destinoDescripcion) {
+		Usuario administrador = usuarios.findByIdAndRol(administradorId, RolUsuario.ADMIN)
+				.orElseThrow(() -> new NoEncontradoException("No existe el administrador " + administradorId + "."));
+		CentroSalud centroSalud = centroSaludId == null ? null : centrosSalud.findByIdAndActivoTrue(centroSaludId)
+				.orElseThrow(() -> new NoEncontradoException("No existe el centro de salud " + centroSaludId + "."));
+		Atencion cerrada = aplicarSobre(atencionId, true, (atencion, incidente) -> {
+			switch (cierre) {
+				case CANCELAR -> atencion.cancelarDesdeLaCentral(administrador);
+				case DAR_POR_ENTREGADA -> atencion.entregarDesdeLaCentral(centroSalud, destinoDescripcion,
+						administrador, Instant.now());
+				case LIBERAR -> atencion.liberarDesdeLaCentral(administrador);
+			}
+			ambulancias.actualizarEstado(atencion.getAmbulancia().getId(),
+					dejarDisponible ? EstadoAmbulancia.DISPONIBLE : EstadoAmbulancia.FUERA_DE_SERVICIO);
+			return evaluarSiHayIncidente(incidente);
+		});
+		Long ambulanciaId = cerrada.getAmbulancia().getId();
+		if (cierre == CierreDesdeLaCentral.CANCELAR && cerrada.getTraslado() != null) {
+			// Por si la tripulación vuelve a tener señal: que sepa que ese traslado ya no es suyo.
+			eventos.publishEvent(new TrasladoRetirado(cerrada.getTraslado().getId(), ambulanciaId,
+					MotivoCancelacionAtencion.CERRADA_POR_CENTRAL));
+		}
+		if (dejarDisponible) {
+			eventos.publishEvent(new UnidadLiberada(ambulanciaId));
+		}
+		// Un traslado cancelado ya tiene su aviso, el de que se lo sacaron: no se le manda otro por lo mismo.
+		if (cierre != CierreDesdeLaCentral.CANCELAR || cerrada.getTraslado() == null) {
+			eventos.publishEvent(new NovedadDeLaUnidad(ambulanciaId, novedadDe(cierre)));
+		}
+		return cerrada;
+	}
+
+	/** Qué se le dice a la tripulación según cómo cerró la central su atención. */
+	private static NovedadDeLaUnidad.Tipo novedadDe(CierreDesdeLaCentral cierre) {
+		return switch (cierre) {
+			case CANCELAR -> NovedadDeLaUnidad.Tipo.ATENCION_CANCELADA_POR_CENTRAL;
+			case DAR_POR_ENTREGADA -> NovedadDeLaUnidad.Tipo.ATENCION_ENTREGADA_POR_CENTRAL;
+			case LIBERAR -> NovedadDeLaUnidad.Tipo.UNIDAD_LIBERADA_POR_CENTRAL;
+		};
+	}
+
+	/**
+	 * Un cambio pedido por el paramédico: solo sobre la atención de la ambulancia en la que está de turno.
 	 */
 	private Atencion aplicar(Long atencionId, Long paramedicoId, boolean difundir, CambioDeAtencion cambio) {
-		Long incidenteId = atenciones.buscarIncidenteId(atencionId)
-				.orElseThrow(() -> new NoEncontradoException("No existe la atención " + atencionId + "."));
-		Incidente incidente = incidentes.buscarParaActualizar(incidenteId)
+		return aplicarSobre(atencionId, difundir, (atencion, incidente) -> {
+			Long ambulanciaDelParamedico = turnoService.ambulanciaEnTurno(paramedicoId);
+			if (!atencion.getAmbulancia().getId().equals(ambulanciaDelParamedico)) {
+				throw new ConflictoException(CodigoError.ATENCION_AJENA,
+						"La atención " + atencionId + " no es de la ambulancia del paramédico.");
+			}
+			return cambio.ejecutar(atencion, incidente);
+		});
+	}
+
+	/**
+	 * PB-05 R10: el cambio y su cascada se aplican con acceso exclusivo al incidente, así dos unidades del mismo
+	 * incidente que entregan o cancelan a la vez no evalúan un conteo desactualizado. En un traslado lo exclusivo es
+	 * el traslado: el ciudadano puede estar cancelándolo mientras el paramédico marca un hito. La publicación ocurre
+	 * después del commit, con un solo evento por operación.
+	 *
+	 * <p>Primero se bloquea de qué cuelga la atención y recién después se la lee: si otro cambio está en curso, así
+	 * se espera a que termine y se lee lo que dejó, en vez de trabajar sobre una copia vieja.
+	 */
+	private Atencion aplicarSobre(Long atencionId, boolean difundir, CambioDeAtencion cambio) {
+		Long incidenteId = atenciones.buscarIncidenteId(atencionId).orElse(null);
+		Incidente incidente = incidenteId == null ? null : incidentes.buscarParaActualizar(incidenteId)
 				.orElseThrow(() -> new NoEncontradoException("No existe el incidente " + incidenteId + "."));
+		if (incidenteId == null) {
+			atenciones.buscarTrasladoId(atencionId).ifPresent(traslados::buscarParaActualizar);
+		}
+
 		Atencion atencion = atenciones.findById(atencionId)
 				.orElseThrow(() -> new NoEncontradoException("No existe la atención " + atencionId + "."));
 
-		Long ambulanciaDelParamedico = servicioParamedico.ambulanciaAsignada(paramedicoId);
-		if (!atencion.getAmbulancia().getId().equals(ambulanciaDelParamedico)) {
-			throw new ConflictoException(CodigoError.ATENCION_AJENA,
-					"La atención " + atencionId + " no es de la ambulancia del paramédico.");
-		}
-
 		boolean sinUnidades = cambio.ejecutar(atencion, incidente);
-		if (difundir) {
+		sincronizarTraslado(atencion);
+		// Lo ve también el resto de la tripulación, y la unidad misma cuando la cierra la central.
+		eventos.publishEvent(new UnidadActualizada(atencion.getAmbulancia().getId()));
+		if (difundir && incidenteId != null) {
 			// Un solo evento por operación: si el incidente volvió a ACTIVO, ese mismo evento pide avisar a las unidades.
 			eventos.publishEvent(new IncidenteActualizado(incidenteId, sinUnidades));
 		}
 		return atencion;
 	}
 
+	/** Evaluar el cierre solo tiene sentido con incidente: un traslado no se comparte con otras unidades. */
+	private boolean evaluarSiHayIncidente(Incidente incidente) {
+		return incidente != null && evaluarIncidente(incidente);
+	}
+
+	/**
+	 * El traslado sigue a su atención. Entregado es traslado cumplido; sin traslado es una salida que no llevó a
+	 * nadie. Y cuando la unidad se cae —rechazo, avería, la unidad no correspondía— el pedido no muere: vuelve a
+	 * la cola, primero en la fila, porque la familia sigue necesitando el viaje.
+	 */
+	private void sincronizarTraslado(Atencion atencion) {
+		Traslado traslado = atencion.getTraslado();
+		if (traslado == null || traslado.getEstado() != EstadoTraslado.ASIGNADO) {
+			return;
+		}
+		switch (atencion.getEstado()) {
+			case PACIENTE_ENTREGADO -> traslado.completar();
+			case SIN_TRASLADO -> {
+				if (atencion.getMotivoSinTraslado() == MotivoSinTraslado.UNIDAD_NO_CORRESPONDE) {
+					devolverABusqueda(traslado);
+				} else {
+					traslado.marcarNoRealizado();
+				}
+			}
+			case CANCELADA -> {
+				if (atencion.getMotivoCancelacion() != MotivoCancelacionAtencion.CANCELADA_POR_SOLICITANTE) {
+					devolverABusqueda(traslado);
+				}
+			}
+			default -> {
+				// Los hitos intermedios no mueven el estado del pedido: sigue asignado hasta que termine.
+			}
+		}
+	}
+
+	private void devolverABusqueda(Traslado traslado) {
+		traslado.devolverABusqueda(Instant.now(), config.busquedaTrasDevolucion(), config.acercamiento());
+		eventos.publishEvent(new NovedadDelTraslado(traslado.getId(), NovedadDelTraslado.Tipo.NUEVA_BUSQUEDA));
+	}
+
 	/**
 	 * estados.md, Cascadas: solo con el incidente EN_ATENCION y sin atenciones activas. Una entrega manda sobre todo
 	 * (I3, ATENDIDO). Si nadie entregó pero alguien resolvió sin trasladar, el desenlace sale del motivo: nadie en el
-	 * lugar es FALSA_ALARMA y ya se lo habían llevado es ATENDIDO_EXTERNAMENTE. Si no pasó ninguna, vuelve a ACTIVO (I2).
+	 * lugar es FALSA_ALARMA y ya se lo habían llevado es ATENDIDO_EXTERNAMENTE. Si no pasó ninguna, vuelve a ACTIVO (I2),
+	 * salvo que todos hayan retirado su pedido: entonces no queda nadie a quien ir a buscar y se cancela.
 	 *
 	 * @return si el incidente volvió a ACTIVO, o sea que quedó abierto y otra vez sin ninguna unidad en camino.
 	 */
@@ -198,9 +397,18 @@ public class AtencionService {
 		}
 		List<MotivoSinTraslado> sinTraslado = atenciones.buscarMotivosSinTraslado(incidente.getId());
 		if (sinTraslado.isEmpty()) {
-			// I2: nadie llegó a resolver nada, el incidente vuelve a esperar una unidad.
+			// Nadie llegó a resolver nada. Si todos retiraron su pedido y la unidad se volvió, como haría una central,
+			// el caso se cierra: reabrirlo mandaría otra ambulancia, y un aviso a todas, por alguien que ya dijo que no.
+			if (!alertas.existeAlgunaVigente(incidente.getId())) {
+				incidente.cambiarEstado(EstadoIncidente.CANCELADO);
+				incidentes.save(incidente);
+				return false;
+			}
+			// I2: alguien sigue esperando, así que el incidente vuelve a esperar una unidad.
 			incidente.cambiarEstado(EstadoIncidente.ACTIVO);
 			incidentes.save(incidente);
+			eventos.publishEvent(
+					new NovedadDelIncidente(incidente.getId(), NovedadDelIncidente.Tipo.BUSCANDO_OTRA_UNIDAD));
 			return true;
 		}
 		// Alguien fue y resolvió sin trasladar: el desenlace sale de lo que encontró en el lugar.

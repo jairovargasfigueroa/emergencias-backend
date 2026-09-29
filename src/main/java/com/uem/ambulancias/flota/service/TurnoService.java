@@ -15,6 +15,7 @@ import com.uem.ambulancias.flota.repository.TurnoRepository;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,10 +33,27 @@ public class TurnoService {
 	private final AmbulanciaRepository ambulancias;
 	private final AtencionRepository atenciones;
 	private final ServicioParamedicoService servicioParamedico;
+	private final ApplicationEventPublisher eventos;
 
 	/** El turno abierto del paramédico, si está trabajando ahora. */
 	public Optional<Turno> turnoAbierto(Long paramedicoId) {
 		return turnos.buscarAbiertoPorParamedico(paramedicoId);
+	}
+
+	/** Cuántos tienen turno abierto en esa unidad. */
+	public long tripulantesEnTurno(Long ambulanciaId) {
+		return turnos.contarAbiertosPorAmbulancia(ambulanciaId);
+	}
+
+	/**
+	 * La ambulancia con la que el paramédico trabaja ahora: la de su turno abierto. Para acudir a un incidente o marcar
+	 * un hito hay que estar de turno. Estar asignado no alcanza: con el compañero trabajando la unidad figura
+	 * disponible, pero el que está en su casa no está trabajando.
+	 */
+	public Long ambulanciaEnTurno(Long paramedicoId) {
+		return turnos.buscarAbiertoPorParamedico(paramedicoId)
+				.map(turno -> turno.getAmbulancia().getId())
+				.orElseThrow(() -> new ConflictoException(CodigoError.SIN_TURNO, "No estás de turno."));
 	}
 
 	/**
@@ -59,6 +77,7 @@ public class TurnoService {
 		if (ambulancia.getEstado() == EstadoAmbulancia.SIN_TURNO) {
 			ambulancia.cambiarEstado(EstadoAmbulancia.DISPONIBLE);
 		}
+		eventos.publishEvent(new UnidadActualizada(ambulanciaId));
 		return turno;
 	}
 
@@ -70,12 +89,34 @@ public class TurnoService {
 	public Turno terminar(Long paramedicoId) {
 		Turno turno = turnos.buscarAbiertoPorParamedico(paramedicoId)
 				.orElseThrow(() -> new ConflictoException(CodigoError.TRANSICION_INVALIDA, "No tienes un turno abierto."));
-		Long ambulanciaId = turno.getAmbulancia().getId();
-		if (atenciones.buscarQueOcupaAmbulancia(ambulanciaId).isPresent()) {
+		if (atenciones.buscarQueOcupaAmbulancia(turno.getAmbulancia().getId()).isPresent()) {
 			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
 					"Tienes una atención en curso: termínala antes de salir de turno.");
 		}
+		return cerrar(turno);
+	}
 
+	/**
+	 * El administrador le cierra el turno a alguien que se fue sin cerrarlo, como hace el despachador de una central.
+	 * Sin esto su unidad sigue figurando con gente adentro y a él le siguen llegando avisos. Valen las mismas reglas
+	 * que cuando lo cierra él: con una atención en curso, primero hay que cerrar la atención.
+	 */
+	@Transactional
+	public Turno terminarDesdeLaCentral(Long paramedicoId) {
+		Turno turno = turnos.buscarAbiertoPorParamedico(paramedicoId)
+				.orElseThrow(() -> new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+						"Ese paramédico no tiene un turno abierto."));
+		if (atenciones.buscarQueOcupaAmbulancia(turno.getAmbulancia().getId()).isPresent()) {
+			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
+					"Su unidad tiene una atención en curso: ciérrala antes de cerrarle el turno.");
+		}
+		Turno cerrado = cerrar(turno);
+		eventos.publishEvent(new TurnoCerradoPorLaCentral(paramedicoId));
+		return cerrado;
+	}
+
+	private Turno cerrar(Turno turno) {
+		Long ambulanciaId = turno.getAmbulancia().getId();
 		turno.terminar(Instant.now());
 		if (turnos.contarAbiertosPorAmbulancia(ambulanciaId) == 0) {
 			Ambulancia ambulancia = ambulancias.buscarParaActualizar(ambulanciaId)
@@ -84,7 +125,11 @@ public class TurnoService {
 			if (ambulancia.getEstado() == EstadoAmbulancia.DISPONIBLE) {
 				ambulancia.cambiarEstado(EstadoAmbulancia.SIN_TURNO);
 			}
+			// Se avisa aunque la unidad quede averiada: de cualquier modo ya no hay quién reporte su posición.
+			eventos.publishEvent(new UnidadSinTripulacion(ambulanciaId));
 		}
+		// Cambió quiénes están adentro, quede alguien o no: y si lo cerró la central, él no tocó nada.
+		eventos.publishEvent(new UnidadActualizada(ambulanciaId));
 		return turno;
 	}
 

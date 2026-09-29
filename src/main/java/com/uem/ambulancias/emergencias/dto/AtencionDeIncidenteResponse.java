@@ -6,15 +6,17 @@ import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.domain.EstadoAtencion;
 import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
 import com.uem.ambulancias.emergencias.domain.MotivoSinTraslado;
+import com.uem.ambulancias.usuarios.domain.Usuario;
 
 /**
- * Atención en el detalle de un incidente: cada hito con su hora y su ubicación ({@code null} si no ocurrió), los datos
- * del paciente y el destino de la entrega.
+ * Atención en el detalle de un incidente: el paramédico que responde por ella ({@code null} si no tiene), cada hito
+ * con su hora y su ubicación ({@code null} si no ocurrió), los datos del paciente y el destino de la entrega.
  */
 public record AtencionDeIncidenteResponse(
 		Long id,
 		Long ambulanciaId,
 		String placa,
+		Responsable paramedicoResponsable,
 		EstadoAtencion estado,
 		Instant horaToma,
 		Instant horaLlegada,
@@ -34,18 +36,27 @@ public record AtencionDeIncidenteResponse(
 		String nombrePaciente,
 		String documentoPaciente,
 		Centro centroSalud,
-		String destinoDescripcion) {
+		String destinoDescripcion,
+		/** El administrador que la cerró porque la tripulación no podía. Nulo si la cerró la tripulación. */
+		String cerradaPor) {
+
+	/** Paramédico que responde por la atención. */
+	public record Responsable(Long id, String nombreCompleto, String telefono) {
+	}
 
 	/** Centro de salud del catálogo donde se entregó al paciente. */
 	public record Centro(Long id, String nombre) {
 	}
 
-	/** {@code atencion} con su ambulancia y su centro de salud. */
+	/** {@code atencion} con su ambulancia, su paramédico responsable y su centro de salud. */
 	public static AtencionDeIncidenteResponse de(Atencion atencion) {
+		Usuario paramedico = atencion.getParamedicoResponsable();
 		return new AtencionDeIncidenteResponse(
 				atencion.getId(),
 				atencion.getAmbulancia().getId(),
 				atencion.getAmbulancia().getPlaca(),
+				paramedico == null ? null
+						: new Responsable(paramedico.getId(), paramedico.getNombreCompleto(), paramedico.getTelefono()),
 				atencion.getEstado(),
 				atencion.getHoraToma(),
 				atencion.getHoraLlegada(),
@@ -66,7 +77,8 @@ public record AtencionDeIncidenteResponse(
 				atencion.getDocumentoPaciente(),
 				atencion.getCentroSalud() == null ? null
 						: new Centro(atencion.getCentroSalud().getId(), atencion.getCentroSalud().getNombre()),
-				atencion.getDestinoDescripcion());
+				atencion.getDestinoDescripcion(),
+				atencion.getCerradaPor() == null ? null : atencion.getCerradaPor().getNombreCompleto());
 	}
 
 }

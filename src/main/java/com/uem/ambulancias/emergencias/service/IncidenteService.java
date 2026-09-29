@@ -19,6 +19,8 @@ import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
 import com.uem.ambulancias.flota.domain.Ambulancia;
 import com.uem.ambulancias.flota.domain.EstadoAmbulancia;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
+import com.uem.ambulancias.flota.service.UnidadActualizada;
+import com.uem.ambulancias.usuarios.domain.Usuario;
 
 import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Point;
@@ -47,9 +49,14 @@ public class IncidenteService {
 	public Incidente agruparAlerta(Alerta alerta) {
 		bloqueoDeAgrupacion.adquirir();
 
+		// La búsqueda no bloquea, y una unidad pudo cerrar el incidente en ese mismo instante. Por eso se lo vuelve a
+		// leer bloqueado y se confirma que siga abierto: si no, la alerta quedaba sumada a un caso ya terminado y a
+		// nadie le llegaba el aviso. Si se cerró en el medio, la alerta abre un incidente nuevo.
 		Point ubicacion = alerta.getUbicacionEfectiva();
 		Incidente incidente = incidentes
-				.buscarActivoCercano(ubicacion, agrupacion.radioM(), agrupacion.ventanaMin())
+				.buscarIdAbiertoCercano(ubicacion, agrupacion.radioM(), agrupacion.ventanaMin())
+				.flatMap(incidentes::buscarParaActualizar)
+				.filter(cercano -> cercano.getEstado().isAbierto())
 				.orElse(null);
 		boolean nuevo = incidente == null;
 		if (nuevo) {
@@ -90,7 +97,7 @@ public class IncidenteService {
 			throw new ConflictoException(CodigoError.DETALLES_NO_EDITABLES,
 					"El incidente " + incidenteId + " ya está cerrado.");
 		}
-		if (atenciones.existeLlegadaPorIncidente(incidenteId)) {
+		if (atenciones.existeLlegadaVigentePorIncidente(incidenteId)) {
 			throw new ConflictoException(CodigoError.DETALLES_NO_EDITABLES,
 					"Una unidad ya llegó al lugar del incidente " + incidenteId + ".");
 		}
@@ -131,7 +138,7 @@ public class IncidenteService {
 			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
 					"El incidente " + incidenteId + " ya está cerrado.");
 		}
-		if (atenciones.existeLlegadaPorIncidente(incidenteId)) {
+		if (atenciones.existeLlegadaVigentePorIncidente(incidenteId)) {
 			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
 					"Una unidad ya llegó al lugar del incidente " + incidenteId + ".");
 		}
@@ -155,14 +162,25 @@ public class IncidenteService {
 	 * {@link IncidenteYaTomadoException} y no crea nada.
 	 */
 	@Transactional
-	public Atencion tomar(Long idIncidente, Long idAmbulancia) {
-		return crearAtencion(idIncidente, idAmbulancia, true);
+	public Atencion tomar(Long idIncidente, Long idAmbulancia, Usuario paramedico) {
+		return crearAtencion(idIncidente, idAmbulancia, paramedico, true);
 	}
 
 	/** SEC-B.1. Mismo camino que {@link #tomar} sin verificar si ya hay atenciones activas. */
 	@Transactional
-	public Atencion sumarse(Long idIncidente, Long idAmbulancia) {
-		return crearAtencion(idIncidente, idAmbulancia, false);
+	public Atencion sumarse(Long idIncidente, Long idAmbulancia, Usuario paramedico) {
+		return crearAtencion(idIncidente, idAmbulancia, paramedico, false);
+	}
+
+	/**
+	 * La central manda una unidad: el mismo camino que tomar o sumarse, sin exigir que el incidente esté libre. Si ya
+	 * tiene una unidad trabajando, la nueva se suma.
+	 */
+	@Transactional
+	public Atencion despachar(Long idIncidente, Long idAmbulancia, Usuario responsable, Usuario administrador) {
+		Atencion atencion = crearAtencion(idIncidente, idAmbulancia, responsable, false);
+		atencion.marcarDespachadaPor(administrador);
+		return atencion;
 	}
 
 	/** Ambulancias que acuden al incidente (atenciones activas), para el contexto del 409. */
@@ -176,7 +194,7 @@ public class IncidenteService {
 	 * ocurren antes de crear la atención; si alguna falla, no se crea nada. Cascada de ME-1 en la misma transacción:
 	 * A0, I1 (si el incidente estaba ACTIVO) y M1.
 	 */
-	private Atencion crearAtencion(Long idIncidente, Long idAmbulancia, boolean esToma) {
+	private Atencion crearAtencion(Long idIncidente, Long idAmbulancia, Usuario paramedico, boolean esToma) {
 		Incidente incidente = incidentes.buscarParaActualizar(idIncidente)
 				.orElseThrow(() -> new NoEncontradoException("No existe el incidente " + idIncidente + "."));
 		Ambulancia ambulancia = ambulancias.buscarParaActualizar(idAmbulancia)
@@ -193,14 +211,18 @@ public class IncidenteService {
 			throw new IncidenteYaTomadoException(incidente);
 		}
 
-		Atencion atencion = atenciones.save(Atencion.iniciar(incidente, ambulancia, Instant.now()));
+		Atencion atencion = atenciones.save(Atencion.iniciar(incidente, ambulancia, paramedico, Instant.now()));
 		if (incidente.getEstado() == EstadoIncidente.ACTIVO) {
 			incidente.cambiarEstado(EstadoIncidente.EN_ATENCION);
 			incidentes.save(incidente);
+			// Es lo primero que quiere saber quien pidió la ambulancia: que alguien ya va.
+			eventos.publishEvent(new NovedadDelIncidente(idIncidente, NovedadDelIncidente.Tipo.UNIDAD_EN_CAMINO));
 		}
 		ambulancias.actualizarEstado(idAmbulancia, EstadoAmbulancia.EN_ATENCION);
 
 		eventos.publishEvent(new IncidenteActualizado(idIncidente, false));
+		// Si la mandó la central, la tripulación no tocó nada: se entera por acá.
+		eventos.publishEvent(new UnidadActualizada(idAmbulancia));
 		return atencion;
 	}
 

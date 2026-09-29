@@ -37,8 +37,10 @@ public class Ambulancia {
 	@Column(nullable = false)
 	private String placa;
 
+	/** Clasificación de la Norma 430. Decide qué traslados puede tomar esta unidad. */
+	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
-	private String tipoUnidad;
+	private TipoUnidad tipoUnidad;
 
 	@Enumerated(EnumType.STRING)
 	@Column(nullable = false)
@@ -53,7 +55,7 @@ public class Ambulancia {
 	private Instant ultimaPosicionEn;
 
 	/** ME-1 M0: una ambulancia nace activa y sin turno, porque todavía no hay nadie que la opere. */
-	public static Ambulancia registrar(String placa, String tipoUnidad) {
+	public static Ambulancia registrar(String placa, TipoUnidad tipoUnidad) {
 		Ambulancia ambulancia = new Ambulancia();
 		ambulancia.placa = placa;
 		ambulancia.tipoUnidad = tipoUnidad;
@@ -93,6 +95,24 @@ public class Ambulancia {
 			throw enAtencion();
 		}
 		activa = false;
+	}
+
+	/** Deshace la baja lógica. El estado no se toca: vuelve como quedó. */
+	public void activar() {
+		activa = true;
+	}
+
+	/**
+	 * Corrige lo que se cargó mal. La placa se puede cambiar siempre porque no altera lo que la unidad puede
+	 * hacer. El tipo no, con una atención en curso: es lo que decide qué traslados puede tomar, y bajarlo a
+	 * mitad de un viaje dejaría a ese paciente con una unidad que ya no le corresponde.
+	 */
+	public void corregirDatos(String placa, TipoUnidad tipoUnidad) {
+		if (this.tipoUnidad != tipoUnidad && estado == EstadoAmbulancia.EN_ATENCION) {
+			throw enAtencion();
+		}
+		this.placa = placa;
+		this.tipoUnidad = tipoUnidad;
 	}
 
 	/** Puede tomar o sumarse a un incidente: está activa y DISPONIBLE (PB-04 R5). */

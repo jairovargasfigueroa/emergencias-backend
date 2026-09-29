@@ -32,8 +32,10 @@ public class ServicioParamedicoController {
 	@GetMapping("/actual")
 	public ServicioActualResponse servicioActual(@UsuarioActual Long paramedicoId) {
 		ParamedicoConAsignacion servicio = servicioParamedicoService.servicioActual(paramedicoId);
+		long tripulantes = servicio.asignacionVigente() == null ? 0
+				: turnoService.tripulantesEnTurno(servicio.asignacionVigente().getAmbulancia().getId());
 		return ServicioActualResponse.de(servicio.paramedico(), servicio.asignacionVigente(),
-				turnoService.turnoAbierto(paramedicoId).orElse(null));
+				turnoService.turnoAbierto(paramedicoId).orElse(null), tripulantes);
 	}
 
 	/** Entra a trabajar: su unidad pasa a contar como disponible y empieza a compartir su posición. */

@@ -1,5 +1,6 @@
 package com.uem.ambulancias.flota.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,6 +20,17 @@ public interface TurnoRepository extends JpaRepository<Turno, Long> {
 	@Query("select count(t) from Turno t where t.ambulancia.id = :ambulanciaId and t.fin is null")
 	long contarAbiertosPorAmbulancia(@Param("ambulanciaId") Long ambulanciaId);
 
+	/** Lo mismo para toda la flota de una vez: la lista del panel lo muestra en cada fila. */
+	@Query("""
+			select new com.uem.ambulancias.flota.repository.TripulantesEnTurno(t.ambulancia.id, count(t))
+			from Turno t where t.fin is null group by t.ambulancia.id
+			""")
+	List<TripulantesEnTurno> contarAbiertosPorUnidad();
+
+	/** Quiénes están trabajando ahora: la lista del personal lo dice en cada fila sin una consulta por persona. */
+	@Query("select t.paramedico.id from Turno t where t.fin is null")
+	List<Long> buscarParamedicosEnTurno();
+
 	/** Quiénes están de turno en cada una de esas unidades, para que el panel diga quién está adentro. */
 	@Query("""
 			select t from Turno t join fetch t.paramedico
@@ -26,5 +38,16 @@ public interface TurnoRepository extends JpaRepository<Turno, Long> {
 			order by t.inicio
 			""")
 	List<Turno> buscarAbiertosPorAmbulancias(@Param("ambulanciaIds") List<Long> ambulanciaIds);
+
+	/**
+	 * Quiénes están de turno en esas unidades y pueden recibir un aviso: activos y con un teléfono registrado. A ellos
+	 * se les avisa de un incidente, no a todos los asignados: el compañero que está en su casa no está trabajando.
+	 */
+	@Query("""
+			select t from Turno t join fetch t.paramedico p
+			where t.ambulancia.id in :ambulanciaIds and t.fin is null
+			  and p.activo = true and p.tokenPush is not null
+			""")
+	List<Turno> buscarAbiertosConAvisoPorAmbulancias(@Param("ambulanciaIds") Collection<Long> ambulanciaIds);
 
 }

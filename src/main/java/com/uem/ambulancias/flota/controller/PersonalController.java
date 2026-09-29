@@ -1,12 +1,15 @@
 package com.uem.ambulancias.flota.controller;
 
 import java.util.List;
+import java.util.Set;
 
 import com.uem.ambulancias.flota.dto.AsignacionResponse;
+import com.uem.ambulancias.flota.dto.EditarParamedicoRequest;
 import com.uem.ambulancias.flota.dto.ParamedicoResponse;
 import com.uem.ambulancias.flota.dto.RegistrarParamedicoRequest;
 import com.uem.ambulancias.flota.service.ParamedicoConAsignacion;
 import com.uem.ambulancias.flota.service.PersonalService;
+import com.uem.ambulancias.flota.service.TurnoService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
@@ -28,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class PersonalController {
 
 	private final PersonalService personalService;
+	private final TurnoService turnoService;
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
@@ -37,7 +42,16 @@ public class PersonalController {
 
 	@GetMapping
 	public List<ParamedicoResponse> listar() {
-		return personalService.listarParamedicos().stream().map(PersonalController::aRespuesta).toList();
+		Set<Long> enTurno = personalService.paramedicosEnTurno();
+		return personalService.listarParamedicos().stream()
+				.map(personal -> ParamedicoResponse.de(personal.paramedico(), personal.asignacionVigente(),
+						enTurno.contains(personal.paramedico().getId())))
+				.toList();
+	}
+
+	@PutMapping("/{id}")
+	public ParamedicoResponse editar(@PathVariable Long id, @Valid @RequestBody EditarParamedicoRequest request) {
+		return aRespuesta(personalService.editarParamedico(id, request.nombreCompleto(), request.telefono()));
 	}
 
 	@PostMapping("/{id}/desactivar")
@@ -45,13 +59,32 @@ public class PersonalController {
 		return aRespuesta(personalService.desactivarParamedico(id));
 	}
 
+	@PostMapping("/{id}/activar")
+	public ParamedicoResponse activar(@PathVariable Long id) {
+		return aRespuesta(personalService.activarParamedico(id));
+	}
+
+	/** Le cierra el turno a alguien que se fue sin cerrarlo. No se puede con su unidad en plena atención. */
+	@PostMapping("/{id}/turno/cierre")
+	public ParamedicoResponse cerrarTurno(@PathVariable Long id) {
+		turnoService.terminarDesdeLaCentral(id);
+		return aRespuesta(personalService.paramedico(id));
+	}
+
+	/** Lo deja sin ambulancia, sin ponerlo en otra. */
+	@PostMapping("/{id}/quitar-asignacion")
+	public ParamedicoResponse quitarDeLaUnidad(@PathVariable Long id) {
+		return aRespuesta(personalService.quitarDeLaUnidad(id));
+	}
+
 	@GetMapping("/{id}/asignaciones")
 	public List<AsignacionResponse> historialDeAsignaciones(@PathVariable Long id) {
 		return personalService.historialDeAsignaciones(id).stream().map(AsignacionResponse::de).toList();
 	}
 
-	private static ParamedicoResponse aRespuesta(ParamedicoConAsignacion personal) {
-		return ParamedicoResponse.de(personal.paramedico(), personal.asignacionVigente());
+	private ParamedicoResponse aRespuesta(ParamedicoConAsignacion personal) {
+		return ParamedicoResponse.de(personal.paramedico(), personal.asignacionVigente(),
+				personalService.estaEnTurno(personal.paramedico().getId()));
 	}
 
 }

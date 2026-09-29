@@ -23,6 +23,18 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
 	@Query("select count(a) > 0 from Alerta a where a.incidente.id = :incidenteId and a.estado <> 'CANCELADA'")
 	boolean existeAlgunaVigente(@Param("incidenteId") Long incidenteId);
 
+	/**
+	 * A quiénes avisarles de un incidente: los que pidieron la ambulancia, no retiraron su pedido y tienen un teléfono
+	 * registrado. Cada uno con su alerta, porque en un incidente puede haber avisos de varias personas.
+	 */
+	@Query("""
+			select new com.uem.ambulancias.emergencias.repository.EmisorConAviso(a.id, e.tokenPush)
+			from Alerta a join a.emisor e
+			where a.incidente.id = :incidenteId and a.estado <> 'CANCELADA'
+			  and e.activo = true and e.tokenPush is not null
+			""")
+	List<EmisorConAviso> buscarEmisoresConAviso(@Param("incidenteId") Long incidenteId);
+
 	/** Descripciones que dejaron los emisores del incidente, en orden de emisión. */
 	@Query("""
 			select a.descripcion from Alerta a
@@ -38,6 +50,19 @@ public interface AlertaRepository extends JpaRepository<Alerta, Long> {
 			order by a.fechaHora, a.id
 			""")
 	List<Alerta> buscarPorIncidente(@Param("incidenteId") Long incidenteId);
+
+	/**
+	 * Lo mismo para varios incidentes de una vez, en orden de emisión. Un incidente no tiene nombre propio: lo
+	 * único que lo hace reconocible en una lista es lo que escribió el que avisó, y es la primera descripción la
+	 * que vale, porque la escribió quien vio el hecho primero.
+	 */
+	@Query("""
+			select new com.uem.ambulancias.emergencias.repository.ReferenciaDeIncidente(a.incidente.id, a.descripcion)
+			from Alerta a
+			where a.incidente.id in :incidenteIds and a.descripcion is not null
+			order by a.fechaHora, a.id
+			""")
+	List<ReferenciaDeIncidente> buscarDescripcionesPorIncidentes(@Param("incidenteIds") Collection<Long> incidenteIds);
 
 	/** Cantidad de alertas de cada uno de esos incidentes, en una sola consulta agrupada. */
 	@Query("""
