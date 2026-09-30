@@ -92,7 +92,10 @@ public class Usuario {
 	/** Cuándo aceptó el ciudadano el aviso de privacidad, al crear su cuenta. */
 	private Instant privacidadAceptadaEn;
 
-	/** Token de notificaciones push del teléfono del paramédico. */
+	/**
+	 * Token de notificaciones push del teléfono donde esta persona usa la app. Es del teléfono, no de la persona: una
+	 * sola cuenta a la vez lo tiene.
+	 */
 	@Column(length = 512)
 	private String tokenPush;
 

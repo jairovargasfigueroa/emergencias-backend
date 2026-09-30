@@ -27,10 +27,17 @@ public class ServicioParamedicoService {
 		return conAsignacionVigente(buscarParamedicoActivo(paramedicoId));
 	}
 
-	/** PB-03 R3: token para recibir push de incidentes nuevos con la app cerrada. */
+	/**
+	 * PB-03 R3: token para recibir push de incidentes nuevos con la app cerrada. Si ese teléfono estaba a nombre de
+	 * otra cuenta, deja de estarlo en la misma transacción: a quien entregó el teléfono no le siguen llegando ahí los
+	 * avisos, y al que lo usa ahora no le llegan los de otro.
+	 */
 	@Transactional
 	public void registrarDispositivo(Long paramedicoId, String tokenPush) {
-		buscarParamedicoActivo(paramedicoId).registrarDispositivo(tokenPush.trim());
+		Usuario paramedico = buscarParamedicoActivo(paramedicoId);
+		String token = tokenPush.trim();
+		usuarios.liberarTokenPush(token, paramedicoId);
+		paramedico.registrarDispositivo(token);
 	}
 
 	/** PB-04 R6: la ambulancia es la de la asignación vigente del paramédico, nunca viaja en la petición. */
