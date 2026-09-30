@@ -103,6 +103,18 @@ public class AccesoParamedicoService {
 	}
 
 	/**
+	 * El PIN se pide otra vez al iniciar cada turno, como quien ficha al entrar: la sesión de la app dura meses, y el
+	 * teléfono pudo quedar en otras manos. Valen las mismas reglas que al entrar.
+	 */
+	@Transactional(noRollbackFor = ConflictoException.class)
+	public void verificarPin(Long paramedicoId, String pin, String claveDispositivo) {
+		Usuario paramedico = usuarios.buscarParaActualizar(paramedicoId, RolUsuario.PARAMEDICO)
+				.filter(Usuario::isActivo)
+				.orElseThrow(() -> new NoEncontradoException("No existe un paramédico activo con id " + paramedicoId + "."));
+		verificar(paramedico, pin, claveDispositivo);
+	}
+
+	/**
 	 * Primero el teléfono y después el PIN: desde un teléfono que no es el suyo no se puede probar ningún PIN, así
 	 * que nadie le bloquea la cuenta a otro sabiendo solo su número.
 	 */
