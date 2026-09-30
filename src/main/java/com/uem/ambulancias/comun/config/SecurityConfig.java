@@ -54,6 +54,8 @@ public class SecurityConfig {
 						.requestMatchers("/auth/**").permitAll()
 						// Sin esto, un 404 o un 500 se reenvían a /error, que queda denegado, y el cliente ve un 403 que engaña.
 						.requestMatchers("/error").permitAll()
+						// Renovar la sesión de una app: se llega con el token, por eso no está entre las puertas de /auth.
+						.requestMatchers(HttpMethod.POST, "/sesion/renovacion").hasAnyRole(CIUDADANO, PARAMEDICO)
 						// Lo que usa la app del paramédico. Va primero porque /paramedicos/** es del administrador.
 						.requestMatchers("/paramedicos/actual/**").hasRole(PARAMEDICO)
 						.requestMatchers("/atenciones/**").hasRole(PARAMEDICO)

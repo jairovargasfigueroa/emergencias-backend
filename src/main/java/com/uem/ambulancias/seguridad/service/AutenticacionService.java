@@ -71,6 +71,34 @@ public class AutenticacionService {
 		return new SesionCiudadano(token.token(), token.venceEn(), ciudadano);
 	}
 
+	/**
+	 * Renueva la sesión de una app sin volver a pedir credenciales, mientras siga valiendo lo que la abrió: para el
+	 * ciudadano, su número verificado; para el paramédico, el teléfono vinculado. Así un teléfono reemplazado o una
+	 * cuenta sin verificar se quedan afuera cuando se les termina el token, sin tener que llevar una lista de tokens
+	 * anulados. El nuevo dura lo mismo que al entrar.
+	 */
+	@Transactional(readOnly = true)
+	public TokenService.TokenEmitido renovarSesion(Long usuarioId, String claveDispositivo) {
+		Usuario usuario = usuarios.findById(usuarioId)
+				.filter(Usuario::isActivo)
+				.orElseThrow(() -> new SesionNoRenovableException("Tu cuenta ya no está activa."));
+		switch (usuario.getRol()) {
+			case CIUDADANO -> {
+				if (!usuario.esCuentaPropia() || usuario.getTelefonoVerificadoEn() == null) {
+					throw new SesionNoRenovableException("Verifica tu número para seguir usando la app.");
+				}
+			}
+			case PARAMEDICO -> {
+				if (!accesoParamedico.esDispositivoVinculado(usuario, claveDispositivo)) {
+					throw new SesionNoRenovableException(
+							"Este teléfono ya no está vinculado a tu cuenta. Actívalo con un código nuevo de la central.");
+				}
+			}
+			default -> throw new SesionNoRenovableException("Esta sesión no se renueva.");
+		}
+		return tokens.paraApp(usuario);
+	}
+
 	public record SesionAdmin(String token, Usuario admin) {
 	}
 

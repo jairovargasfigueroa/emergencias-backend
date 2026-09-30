@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 import com.uem.ambulancias.comun.error.CodigoError;
 import com.uem.ambulancias.comun.error.ConflictoException;
@@ -40,6 +41,9 @@ public class AccesoParamedicoService {
 
 	/** 256 bits: no se adivina, y cabe de sobra en lo que acepta el cifrado. */
 	private static final int BYTES_CLAVE_DISPOSITIVO = 32;
+
+	/** La forma de las claves que genera el servidor: base64url, 43 caracteres. */
+	private static final Pattern FORMATO_CLAVE_DISPOSITIVO = Pattern.compile("[A-Za-z0-9_-]{1,64}");
 
 	private final UsuarioRepository usuarios;
 	private final ServicioParamedicoService servicioParamedico;
@@ -115,6 +119,15 @@ public class AccesoParamedicoService {
 	}
 
 	/**
+	 * Si la clave es la del teléfono vinculado a su cuenta. Lo que no tiene la forma de una clave generada acá ni se
+	 * compara: el cifrado rechaza los textos largos con un error, y eso no puede terminar en un 500.
+	 */
+	public boolean esDispositivoVinculado(Usuario paramedico, String claveDispositivo) {
+		return claveDispositivo != null && FORMATO_CLAVE_DISPOSITIVO.matcher(claveDispositivo).matches()
+				&& cifrador.matches(claveDispositivo, paramedico.getClaveDispositivoCifrada());
+	}
+
+	/**
 	 * Primero el teléfono y después el PIN: desde un teléfono que no es el suyo no se puede probar ningún PIN, así
 	 * que nadie le bloquea la cuenta a otro sabiendo solo su número.
 	 */
@@ -123,7 +136,7 @@ public class AccesoParamedicoService {
 			throw new ConflictoException(CodigoError.PARAMEDICO_SIN_ACTIVAR,
 					"Todavía no activaste tu cuenta. Pídele a la central tu código de activación.");
 		}
-		if (!cifrador.matches(claveDispositivo, paramedico.getClaveDispositivoCifrada())) {
+		if (!esDispositivoVinculado(paramedico, claveDispositivo)) {
 			throw new ConflictoException(CodigoError.DISPOSITIVO_NO_VINCULADO,
 					"Este teléfono no está vinculado a tu cuenta. Para usarlo, pídele a la central un código de activación.");
 		}

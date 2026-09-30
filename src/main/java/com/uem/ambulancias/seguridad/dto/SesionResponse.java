@@ -36,4 +36,8 @@ public final class SesionResponse {
 	public record Ciudadano(String token, Instant venceEn, CiudadanoResponse ciudadano) {
 	}
 
+	/** El token nuevo de una app, que reemplaza al que estaba por vencer. */
+	public record Renovada(String token, Instant venceEn) {
+	}
+
 }
