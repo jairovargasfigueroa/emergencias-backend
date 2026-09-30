@@ -66,6 +66,17 @@ public class CiudadanoService {
 		ciudadano.registrarDispositivo(token);
 	}
 
+	/**
+	 * Al cerrar sesión, el teléfono deja de recibir sus avisos: puede quedar en manos de otro de la familia. Vale
+	 * aunque la cuenta esté dada de baja, porque salir de la app siempre tiene que poder hacerse.
+	 */
+	@Transactional
+	public void quitarDispositivo(Long ciudadanoId) {
+		usuarios.findByIdAndRol(ciudadanoId, RolUsuario.CIUDADANO)
+				.orElseThrow(() -> new NoEncontradoException("No existe el ciudadano " + ciudadanoId + "."))
+				.quitarTokenPush();
+	}
+
 	/** Emisor de una alerta: un ciudadano activo. */
 	public Usuario buscarCiudadanoActivo(Long id) {
 		return usuarios.findByIdAndRol(id, RolUsuario.CIUDADANO)

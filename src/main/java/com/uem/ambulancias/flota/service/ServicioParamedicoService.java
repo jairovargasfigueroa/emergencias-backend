@@ -40,6 +40,17 @@ public class ServicioParamedicoService {
 		paramedico.registrarDispositivo(token);
 	}
 
+	/**
+	 * Al cerrar sesión, el teléfono deja de recibir sus avisos: quien lo use después no tiene por qué ver sus
+	 * emergencias. Vale aunque esté dado de baja, porque salir de la app siempre tiene que poder hacerse.
+	 */
+	@Transactional
+	public void quitarDispositivo(Long paramedicoId) {
+		usuarios.findByIdAndRol(paramedicoId, RolUsuario.PARAMEDICO)
+				.orElseThrow(() -> new NoEncontradoException("No existe el paramédico " + paramedicoId + "."))
+				.quitarTokenPush();
+	}
+
 	/** PB-04 R6: la ambulancia es la de la asignación vigente del paramédico, nunca viaja en la petición. */
 	public Long ambulanciaAsignada(Long paramedicoId) {
 		buscarParamedicoActivo(paramedicoId);

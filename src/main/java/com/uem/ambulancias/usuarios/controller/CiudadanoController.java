@@ -7,6 +7,7 @@ import com.uem.ambulancias.usuarios.service.CiudadanoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,6 +30,13 @@ public class CiudadanoController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void registrarDispositivo(@UsuarioActual Long ciudadanoId, @Valid @RequestBody DispositivoRequest request) {
 		ciudadanoService.registrarDispositivo(ciudadanoId, request.tokenPush());
+	}
+
+	/** Al cerrar sesión: el teléfono deja de recibir los avisos de esta persona. */
+	@DeleteMapping("/dispositivo")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void quitarDispositivo(@UsuarioActual Long ciudadanoId) {
+		ciudadanoService.quitarDispositivo(ciudadanoId);
 	}
 
 }
