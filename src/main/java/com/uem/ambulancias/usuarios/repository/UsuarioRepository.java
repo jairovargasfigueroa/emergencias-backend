@@ -40,8 +40,17 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 	/** Lo mismo, sin contarse a sí mismo: al editar, dejar el teléfono como estaba no puede ser un conflicto. */
 	boolean existsByTelefonoAndRolAndActivoTrueAndRegistradoPorIsNullAndIdNot(String telefono, RolUsuario rol, Long id);
 
-	Optional<Usuario> findFirstByTelefonoAndRolAndActivoTrueAndRegistradoPorIsNullOrderByIdAsc(String telefono,
-			RolUsuario rol);
+	/**
+	 * Quién entra a la app con ese teléfono: cuentas propias y activas de ese rol. Devuelve solo los ids porque
+	 * quien lo busca bloquea después la fila, y si la entidad ya estuviera cargada, Hibernate le devolvería esta
+	 * copia sin releerla y se le escaparía un intento contado a la vez por otra petición.
+	 */
+	@Query("""
+			select u.id from Usuario u
+			where u.telefono = :telefono and u.rol = :rol and u.activo = true and u.registradoPor is null
+			order by u.id
+			""")
+	List<Long> buscarIdsActivosPorTelefono(@Param("telefono") String telefono, @Param("rol") RolUsuario rol);
 
 	/** Las personas de un ciudadano: a quienes traslada y sus contactos de confianza. */
 	List<Usuario> findByRegistradoPorIdAndActivoTrueOrderByNombreCompletoAsc(Long registradoPorId);

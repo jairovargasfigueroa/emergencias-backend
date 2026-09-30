@@ -33,6 +33,8 @@ sga.seguridad.secreto=
 # Cuánto duran las sesiones: el panel en horas, las apps en días.
 sga.seguridad.horas-panel=12
 sga.seguridad.dias-app=180
+# Horas que sirve el código de activación que la central le entrega al paramédico. Si se omite, 24.
+sga.seguridad.horas-codigo-activacion=24
 
 # Primer administrador del panel. Solo se crea al arrancar si todavía no existe ninguno.
 sga.admin.correo=
