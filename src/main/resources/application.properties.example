@@ -17,7 +17,9 @@ sga.agrupacion.ventana-min=30
 # Última posición de cada ambulancia (PB-03): se guarda como máximo cada tantos segundos.
 sga.posicion.persistir-cada-seg=30
 
-# Firebase Realtime Database. Apagado hasta configurar la cuenta de servicio.
+# Firebase: Realtime Database, avisos push y verificación por SMS del número del ciudadano.
+# Apagado hasta configurar la cuenta de servicio. Apagado, los ciudadanos no pueden entrar a su app.
+# Para la verificación, el proyecto de Firebase tiene que tener habilitado el ingreso con teléfono.
 sga.firebase.habilitado=false
 # Ruta al JSON de la cuenta de servicio, fuera del repositorio.
 sga.firebase.credenciales=
