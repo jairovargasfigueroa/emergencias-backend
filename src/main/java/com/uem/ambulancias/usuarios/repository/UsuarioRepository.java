@@ -25,10 +25,27 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 	boolean existsByRol(RolUsuario rol);
 
 	/**
-	 * El teléfono identifica a un usuario solo entre los que se registraron solos. Los dependientes suelen llevar
-	 * el número de quien los cargó, así que si no se excluyeran, registrar a la mamá devolvería a la hija.
+	 * La cuenta de ciudadano de ese número, la más antigua si hubiera más de una. Solo entre los que se registraron
+	 * solos: los dependientes suelen llevar el número de quien los cargó, y si no se excluyeran, la hija entraría a
+	 * la cuenta de su mamá.
+	 *
+	 * <p>Los teléfonos de antes se guardaron como la persona los escribió —con espacios, guiones o el +591
+	 * adelante—, así que se comparan normalizados igual que el número verificado: solo dígitos y sin el 591 de un
+	 * número boliviano completo. No se reescriben en la base: el índice único de teléfono y rol haría chocar a dos
+	 * cuentas que hoy conviven con formatos distintos.
 	 */
-	Optional<Usuario> findFirstByTelefonoAndRolAndRegistradoPorIsNullOrderByIdAsc(String telefono, RolUsuario rol);
+	@Query(value = """
+			select u.* from usuario u
+			where u.rol = 'CIUDADANO' and u.registrado_por_id is null
+			  and case
+			        when regexp_replace(u.telefono, '[^0-9]', '', 'g') ~ '^591[0-9]{8}$'
+			          then substr(regexp_replace(u.telefono, '[^0-9]', '', 'g'), 4)
+			        else regexp_replace(u.telefono, '[^0-9]', '', 'g')
+			      end = :telefonoNacional
+			order by u.id
+			limit 1
+			""", nativeQuery = true)
+	Optional<Usuario> buscarCiudadanoPorTelefonoNacional(@Param("telefonoNacional") String telefonoNacional);
 
 	/**
 	 * Si ese número ya identifica a alguien de ese rol. Mira exactamente lo mismo que el ingreso a la app: solo

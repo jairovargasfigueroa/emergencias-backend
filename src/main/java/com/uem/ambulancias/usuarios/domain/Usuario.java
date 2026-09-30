@@ -83,6 +83,15 @@ public class Usuario {
 	 */
 	private String claveDispositivoCifrada;
 
+	/**
+	 * Cuándo verificó el ciudadano por SMS que el número es suyo. Nulo en las cuentas creadas antes de que se
+	 * verificara: sin esto la sesión no se renueva.
+	 */
+	private Instant telefonoVerificadoEn;
+
+	/** Cuándo aceptó el ciudadano el aviso de privacidad, al crear su cuenta. */
+	private Instant privacidadAceptadaEn;
+
 	/** Token de notificaciones push del teléfono del paramédico. */
 	@Column(length = 512)
 	private String tokenPush;
@@ -109,9 +118,15 @@ public class Usuario {
 		return usuario;
 	}
 
-	/** Registro ligero desde la app: nace activo con rol CIUDADANO. */
-	public static Usuario registrarCiudadano(String nombreCompleto, String telefono) {
-		return nuevo(nombreCompleto, telefono, RolUsuario.CIUDADANO);
+	/**
+	 * Registro desde la app, con el número ya verificado por SMS y el aviso de privacidad aceptado: nace activo con
+	 * rol CIUDADANO.
+	 */
+	public static Usuario registrarCiudadano(String nombreCompleto, String telefono, Instant ahora) {
+		Usuario usuario = nuevo(nombreCompleto, telefono, RolUsuario.CIUDADANO);
+		usuario.telefonoVerificadoEn = ahora;
+		usuario.privacidadAceptadaEn = ahora;
+		return usuario;
 	}
 
 	/**
@@ -165,6 +180,13 @@ public class Usuario {
 	/** Un dispositivo nuevo reemplaza al anterior. */
 	public void registrarDispositivo(String tokenPush) {
 		this.tokenPush = tokenPush;
+	}
+
+	/** Queda la primera vez que entra con el número verificado. Las cuentas de antes no la tenían. */
+	public void marcarTelefonoVerificado(Instant ahora) {
+		if (telefonoVerificadoEn == null) {
+			telefonoVerificadoEn = ahora;
+		}
 	}
 
 	/**

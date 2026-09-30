@@ -1,12 +1,14 @@
 package com.uem.ambulancias.seguridad.dto;
 
+import java.time.Instant;
+
 import com.uem.ambulancias.flota.dto.ParamedicoResponse;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.dto.CiudadanoResponse;
 
 /**
  * Lo que recibe un cliente al entrar: el token que tiene que mandar en adelante y los datos que ya usaba antes, para
- * que no tenga que preguntarlos otra vez.
+ * que no tenga que preguntarlos otra vez. Las apps reciben además cuándo vence el token, para renovarlo a tiempo.
  */
 public final class SesionResponse {
 
@@ -20,17 +22,22 @@ public final class SesionResponse {
 		}
 	}
 
-	public record Paramedico(String token, ParamedicoResponse paramedico) {
+	public record Paramedico(String token, Instant venceEn, ParamedicoResponse paramedico) {
 	}
 
 	/**
 	 * Lo mismo que al entrar, más la clave del teléfono recién vinculado. Es la única vez que viaja: la app la guarda
 	 * en el almacenamiento seguro del teléfono y el servidor se queda solo con su versión cifrada.
 	 */
-	public record ParamedicoActivado(String token, ParamedicoResponse paramedico, String claveDispositivo) {
+	public record ParamedicoActivado(String token, Instant venceEn, ParamedicoResponse paramedico,
+			String claveDispositivo) {
 	}
 
-	public record Ciudadano(String token, CiudadanoResponse ciudadano) {
+	public record Ciudadano(String token, Instant venceEn, CiudadanoResponse ciudadano) {
+	}
+
+	/** El token nuevo de una app, que reemplaza al que estaba por vencer. */
+	public record Renovada(String token, Instant venceEn) {
 	}
 
 }

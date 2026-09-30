@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.messaging.FirebaseMessaging;
 
@@ -38,6 +39,12 @@ public class FirebaseConfig {
 	@Bean
 	NotificadorFcm notificadorFcm(FirebaseApp firebaseApp) {
 		return new NotificadorFcm(FirebaseMessaging.getInstance(firebaseApp));
+	}
+
+	/** El número del ciudadano lo verifica Firebase Authentication por SMS. */
+	@Bean
+	VerificadorDeTelefonoFirebase verificadorDeTelefono(FirebaseApp firebaseApp) {
+		return new VerificadorDeTelefonoFirebase(FirebaseAuth.getInstance(firebaseApp));
 	}
 
 }

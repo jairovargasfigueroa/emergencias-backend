@@ -4,7 +4,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * Conexión a Firebase Realtime Database ({@code sga.firebase.*}). Mientras esté apagado, nada se publica.
+ * Conexión a Firebase ({@code sga.firebase.*}): Realtime Database, los avisos push y la verificación por SMS del
+ * número del ciudadano. Mientras esté apagado, nada se publica y los ciudadanos no pueden entrar a su app.
  */
 @ConfigurationProperties(prefix = "sga.firebase")
 public record FirebaseProperties(
