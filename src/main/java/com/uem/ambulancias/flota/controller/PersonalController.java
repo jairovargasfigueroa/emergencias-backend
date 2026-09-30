@@ -4,12 +4,14 @@ import java.util.List;
 import java.util.Set;
 
 import com.uem.ambulancias.flota.dto.AsignacionResponse;
+import com.uem.ambulancias.flota.dto.CodigoActivacionResponse;
 import com.uem.ambulancias.flota.dto.EditarParamedicoRequest;
 import com.uem.ambulancias.flota.dto.ParamedicoResponse;
 import com.uem.ambulancias.flota.dto.RegistrarParamedicoRequest;
 import com.uem.ambulancias.flota.service.ParamedicoConAsignacion;
 import com.uem.ambulancias.flota.service.PersonalService;
 import com.uem.ambulancias.flota.service.TurnoService;
+import com.uem.ambulancias.seguridad.service.AccesoParamedicoService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +35,7 @@ public class PersonalController {
 
 	private final PersonalService personalService;
 	private final TurnoService turnoService;
+	private final AccesoParamedicoService accesoParamedico;
 
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
@@ -75,6 +78,16 @@ public class PersonalController {
 	@PostMapping("/{id}/quitar-asignacion")
 	public ParamedicoResponse quitarDeLaUnidad(@PathVariable Long id) {
 		return aRespuesta(personalService.quitarDeLaUnidad(id));
+	}
+
+	/**
+	 * El código con el que el paramédico activa su app: la primera vez, en un teléfono nuevo o con el PIN
+	 * bloqueado. La central se lo entrega en persona, como el que recibe su credencial al entrar a trabajar.
+	 */
+	@PostMapping("/{id}/activacion")
+	@ResponseStatus(HttpStatus.CREATED)
+	public CodigoActivacionResponse generarCodigoActivacion(@PathVariable Long id) {
+		return CodigoActivacionResponse.de(accesoParamedico.generarCodigoActivacion(id));
 	}
 
 	@GetMapping("/{id}/asignaciones")
