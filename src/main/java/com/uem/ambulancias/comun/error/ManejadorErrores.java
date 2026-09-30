@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.uem.ambulancias.seguridad.service.CredencialesInvalidasException;
+import com.uem.ambulancias.seguridad.service.IntentoFallidoException;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -24,6 +25,14 @@ public class ManejadorErrores {
 	@ExceptionHandler(ConflictoException.class)
 	ProblemDetail conflicto(ConflictoException e) {
 		return problema(HttpStatus.CONFLICT, e.getCodigo(), e.getMessage());
+	}
+
+	/** Un código o un PIN equivocado: el 409 dice además cuántos intentos quedan. */
+	@ExceptionHandler(IntentoFallidoException.class)
+	ProblemDetail intentoFallido(IntentoFallidoException e) {
+		ProblemDetail problema = problema(HttpStatus.CONFLICT, e.getCodigo(), e.getMessage());
+		problema.setProperty("intentosRestantes", e.getIntentosRestantes());
+		return problema;
 	}
 
 	@ExceptionHandler(CredencialesInvalidasException.class)
