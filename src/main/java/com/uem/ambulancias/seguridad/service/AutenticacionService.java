@@ -22,6 +22,7 @@ public class AutenticacionService {
 	private final UsuarioRepository usuarios;
 	private final CiudadanoService ciudadanoService;
 	private final AccesoParamedicoService accesoParamedico;
+	private final VerificadorDeTelefono verificadorDeTelefono;
 	private final PasswordEncoder cifrador;
 	private final TokenService tokens;
 
@@ -54,10 +55,14 @@ public class AutenticacionService {
 		return new SesionParamedico(tokens.paraApp(identificado.paramedico()), identificado);
 	}
 
-	/** App del ciudadano: el registro ligero de PB-02 R1 es también su entrada. Repetirlo devuelve el mismo usuario. */
-	@Transactional
-	public SesionCiudadano registrarCiudadano(String nombreCompleto, String telefono) {
-		Usuario ciudadano = ciudadanoService.registrar(nombreCompleto, telefono);
+	/**
+	 * App del ciudadano: entra con su número verificado por SMS, que es lo que prueba que la cuenta es suya. La
+	 * verificación va antes y afuera de la transacción: es una llamada a Firebase, y la base no tiene por qué quedar
+	 * esperándola.
+	 */
+	public SesionCiudadano ingresarCiudadano(String idToken, String nombreCompleto, Boolean aceptaPrivacidad) {
+		String telefono = verificadorDeTelefono.telefonoVerificado(idToken);
+		Usuario ciudadano = ciudadanoService.ingresar(telefono, nombreCompleto, aceptaPrivacidad);
 		return new SesionCiudadano(tokens.paraApp(ciudadano), ciudadano);
 	}
 

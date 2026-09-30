@@ -5,11 +5,11 @@ import com.uem.ambulancias.flota.service.ParamedicoConAsignacion;
 import com.uem.ambulancias.flota.service.TurnoService;
 import com.uem.ambulancias.seguridad.dto.ActivacionParamedicoRequest;
 import com.uem.ambulancias.seguridad.dto.IngresoAdminRequest;
+import com.uem.ambulancias.seguridad.dto.IngresoCiudadanoRequest;
 import com.uem.ambulancias.seguridad.dto.IngresoParamedicoRequest;
 import com.uem.ambulancias.seguridad.dto.SesionResponse;
 import com.uem.ambulancias.seguridad.service.AutenticacionService;
 import com.uem.ambulancias.usuarios.dto.CiudadanoResponse;
-import com.uem.ambulancias.usuarios.dto.RegistrarCiudadanoRequest;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -59,12 +59,15 @@ public class AutenticacionController {
 				sesion.claveDispositivo());
 	}
 
-	/** App del ciudadano: el registro ligero (PB-02 R1) es su entrada; repetirlo devuelve el mismo usuario. */
+	/**
+	 * App del ciudadano: el ID token de Firebase que prueba su número. Entra a la cuenta de ese número o, la primera
+	 * vez, la crea con su nombre y el aviso de privacidad aceptado. Responde 201 en los dos casos, como antes.
+	 */
 	@PostMapping("/ciudadano")
 	@ResponseStatus(HttpStatus.CREATED)
-	public SesionResponse.Ciudadano ciudadano(@Valid @RequestBody RegistrarCiudadanoRequest request) {
-		AutenticacionService.SesionCiudadano sesion =
-				autenticacionService.registrarCiudadano(request.nombreCompleto(), request.telefono());
+	public SesionResponse.Ciudadano ciudadano(@Valid @RequestBody IngresoCiudadanoRequest request) {
+		AutenticacionService.SesionCiudadano sesion = autenticacionService.ingresarCiudadano(request.idToken(),
+				request.nombreCompleto(), request.aceptaPrivacidad());
 		return new SesionResponse.Ciudadano(sesion.token(), CiudadanoResponse.de(sesion.ciudadano()));
 	}
 
