@@ -54,10 +54,27 @@ public class CiudadanoService {
 		return digitos.length() == 11 && digitos.startsWith("591") ? digitos.substring(3) : digitos;
 	}
 
-	/** A dónde mandarle los avisos. Un teléfono nuevo reemplaza al anterior. */
+	/**
+	 * A dónde mandarle los avisos. Un teléfono nuevo reemplaza al anterior, y si ese teléfono estaba a nombre de otra
+	 * cuenta, deja de estarlo en la misma transacción: los avisos de una familia no le llegan a otra.
+	 */
 	@Transactional
 	public void registrarDispositivo(Long ciudadanoId, String tokenPush) {
-		buscarCiudadanoActivo(ciudadanoId).registrarDispositivo(tokenPush.trim());
+		Usuario ciudadano = buscarCiudadanoActivo(ciudadanoId);
+		String token = tokenPush.trim();
+		usuarios.liberarTokenPush(token, ciudadanoId);
+		ciudadano.registrarDispositivo(token);
+	}
+
+	/**
+	 * Al cerrar sesión, el teléfono deja de recibir sus avisos: puede quedar en manos de otro de la familia. Vale
+	 * aunque la cuenta esté dada de baja, porque salir de la app siempre tiene que poder hacerse.
+	 */
+	@Transactional
+	public void quitarDispositivo(Long ciudadanoId) {
+		usuarios.findByIdAndRol(ciudadanoId, RolUsuario.CIUDADANO)
+				.orElseThrow(() -> new NoEncontradoException("No existe el ciudadano " + ciudadanoId + "."))
+				.quitarTokenPush();
 	}
 
 	/** Emisor de una alerta: un ciudadano activo. */

@@ -9,6 +9,7 @@ import com.uem.ambulancias.usuarios.domain.Usuario;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -79,5 +80,13 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 	@Lock(LockModeType.PESSIMISTIC_WRITE)
 	@Query("select u from Usuario u where u.id = :id and u.rol = :rol")
 	Optional<Usuario> buscarParaActualizar(@Param("id") Long id, @Param("rol") RolUsuario rol);
+
+	/**
+	 * Le quita ese token de push a cualquier otra cuenta que lo tenga. El token es del teléfono, no de la persona: si
+	 * Beto entra en el teléfono que usaba Ana, los avisos de Ana no pueden seguir llegando ahí.
+	 */
+	@Modifying
+	@Query("update Usuario u set u.tokenPush = null where u.tokenPush = :tokenPush and u.id <> :usuarioId")
+	int liberarTokenPush(@Param("tokenPush") String tokenPush, @Param("usuarioId") Long usuarioId);
 
 }

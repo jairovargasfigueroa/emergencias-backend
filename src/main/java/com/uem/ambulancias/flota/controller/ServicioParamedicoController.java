@@ -13,6 +13,7 @@ import com.uem.ambulancias.seguridad.service.AccesoParamedicoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -65,6 +66,13 @@ public class ServicioParamedicoController {
 	public void registrarDispositivo(@UsuarioActual Long paramedicoId,
 			@Valid @RequestBody RegistrarDispositivoRequest request) {
 		servicioParamedicoService.registrarDispositivo(paramedicoId, request.tokenPush());
+	}
+
+	/** Al cerrar sesión: el teléfono deja de recibir los avisos de este paramédico. */
+	@DeleteMapping("/actual/dispositivo")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void quitarDispositivo(@UsuarioActual Long paramedicoId) {
+		servicioParamedicoService.quitarDispositivo(paramedicoId);
 	}
 
 }

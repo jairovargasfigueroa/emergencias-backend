@@ -92,7 +92,10 @@ public class Usuario {
 	/** Cuándo aceptó el ciudadano el aviso de privacidad, al crear su cuenta. */
 	private Instant privacidadAceptadaEn;
 
-	/** Token de notificaciones push del teléfono del paramédico. */
+	/**
+	 * Token de notificaciones push del teléfono donde esta persona usa la app. Es del teléfono, no de la persona: una
+	 * sola cuenta a la vez lo tiene, y al cerrar sesión se borra.
+	 */
 	@Column(length = 512)
 	private String tokenPush;
 
@@ -180,6 +183,11 @@ public class Usuario {
 	/** Un dispositivo nuevo reemplaza al anterior. */
 	public void registrarDispositivo(String tokenPush) {
 		this.tokenPush = tokenPush;
+	}
+
+	/** Al cerrar sesión, ese teléfono deja de recibir sus avisos. */
+	public void quitarTokenPush() {
+		tokenPush = null;
 	}
 
 	/** Queda la primera vez que entra con el número verificado. Las cuentas de antes no la tenían. */
