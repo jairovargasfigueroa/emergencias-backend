@@ -43,7 +43,7 @@ public class AutenticacionController {
 	public SesionResponse.Paramedico paramedico(@Valid @RequestBody IngresoParamedicoRequest request) {
 		AutenticacionService.SesionParamedico sesion = autenticacionService.ingresarParamedico(request.telefono(),
 				request.pin(), request.claveDispositivo());
-		return new SesionResponse.Paramedico(sesion.token(), aRespuesta(sesion.identificado()));
+		return new SesionResponse.Paramedico(sesion.token(), sesion.venceEn(), aRespuesta(sesion.identificado()));
 	}
 
 	/**
@@ -55,8 +55,8 @@ public class AutenticacionController {
 			@Valid @RequestBody ActivacionParamedicoRequest request) {
 		AutenticacionService.SesionParamedicoActivado sesion = autenticacionService
 				.activarParamedico(request.telefono(), request.codigo(), request.pin());
-		return new SesionResponse.ParamedicoActivado(sesion.token(), aRespuesta(sesion.identificado()),
-				sesion.claveDispositivo());
+		return new SesionResponse.ParamedicoActivado(sesion.token(), sesion.venceEn(),
+				aRespuesta(sesion.identificado()), sesion.claveDispositivo());
 	}
 
 	/**
@@ -68,7 +68,7 @@ public class AutenticacionController {
 	public SesionResponse.Ciudadano ciudadano(@Valid @RequestBody IngresoCiudadanoRequest request) {
 		AutenticacionService.SesionCiudadano sesion = autenticacionService.ingresarCiudadano(request.idToken(),
 				request.nombreCompleto(), request.aceptaPrivacidad());
-		return new SesionResponse.Ciudadano(sesion.token(), CiudadanoResponse.de(sesion.ciudadano()));
+		return new SesionResponse.Ciudadano(sesion.token(), sesion.venceEn(), CiudadanoResponse.de(sesion.ciudadano()));
 	}
 
 	private ParamedicoResponse aRespuesta(ParamedicoConAsignacion identificado) {

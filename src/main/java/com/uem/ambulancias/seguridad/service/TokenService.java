@@ -2,6 +2,7 @@ package com.uem.ambulancias.seguridad.service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 import com.uem.ambulancias.usuarios.domain.Usuario;
 
@@ -29,26 +30,35 @@ public class TokenService {
 
 	/** Sesión del panel: corta, porque se abre en computadoras que no siempre son de una sola persona. */
 	public String paraPanel(Usuario usuario) {
-		return firmar(usuario, Duration.ofHours(propiedades.horasPanel()));
+		return firmar(usuario, Duration.ofHours(propiedades.horasPanel())).token();
 	}
 
-	/** Sesión de una app: larga, para que el teléfono no pida credenciales en medio de una emergencia. */
-	public String paraApp(Usuario usuario) {
+	/**
+	 * Sesión de una app: larga, para que el teléfono no pida credenciales en medio de una emergencia. Va con su
+	 * vencimiento, para que la app la renueve antes de que se le corte.
+	 */
+	public TokenEmitido paraApp(Usuario usuario) {
 		return firmar(usuario, Duration.ofDays(propiedades.diasApp()));
 	}
 
-	private String firmar(Usuario usuario, Duration duracion) {
-		Instant ahora = Instant.now();
+	private TokenEmitido firmar(Usuario usuario, Duration duracion) {
+		// El token guarda los instantes en segundos: sin recortarlos, el vencimiento informado no sería el que vale.
+		Instant ahora = Instant.now().truncatedTo(ChronoUnit.SECONDS);
+		Instant venceEn = ahora.plus(duracion);
 		JwtClaimsSet datos = JwtClaimsSet.builder()
 				.issuer("sga")
 				.issuedAt(ahora)
-				.expiresAt(ahora.plus(duracion))
+				.expiresAt(venceEn)
 				.subject(String.valueOf(usuario.getId()))
 				.claim(CLAVE_ROL, usuario.getRol().name())
 				.claim("nombre", usuario.getNombreCompleto())
 				.build();
 		JwsHeader cabecera = JwsHeader.with(MacAlgorithm.HS256).build();
-		return codificador.encode(JwtEncoderParameters.from(cabecera, datos)).getTokenValue();
+		return new TokenEmitido(codificador.encode(JwtEncoderParameters.from(cabecera, datos)).getTokenValue(), venceEn);
+	}
+
+	/** Un token firmado y el instante en que deja de valer. */
+	public record TokenEmitido(String token, Instant venceEn) {
 	}
 
 }

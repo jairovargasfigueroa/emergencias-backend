@@ -1,5 +1,7 @@
 package com.uem.ambulancias.seguridad.service;
 
+import java.time.Instant;
+
 import com.uem.ambulancias.flota.service.ParamedicoConAsignacion;
 import com.uem.ambulancias.usuarios.domain.RolUsuario;
 import com.uem.ambulancias.usuarios.domain.Usuario;
@@ -45,14 +47,16 @@ public class AutenticacionService {
 	 */
 	public SesionParamedicoActivado activarParamedico(String telefono, String codigo, String pin) {
 		AccesoParamedicoService.Activacion activacion = accesoParamedico.activar(telefono, codigo, pin);
-		return new SesionParamedicoActivado(tokens.paraApp(activacion.identificado().paramedico()),
-				activacion.identificado(), activacion.claveDispositivo());
+		TokenService.TokenEmitido token = tokens.paraApp(activacion.identificado().paramedico());
+		return new SesionParamedicoActivado(token.token(), token.venceEn(), activacion.identificado(),
+				activacion.claveDispositivo());
 	}
 
 	/** App del paramédico: el teléfono dice quién es; el PIN y la clave del teléfono vinculado prueban que es él. */
 	public SesionParamedico ingresarParamedico(String telefono, String pin, String claveDispositivo) {
 		ParamedicoConAsignacion identificado = accesoParamedico.ingresar(telefono, pin, claveDispositivo);
-		return new SesionParamedico(tokens.paraApp(identificado.paramedico()), identificado);
+		TokenService.TokenEmitido token = tokens.paraApp(identificado.paramedico());
+		return new SesionParamedico(token.token(), token.venceEn(), identificado);
 	}
 
 	/**
@@ -63,20 +67,21 @@ public class AutenticacionService {
 	public SesionCiudadano ingresarCiudadano(String idToken, String nombreCompleto, Boolean aceptaPrivacidad) {
 		String telefono = verificadorDeTelefono.telefonoVerificado(idToken);
 		Usuario ciudadano = ciudadanoService.ingresar(telefono, nombreCompleto, aceptaPrivacidad);
-		return new SesionCiudadano(tokens.paraApp(ciudadano), ciudadano);
+		TokenService.TokenEmitido token = tokens.paraApp(ciudadano);
+		return new SesionCiudadano(token.token(), token.venceEn(), ciudadano);
 	}
 
 	public record SesionAdmin(String token, Usuario admin) {
 	}
 
-	public record SesionParamedico(String token, ParamedicoConAsignacion identificado) {
+	public record SesionParamedico(String token, Instant venceEn, ParamedicoConAsignacion identificado) {
 	}
 
-	public record SesionParamedicoActivado(String token, ParamedicoConAsignacion identificado,
+	public record SesionParamedicoActivado(String token, Instant venceEn, ParamedicoConAsignacion identificado,
 			String claveDispositivo) {
 	}
 
-	public record SesionCiudadano(String token, Usuario ciudadano) {
+	public record SesionCiudadano(String token, Instant venceEn, Usuario ciudadano) {
 	}
 
 }
