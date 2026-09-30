@@ -23,6 +23,13 @@ public final class SesionResponse {
 	public record Paramedico(String token, ParamedicoResponse paramedico) {
 	}
 
+	/**
+	 * Lo mismo que al entrar, más la clave del teléfono recién vinculado. Es la única vez que viaja: la app la guarda
+	 * en el almacenamiento seguro del teléfono y el servidor se queda solo con su versión cifrada.
+	 */
+	public record ParamedicoActivado(String token, ParamedicoResponse paramedico, String claveDispositivo) {
+	}
+
 	public record Ciudadano(String token, CiudadanoResponse ciudadano) {
 	}
 

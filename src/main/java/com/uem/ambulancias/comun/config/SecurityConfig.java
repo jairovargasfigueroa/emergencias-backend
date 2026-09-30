@@ -34,7 +34,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * Quién puede llamar a qué. La identidad sale del token, nunca de un dato que el cliente escriba: lo único abierto
- * son las tres puertas de entrada de {@code /auth}.
+ * son las puertas de entrada de {@code /auth}.
  */
 @Configuration
 public class SecurityConfig {

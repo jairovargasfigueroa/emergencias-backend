@@ -1,7 +1,6 @@
 package com.uem.ambulancias.seguridad.service;
 
 import com.uem.ambulancias.flota.service.ParamedicoConAsignacion;
-import com.uem.ambulancias.flota.service.ServicioParamedicoService;
 import com.uem.ambulancias.usuarios.domain.RolUsuario;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
@@ -13,8 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Las tres puertas de entrada al sistema. Cada una termina en un token, y de ahí en adelante ninguna petición vuelve
- * a decir quién es: lo dice el token.
+ * Las puertas de entrada al sistema. Cada una termina en un token, y de ahí en adelante ninguna petición vuelve a
+ * decir quién es: lo dice el token.
  */
 @Service
 @RequiredArgsConstructor
@@ -22,7 +21,7 @@ public class AutenticacionService {
 
 	private final UsuarioRepository usuarios;
 	private final CiudadanoService ciudadanoService;
-	private final ServicioParamedicoService servicioParamedicoService;
+	private final AccesoParamedicoService accesoParamedico;
 	private final PasswordEncoder cifrador;
 	private final TokenService tokens;
 
@@ -37,12 +36,21 @@ public class AutenticacionService {
 	}
 
 	/**
-	 * App del paramédico: se identifica con su teléfono, igual que antes. Todavía no hay clave, así que esto no
-	 * prueba que sea él; lo que sí queda cerrado es que no pueda hacerse pasar por un administrador.
+	 * App del paramédico, primera vez en un teléfono: con el código que le dio la central crea su PIN y deja el
+	 * teléfono vinculado. Sale con la sesión abierta y con la clave del teléfono, que la app guarda.
+	 *
+	 * <p>Esta y la siguiente no abren transacción propia: la del acceso tiene que confirmarse aunque el código o el
+	 * PIN fallen, para que el intento quede contado, y una transacción de afuera la desharía.
 	 */
-	@Transactional(readOnly = true)
-	public SesionParamedico ingresarParamedico(String telefono) {
-		ParamedicoConAsignacion identificado = servicioParamedicoService.identificar(telefono);
+	public SesionParamedicoActivado activarParamedico(String telefono, String codigo, String pin) {
+		AccesoParamedicoService.Activacion activacion = accesoParamedico.activar(telefono, codigo, pin);
+		return new SesionParamedicoActivado(tokens.paraApp(activacion.identificado().paramedico()),
+				activacion.identificado(), activacion.claveDispositivo());
+	}
+
+	/** App del paramédico: el teléfono dice quién es; el PIN y la clave del teléfono vinculado prueban que es él. */
+	public SesionParamedico ingresarParamedico(String telefono, String pin, String claveDispositivo) {
+		ParamedicoConAsignacion identificado = accesoParamedico.ingresar(telefono, pin, claveDispositivo);
 		return new SesionParamedico(tokens.paraApp(identificado.paramedico()), identificado);
 	}
 
@@ -57,6 +65,10 @@ public class AutenticacionService {
 	}
 
 	public record SesionParamedico(String token, ParamedicoConAsignacion identificado) {
+	}
+
+	public record SesionParamedicoActivado(String token, ParamedicoConAsignacion identificado,
+			String claveDispositivo) {
 	}
 
 	public record SesionCiudadano(String token, Usuario ciudadano) {
