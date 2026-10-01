@@ -78,10 +78,17 @@ public class Usuario {
 	private Instant pinBloqueadoEn;
 
 	/**
-	 * Clave cifrada del teléfono vinculado. La genera el servidor al activar y solo la conoce la app de ese teléfono:
-	 * activar otro teléfono la reemplaza, y el anterior queda afuera.
+	 * Clave cifrada del teléfono vinculado. La genera el servidor al activar y solo la conoce la app de ese teléfono.
+	 * Un código de activación nuevo la borra, y el teléfono que la tenía queda afuera.
 	 */
 	private String claveDispositivoCifrada;
+
+	/**
+	 * Desde cuándo valen sus sesiones: un token emitido antes ya no sirve, aunque no haya vencido. Se cierran cuando la
+	 * central le genera un código de activación al paramédico, para que un teléfono perdido quede afuera en el acto y no
+	 * cuando se le termine la sesión, que dura meses. Nulo si nunca se cerraron.
+	 */
+	private Instant sesionesCerradasEn;
 
 	/**
 	 * Cuándo verificó el ciudadano por SMS que el número es suyo. Nulo en las cuentas creadas antes de que se
@@ -94,7 +101,7 @@ public class Usuario {
 
 	/**
 	 * Token de notificaciones push del teléfono donde esta persona usa la app. Es del teléfono, no de la persona: una
-	 * sola cuenta a la vez lo tiene, y al cerrar sesión se borra.
+	 * sola cuenta a la vez lo tiene, y se borra al cerrar sesión o cuando la central le genera un código al paramédico.
 	 */
 	@Column(length = 512)
 	private String tokenPush;
@@ -200,11 +207,21 @@ public class Usuario {
 	/**
 	 * La central genera un código para que el paramédico active su app. Reemplaza al anterior sin usar y empieza
 	 * con los intentos en cero. Llega ya cifrado: la entidad nunca ve el original.
+	 *
+	 * <p>Lo de antes deja de servir en el acto, como la tarjeta que el banco bloquea al emitir otra: el PIN, el
+	 * teléfono vinculado, los avisos que le llegaban a ese teléfono y las sesiones abiertas. Hasta que active la app
+	 * con este código, no entra.
 	 */
-	public void emitirCodigoActivacion(String codigoCifrado, Instant venceEn) {
+	public void emitirCodigoActivacion(String codigoCifrado, Instant venceEn, Instant ahora) {
 		codigoActivacionCifrado = codigoCifrado;
 		codigoActivacionVenceEn = venceEn;
 		codigoActivacionIntentos = 0;
+		pinCifrado = null;
+		pinIntentos = 0;
+		pinBloqueadoEn = null;
+		claveDispositivoCifrada = null;
+		tokenPush = null;
+		sesionesCerradasEn = ahora;
 	}
 
 	/** Hay un código sin usar ni anular. Que siga vigente se pregunta aparte. */
@@ -231,7 +248,7 @@ public class Usuario {
 
 	/**
 	 * Activación con el código de la central: queda el PIN nuevo, desbloqueado, y este teléfono como el único
-	 * vinculado. El que estaba antes, si había, deja de servir. El código ya usado no vuelve a servir.
+	 * vinculado. El código ya usado no vuelve a servir.
 	 */
 	public void activarAcceso(String pinCifrado, String claveDispositivoCifrada) {
 		this.pinCifrado = pinCifrado;
