@@ -1,5 +1,6 @@
 package com.uem.ambulancias.usuarios.repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -75,6 +76,13 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 
 	/** Para que nadie use como pasajero a una persona que registró otro. */
 	boolean existsByIdAndRegistradoPorId(Long id, Long registradoPorId);
+
+	/**
+	 * Desde cuándo valen las sesiones de ese usuario, o vacío si nunca se le cerraron. Se pregunta en cada petición,
+	 * así que trae ese dato y nada más.
+	 */
+	@Query("select u.sesionesCerradasEn from Usuario u where u.id = :id")
+	Optional<Instant> buscarSesionesCerradasEn(@Param("id") Long id);
 
 	/** Lectura con bloqueo pesimista: serializa las operaciones sobre el mismo usuario. */
 	@Lock(LockModeType.PESSIMISTIC_WRITE)

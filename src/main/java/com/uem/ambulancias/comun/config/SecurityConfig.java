@@ -9,6 +9,7 @@ import javax.crypto.spec.SecretKeySpec;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.uem.ambulancias.seguridad.service.SeguridadProperties;
 import com.uem.ambulancias.seguridad.service.TokenService;
+import com.uem.ambulancias.seguridad.service.ValidadorDeSesionVigente;
 import com.uem.ambulancias.usuarios.domain.RolUsuario;
 
 import org.springframework.context.annotation.Bean;
@@ -23,6 +24,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
@@ -116,9 +118,14 @@ public class SecurityConfig {
 		return new NimbusJwtEncoder(new ImmutableSecret<>(claveDeFirma));
 	}
 
+	/** Además de la firma y el vencimiento, que las sesiones de su dueño no se hayan cerrado después de emitirlo. */
 	@Bean
-	JwtDecoder jwtDecoder(SecretKey claveDeFirma) {
-		return NimbusJwtDecoder.withSecretKey(claveDeFirma).macAlgorithm(MacAlgorithm.HS256).build();
+	JwtDecoder jwtDecoder(SecretKey claveDeFirma, ValidadorDeSesionVigente sesionVigente) {
+		NimbusJwtDecoder decodificador = NimbusJwtDecoder.withSecretKey(claveDeFirma)
+				.macAlgorithm(MacAlgorithm.HS256)
+				.build();
+		decodificador.setJwtValidator(JwtValidators.createDefaultWithValidators(sesionVigente));
+		return decodificador;
 	}
 
 	/** Las claves se guardan cifradas y nunca se pueden volver a leer, solo comparar. */
