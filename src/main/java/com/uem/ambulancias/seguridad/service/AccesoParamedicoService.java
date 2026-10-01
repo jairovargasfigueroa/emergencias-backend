@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import com.uem.ambulancias.comun.error.CodigoError;
@@ -44,6 +45,15 @@ public class AccesoParamedicoService {
 
 	/** La forma de las claves que genera el servidor: base64url, 43 caracteres. */
 	private static final Pattern FORMATO_CLAVE_DISPOSITIVO = Pattern.compile("[A-Za-z0-9_-]{1,64}");
+
+	/**
+	 * PIN de los más usados que no caen en otra regla: dibujos sobre el teclado, pares y números conocidos. Los bloques
+	 * repetidos (121212, 123123) se revisan aparte. La app del paramédico tiene la misma lista, para avisar mientras se
+	 * escribe.
+	 */
+	private static final Set<String> PINES_COMUNES = Set.of("112233", "123321", "112211", "159753", "147258",
+			"789456", "123654", "147852", "159357", "258456", "741852", "963852", "102030", "112358", "314159",
+			"246810", "135790");
 
 	private final UsuarioRepository usuarios;
 	private final ServicioParamedicoService servicioParamedico;
@@ -86,7 +96,7 @@ public class AccesoParamedicoService {
 					"Tu código de activación venció. Pídele uno nuevo a la central.");
 		}
 		// Antes que el código: un PIN débil no tiene que gastarle un intento.
-		exigirPinFuerte(pin);
+		exigirPinFuerte(pin, paramedico.getTelefono());
 		if (!cifrador.matches(normalizarCodigo(codigo), paramedico.getCodigoActivacionCifrado())) {
 			int restantes = paramedico.registrarCodigoFallido();
 			throw new IntentoFallidoException(CodigoError.CODIGO_ACTIVACION_INVALIDO, restantes == 0
@@ -166,8 +176,12 @@ public class AccesoParamedicoService {
 				.orElseThrow(() -> new NoEncontradoException("No hay un paramédico activo con ese teléfono."));
 	}
 
-	/** Todos los dígitos iguales o seguidos es lo primero que prueba quien agarra un teléfono ajeno. */
-	private static void exigirPinFuerte(String pin) {
+	/**
+	 * Lo primero que prueba quien agarra un teléfono ajeno: todos los dígitos iguales o seguidos, los PIN más usados y
+	 * los números del propio teléfono, que sus compañeros conocen. Nada más: reglas de más solo hacen que se lo anote
+	 * en un papel. La app aplica las mismas, para avisar mientras se escribe.
+	 */
+	private static void exigirPinFuerte(String pin, String telefono) {
 		boolean iguales = true;
 		boolean ascendentes = true;
 		boolean descendentes = true;
@@ -181,6 +195,18 @@ public class AccesoParamedicoService {
 			throw new ConflictoException(CodigoError.PIN_DEBIL,
 					"Ese PIN es muy fácil de adivinar. No uses todos los dígitos iguales ni seguidos, como 111111 o 123456.");
 		}
+		if (esBloqueRepetido(pin, 2) || esBloqueRepetido(pin, 3) || PINES_COMUNES.contains(pin)) {
+			throw new ConflictoException(CodigoError.PIN_DEBIL, "Ese PIN es de los más usados. Elige otro.");
+		}
+		if (telefono != null && telefono.replaceAll("[^0-9]", "").contains(pin)) {
+			throw new ConflictoException(CodigoError.PIN_DEBIL,
+					"No uses números de tu teléfono en el PIN: tus compañeros lo conocen.");
+		}
+	}
+
+	/** 121212 es el bloque "12" tres veces; 123123, el bloque "123" dos veces. */
+	private static boolean esBloqueRepetido(String pin, int largoDelBloque) {
+		return pin.substring(0, largoDelBloque).repeat(pin.length() / largoDelBloque).equals(pin);
 	}
 
 	private static IntentoFallidoException pinBloqueado() {
