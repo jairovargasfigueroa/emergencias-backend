@@ -4,8 +4,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * Parámetros de los tokens ({@code sga.seguridad}). El secreto firma y verifica: si cambia, todas las sesiones
- * abiertas dejan de valer.
+ * Parámetros de los tokens y del acceso ({@code sga.seguridad}). El secreto firma y verifica: si cambia, todas las
+ * sesiones abiertas dejan de valer.
  */
 @ConfigurationProperties(prefix = "sga.seguridad")
 public record SeguridadProperties(
@@ -14,5 +14,10 @@ public record SeguridadProperties(
 		/** Cuánto dura la sesión del panel. Corta, porque se usa desde una computadora compartida. */
 		@DefaultValue("12") int horasPanel,
 		/** Cuánto dura la sesión de las apps. Larga: pedirle credenciales a alguien en una emergencia no es opción. */
-		@DefaultValue("180") int diasApp) {
+		@DefaultValue("180") int diasApp,
+		/**
+		 * Cuánto sirve el código de activación de un paramédico. Alcanza para entregarlo en el cambio de turno y
+		 * que lo use ese mismo día; si se pierde, la central genera otro.
+		 */
+		@DefaultValue("24") int horasCodigoActivacion) {
 }

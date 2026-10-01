@@ -1,5 +1,7 @@
 package com.uem.ambulancias.usuarios.domain;
 
+import java.time.Instant;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -24,6 +26,12 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Usuario {
 
+	/**
+	 * Intentos equivocados que se toleran, del código de activación o del PIN, antes de que haga falta un código
+	 * nuevo de la central.
+	 */
+	public static final int INTENTOS_PERMITIDOS = 5;
+
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
@@ -45,10 +53,56 @@ public class Usuario {
 	@Column(unique = true)
 	private String correo;
 
-	/** Clave cifrada del administrador. Los demás roles entran sin clave por ahora. */
+	/** Clave cifrada del administrador: con ella entra al panel. Los demás roles no la tienen. */
 	private String clave;
 
-	/** Token de notificaciones push del teléfono del paramédico. */
+	/**
+	 * Código de activación del paramédico, cifrado. La central se lo entrega en persona y sirve una sola vez: para
+	 * crear su PIN y vincular su teléfono. Nulo si no tiene uno pendiente.
+	 */
+	private String codigoActivacionCifrado;
+
+	/** Hasta cuándo sirve el código de activación. */
+	private Instant codigoActivacionVenceEn;
+
+	/** Códigos equivocados desde que se generó el último. */
+	private Integer codigoActivacionIntentos;
+
+	/** PIN cifrado del paramédico: la app se lo pide para entrar y al iniciar cada turno. */
+	private String pinCifrado;
+
+	/** PINs equivocados seguidos. Un acierto los vuelve a cero. */
+	private Integer pinIntentos;
+
+	/** Cuándo se bloqueó el PIN por intentos fallidos. Nulo si no está bloqueado. */
+	private Instant pinBloqueadoEn;
+
+	/**
+	 * Clave cifrada del teléfono vinculado. La genera el servidor al activar y solo la conoce la app de ese teléfono.
+	 * Un código de activación nuevo la borra, y el teléfono que la tenía queda afuera.
+	 */
+	private String claveDispositivoCifrada;
+
+	/**
+	 * Desde cuándo valen sus sesiones: un token emitido antes ya no sirve, aunque no haya vencido. Se cierran cuando la
+	 * central le genera un código de activación al paramédico, para que un teléfono perdido quede afuera en el acto y no
+	 * cuando se le termine la sesión, que dura meses. Nulo si nunca se cerraron.
+	 */
+	private Instant sesionesCerradasEn;
+
+	/**
+	 * Cuándo verificó el ciudadano por SMS que el número es suyo. Nulo en las cuentas creadas antes de que se
+	 * verificara: sin esto la sesión no se renueva.
+	 */
+	private Instant telefonoVerificadoEn;
+
+	/** Cuándo aceptó el ciudadano el aviso de privacidad, al crear su cuenta. */
+	private Instant privacidadAceptadaEn;
+
+	/**
+	 * Token de notificaciones push del teléfono donde esta persona usa la app. Es del teléfono, no de la persona: una
+	 * sola cuenta a la vez lo tiene, y se borra al cerrar sesión o cuando la central le genera un código al paramédico.
+	 */
 	@Column(length = 512)
 	private String tokenPush;
 
@@ -74,9 +128,15 @@ public class Usuario {
 		return usuario;
 	}
 
-	/** Registro ligero desde la app: nace activo con rol CIUDADANO. */
-	public static Usuario registrarCiudadano(String nombreCompleto, String telefono) {
-		return nuevo(nombreCompleto, telefono, RolUsuario.CIUDADANO);
+	/**
+	 * Registro desde la app, con el número ya verificado por SMS y el aviso de privacidad aceptado: nace activo con
+	 * rol CIUDADANO.
+	 */
+	public static Usuario registrarCiudadano(String nombreCompleto, String telefono, Instant ahora) {
+		Usuario usuario = nuevo(nombreCompleto, telefono, RolUsuario.CIUDADANO);
+		usuario.telefonoVerificadoEn = ahora;
+		usuario.privacidadAceptadaEn = ahora;
+		return usuario;
 	}
 
 	/**
@@ -114,8 +174,8 @@ public class Usuario {
 	}
 
 	/**
-	 * Corrige lo que se cargó mal. El teléfono no es un dato de contacto cualquiera: hoy es la credencial con la
-	 * que el paramédico entra a su app, así que cambiarlo cambia quién puede iniciar sesión como esta persona.
+	 * Corrige lo que se cargó mal. El teléfono no es un dato de contacto cualquiera: es con lo que el paramédico
+	 * dice quién es al activar su app y al entrar, así que cambiarlo cambia el número con el que tiene que hacerlo.
 	 */
 	public void corregirDatos(String nombreCompleto, String telefono) {
 		this.nombreCompleto = nombreCompleto;
@@ -130,6 +190,109 @@ public class Usuario {
 	/** Un dispositivo nuevo reemplaza al anterior. */
 	public void registrarDispositivo(String tokenPush) {
 		this.tokenPush = tokenPush;
+	}
+
+	/** Al cerrar sesión, ese teléfono deja de recibir sus avisos. */
+	public void quitarTokenPush() {
+		tokenPush = null;
+	}
+
+	/** Queda la primera vez que entra con el número verificado. Las cuentas de antes no la tenían. */
+	public void marcarTelefonoVerificado(Instant ahora) {
+		if (telefonoVerificadoEn == null) {
+			telefonoVerificadoEn = ahora;
+		}
+	}
+
+	/**
+	 * La central genera un código para que el paramédico active su app. Reemplaza al anterior sin usar y empieza
+	 * con los intentos en cero. Llega ya cifrado: la entidad nunca ve el original.
+	 *
+	 * <p>Lo de antes deja de servir en el acto, como la tarjeta que el banco bloquea al emitir otra: el PIN, el
+	 * teléfono vinculado, los avisos que le llegaban a ese teléfono y las sesiones abiertas. Hasta que active la app
+	 * con este código, no entra.
+	 */
+	public void emitirCodigoActivacion(String codigoCifrado, Instant venceEn, Instant ahora) {
+		codigoActivacionCifrado = codigoCifrado;
+		codigoActivacionVenceEn = venceEn;
+		codigoActivacionIntentos = 0;
+		pinCifrado = null;
+		pinIntentos = 0;
+		pinBloqueadoEn = null;
+		claveDispositivoCifrada = null;
+		tokenPush = null;
+		sesionesCerradasEn = ahora;
+	}
+
+	/** Hay un código sin usar ni anular. Que siga vigente se pregunta aparte. */
+	public boolean tieneCodigoActivacion() {
+		return codigoActivacionCifrado != null;
+	}
+
+	public boolean codigoActivacionVencido(Instant ahora) {
+		return codigoActivacionVenceEn == null || !ahora.isBefore(codigoActivacionVenceEn);
+	}
+
+	/**
+	 * Cuenta un código equivocado y devuelve cuántos intentos le quedan. Con el último el código deja de servir:
+	 * probar códigos al azar no puede ser una forma de entrar.
+	 */
+	public int registrarCodigoFallido() {
+		codigoActivacionIntentos = contar(codigoActivacionIntentos) + 1;
+		int restantes = Math.max(0, INTENTOS_PERMITIDOS - codigoActivacionIntentos);
+		if (restantes == 0) {
+			anularCodigoActivacion();
+		}
+		return restantes;
+	}
+
+	/**
+	 * Activación con el código de la central: queda el PIN nuevo, desbloqueado, y este teléfono como el único
+	 * vinculado. El código ya usado no vuelve a servir.
+	 */
+	public void activarAcceso(String pinCifrado, String claveDispositivoCifrada) {
+		this.pinCifrado = pinCifrado;
+		this.claveDispositivoCifrada = claveDispositivoCifrada;
+		pinIntentos = 0;
+		pinBloqueadoEn = null;
+		anularCodigoActivacion();
+	}
+
+	/** Tiene PIN y un teléfono vinculado: ya puede entrar a su app. */
+	public boolean isAccesoActivado() {
+		return pinCifrado != null && claveDispositivoCifrada != null;
+	}
+
+	public boolean isPinBloqueado() {
+		return pinBloqueadoEn != null;
+	}
+
+	/**
+	 * Cuenta un PIN equivocado y devuelve cuántos intentos le quedan. Con el último el PIN se bloquea hasta que la
+	 * central le genere un código nuevo: seis dígitos se adivinan si se deja probar sin límite.
+	 */
+	public int registrarPinFallido(Instant ahora) {
+		pinIntentos = contar(pinIntentos) + 1;
+		int restantes = Math.max(0, INTENTOS_PERMITIDOS - pinIntentos);
+		if (restantes == 0) {
+			pinBloqueadoEn = ahora;
+		}
+		return restantes;
+	}
+
+	/** Un PIN correcto borra los errores anteriores: el límite es de intentos seguidos. */
+	public void registrarPinCorrecto() {
+		pinIntentos = 0;
+	}
+
+	private void anularCodigoActivacion() {
+		codigoActivacionCifrado = null;
+		codigoActivacionVenceEn = null;
+	}
+
+	/** Las columnas de intentos llegan nulas en las filas que ya existían. */
+	private static int contar(Integer intentos) {
+		return intentos == null ? 0 : intentos;
 	}
 
 }

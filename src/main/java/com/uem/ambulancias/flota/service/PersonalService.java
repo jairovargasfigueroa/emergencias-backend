@@ -37,9 +37,9 @@ public class PersonalService {
 	private final ApplicationEventPublisher eventos;
 
 	/**
-	 * El teléfono es hoy la única credencial del paramédico: con eso y nada más entra a su app. Por eso no puede
-	 * repetirse entre paramédicos activos — dos con el mismo número serían la misma cuenta, y el ingreso le
-	 * entregaría la sesión a uno de los dos sin forma de saber a cuál.
+	 * El teléfono es con lo que el paramédico dice quién es al activar su app y al entrar. Por eso no puede
+	 * repetirse entre paramédicos activos — dos con el mismo número serían la misma cuenta, y el ingreso no sabría
+	 * de cuál de los dos es el código o el PIN que le escriben.
 	 */
 	@Transactional
 	public ParamedicoConAsignacion registrarParamedico(String nombreCompleto, String telefono) {

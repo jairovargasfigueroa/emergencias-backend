@@ -9,6 +9,7 @@ import javax.crypto.spec.SecretKeySpec;
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.uem.ambulancias.seguridad.service.SeguridadProperties;
 import com.uem.ambulancias.seguridad.service.TokenService;
+import com.uem.ambulancias.seguridad.service.ValidadorDeSesionVigente;
 import com.uem.ambulancias.usuarios.domain.RolUsuario;
 
 import org.springframework.context.annotation.Bean;
@@ -23,6 +24,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
@@ -34,7 +36,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * Quién puede llamar a qué. La identidad sale del token, nunca de un dato que el cliente escriba: lo único abierto
- * son las tres puertas de entrada de {@code /auth}.
+ * son las puertas de entrada de {@code /auth}.
  */
 @Configuration
 public class SecurityConfig {
@@ -54,6 +56,8 @@ public class SecurityConfig {
 						.requestMatchers("/auth/**").permitAll()
 						// Sin esto, un 404 o un 500 se reenvían a /error, que queda denegado, y el cliente ve un 403 que engaña.
 						.requestMatchers("/error").permitAll()
+						// Renovar la sesión de una app: se llega con el token, por eso no está entre las puertas de /auth.
+						.requestMatchers(HttpMethod.POST, "/sesion/renovacion").hasAnyRole(CIUDADANO, PARAMEDICO)
 						// Lo que usa la app del paramédico. Va primero porque /paramedicos/** es del administrador.
 						.requestMatchers("/paramedicos/actual/**").hasRole(PARAMEDICO)
 						.requestMatchers("/atenciones/**").hasRole(PARAMEDICO)
@@ -114,9 +118,14 @@ public class SecurityConfig {
 		return new NimbusJwtEncoder(new ImmutableSecret<>(claveDeFirma));
 	}
 
+	/** Además de la firma y el vencimiento, que las sesiones de su dueño no se hayan cerrado después de emitirlo. */
 	@Bean
-	JwtDecoder jwtDecoder(SecretKey claveDeFirma) {
-		return NimbusJwtDecoder.withSecretKey(claveDeFirma).macAlgorithm(MacAlgorithm.HS256).build();
+	JwtDecoder jwtDecoder(SecretKey claveDeFirma, ValidadorDeSesionVigente sesionVigente) {
+		NimbusJwtDecoder decodificador = NimbusJwtDecoder.withSecretKey(claveDeFirma)
+				.macAlgorithm(MacAlgorithm.HS256)
+				.build();
+		decodificador.setJwtValidator(JwtValidators.createDefaultWithValidators(sesionVigente));
+		return decodificador;
 	}
 
 	/** Las claves se guardan cifradas y nunca se pueden volver a leer, solo comparar. */

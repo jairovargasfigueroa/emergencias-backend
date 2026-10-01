@@ -23,22 +23,32 @@ public class ServicioParamedicoService {
 	private final UsuarioRepository usuarios;
 	private final AsignacionRepository asignaciones;
 
-	/** Identificación provisional por teléfono, mientras no exista autenticación. Solo paramédicos activos. */
-	public ParamedicoConAsignacion identificar(String telefono) {
-		Usuario paramedico = usuarios
-				.findFirstByTelefonoAndRolAndActivoTrueAndRegistradoPorIsNullOrderByIdAsc(telefono.trim(), RolUsuario.PARAMEDICO)
-				.orElseThrow(() -> new NoEncontradoException("No hay un paramédico activo con ese teléfono."));
-		return conAsignacionVigente(paramedico);
-	}
-
 	public ParamedicoConAsignacion servicioActual(Long paramedicoId) {
 		return conAsignacionVigente(buscarParamedicoActivo(paramedicoId));
 	}
 
-	/** PB-03 R3: token para recibir push de incidentes nuevos con la app cerrada. */
+	/**
+	 * PB-03 R3: token para recibir push de incidentes nuevos con la app cerrada. Si ese teléfono estaba a nombre de
+	 * otra cuenta, deja de estarlo en la misma transacción: a quien entregó el teléfono no le siguen llegando ahí los
+	 * avisos, y al que lo usa ahora no le llegan los de otro.
+	 */
 	@Transactional
 	public void registrarDispositivo(Long paramedicoId, String tokenPush) {
-		buscarParamedicoActivo(paramedicoId).registrarDispositivo(tokenPush.trim());
+		Usuario paramedico = buscarParamedicoActivo(paramedicoId);
+		String token = tokenPush.trim();
+		usuarios.liberarTokenPush(token, paramedicoId);
+		paramedico.registrarDispositivo(token);
+	}
+
+	/**
+	 * Al cerrar sesión, el teléfono deja de recibir sus avisos: quien lo use después no tiene por qué ver sus
+	 * emergencias. Vale aunque esté dado de baja, porque salir de la app siempre tiene que poder hacerse.
+	 */
+	@Transactional
+	public void quitarDispositivo(Long paramedicoId) {
+		usuarios.findByIdAndRol(paramedicoId, RolUsuario.PARAMEDICO)
+				.orElseThrow(() -> new NoEncontradoException("No existe el paramédico " + paramedicoId + "."))
+				.quitarTokenPush();
 	}
 
 	/** PB-04 R6: la ambulancia es la de la asignación vigente del paramédico, nunca viaja en la petición. */
