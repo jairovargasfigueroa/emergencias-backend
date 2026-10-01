@@ -16,7 +16,8 @@ import org.springframework.stereotype.Service;
 
 /**
  * Firma los tokens con los que los clientes llaman a la API. Dentro viajan quién es ({@code sub}) y su rol, que es
- * todo lo que la API necesita para decidir: nunca hay que volver a preguntarle a la base quién dice ser.
+ * todo lo que la API necesita para decidir: nunca hay que volver a preguntarle a la base quién dice ser. Lo único que
+ * se le pregunta en cada petición es si sus sesiones se cerraron después ({@link ValidadorDeSesionVigente}).
  */
 @Service
 @RequiredArgsConstructor

@@ -82,7 +82,8 @@ public class PersonalController {
 
 	/**
 	 * El código con el que el paramédico activa su app: la primera vez, en un teléfono nuevo o con el PIN
-	 * bloqueado. La central se lo entrega en persona, como el que recibe su credencial al entrar a trabajar.
+	 * bloqueado. La central se lo entrega en persona, como el que recibe su credencial al entrar a trabajar. Al
+	 * generarlo, su PIN y su teléfono dejan de servir y su app se cierra; con el turno abierto no se puede.
 	 */
 	@PostMapping("/{id}/activacion")
 	@ResponseStatus(HttpStatus.CREATED)

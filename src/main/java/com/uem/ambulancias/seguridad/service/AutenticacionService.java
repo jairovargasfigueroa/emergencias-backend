@@ -73,9 +73,9 @@ public class AutenticacionService {
 
 	/**
 	 * Renueva la sesión de una app sin volver a pedir credenciales, mientras siga valiendo lo que la abrió: para el
-	 * ciudadano, su número verificado; para el paramédico, el teléfono vinculado. Así un teléfono reemplazado o una
-	 * cuenta sin verificar se quedan afuera cuando se les termina el token, sin tener que llevar una lista de tokens
-	 * anulados. El nuevo dura lo mismo que al entrar.
+	 * ciudadano, su número verificado; para el paramédico, el teléfono vinculado. Así una cuenta sin verificar se queda
+	 * afuera cuando se le termina el token. Un teléfono que ya no es el del paramédico ni llega acá: su sesión se cerró
+	 * cuando la central le generó el código. El nuevo dura lo mismo que al entrar.
 	 */
 	@Transactional(readOnly = true)
 	public TokenService.TokenEmitido renovarSesion(Long usuarioId, String claveDispositivo) {

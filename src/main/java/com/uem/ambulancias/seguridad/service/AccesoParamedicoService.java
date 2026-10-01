@@ -13,6 +13,7 @@ import com.uem.ambulancias.comun.error.ConflictoException;
 import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.flota.service.ParamedicoConAsignacion;
 import com.uem.ambulancias.flota.service.ServicioParamedicoService;
+import com.uem.ambulancias.flota.service.TurnoService;
 import com.uem.ambulancias.usuarios.domain.RolUsuario;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
@@ -57,13 +58,17 @@ public class AccesoParamedicoService {
 
 	private final UsuarioRepository usuarios;
 	private final ServicioParamedicoService servicioParamedico;
+	private final TurnoService turnos;
 	private final PasswordEncoder cifrador;
 	private final SeguridadProperties propiedades;
 	private final SecureRandom azar = new SecureRandom();
 
 	/**
-	 * Código para que el paramédico active su app: la primera vez, cuando cambia de teléfono o cuando se le bloqueó
-	 * el PIN. Reemplaza al anterior sin usar. Se muestra una sola vez; acá solo queda cifrado.
+	 * Código para que el paramédico active su app: la primera vez, cuando cambia de teléfono, cuando olvidó su PIN o
+	 * se le bloqueó. Reemplaza al anterior sin usar y anula lo de antes —su PIN, su teléfono y sus sesiones—, para que
+	 * un teléfono perdido quede afuera en el acto. Por eso no se genera con el turno abierto: su app se cerraría y su
+	 * unidad seguiría figurando con él adentro, igual que si se lo desactivara. Se muestra una sola vez; acá solo queda
+	 * cifrado.
 	 */
 	@Transactional
 	public CodigoDeActivacion generarCodigoActivacion(Long paramedicoId) {
@@ -73,9 +78,14 @@ public class AccesoParamedicoService {
 			throw new ConflictoException(CodigoError.PARAMEDICO_INACTIVO,
 					paramedico.getNombreCompleto() + " está desactivado. Actívalo antes de generarle un código.");
 		}
+		if (turnos.turnoAbierto(paramedicoId).isPresent()) {
+			throw new ConflictoException(CodigoError.PARAMEDICO_EN_TURNO,
+					paramedico.getNombreCompleto() + " está en turno. Ciérrale el turno antes de generarle un código.");
+		}
 		String codigo = codigoAleatorio();
-		Instant venceEn = Instant.now().plus(Duration.ofHours(propiedades.horasCodigoActivacion()));
-		paramedico.emitirCodigoActivacion(cifrador.encode(codigo), venceEn);
+		Instant ahora = Instant.now();
+		Instant venceEn = ahora.plus(Duration.ofHours(propiedades.horasCodigoActivacion()));
+		paramedico.emitirCodigoActivacion(cifrador.encode(codigo), venceEn, ahora);
 		return new CodigoDeActivacion(codigo.substring(0, 4) + "-" + codigo.substring(4), venceEn);
 	}
 
