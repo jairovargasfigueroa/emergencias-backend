@@ -88,6 +88,12 @@ sga.evidencias.mib-video=20
 # Minutos que sirve la URL con la que la app sube el archivo, y la URL con la que se lee (nunca menos de 5).
 sga.evidencias.minutos-subida=15
 sga.evidencias.minutos-lectura=10
+# Bucket de S3 donde se guardan los archivos, privado. Vacio, no se pueden adjuntar archivos y el servidor arranca igual.
+# Las credenciales no van aca: en el servidor las da el rol de la instancia EC2, y en local el entorno de AWS.
+# El rol necesita s3:PutObject, s3:GetObject y s3:DeleteObject sobre alertas/* del bucket.
+sga.evidencias.s3.bucket=
+# Region del bucket. Obligatoria si hay bucket. Ejemplo: us-east-1
+sga.evidencias.s3.region=
 
 # Servicio de analisis de evidencias (emergencias-mia). Apagado, no corre ningun worker y los analisis esperan en la cola.
 sga.ia.habilitado=false
