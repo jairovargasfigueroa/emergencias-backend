@@ -56,8 +56,10 @@ public class ClienteIaHttp implements ServicioDeAnalisis {
 	private final RestClient rest;
 
 	public ClienteIaHttp(IaProperties config) {
-		// Sin redirecciones: el servicio no las usa, y seguir una mandaría el token a otro lado.
+		// Sin redirecciones: el servicio no las usa, y seguir una mandaría el token a otro lado. HTTP/1.1 porque
+		// uvicorn no habla HTTP/2: el cliente de Java pediría pasar a h2c y el servicio deja un aviso por cada pedido.
 		HttpClient http = HttpClient.newBuilder()
+				.version(HttpClient.Version.HTTP_1_1)
 				.connectTimeout(config.conexion())
 				.followRedirects(HttpClient.Redirect.NEVER)
 				.build();
