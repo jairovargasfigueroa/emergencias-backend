@@ -1,8 +1,11 @@
 package com.uem.ambulancias.evidencias.service;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import com.uem.ambulancias.comun.error.NoEncontradoException;
 import com.uem.ambulancias.emergencias.domain.Incidente;
@@ -21,6 +24,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 
 /**
  * Las dos puntas de un resumen, cada una en su transacción corta: juntar las fuentes antes de llamar al servicio y
@@ -38,15 +44,48 @@ public class ResumenIncidenteService {
 	private final ResumenIncidenteRepository resumenes;
 	private final EvidenciaRepository evidencias;
 	private final ApplicationEventPublisher eventos;
+	private final JsonMapper json;
 
-	/** Lo que ve el personal: la versión vigente, si hay, y las evidencias subidas. 404 si el incidente no existe. */
+	/**
+	 * Lo que ve el personal: la versión vigente, si hay, las evidencias subidas y la transcripción y la línea de tiempo
+	 * de las que ya tienen análisis. 404 si el incidente no existe.
+	 */
 	@Transactional(readOnly = true)
 	public ResumenConEvidencias consultar(Long incidenteId) {
 		if (!incidentes.existsById(incidenteId)) {
 			throw new NoEncontradoException("No existe el incidente " + incidenteId + ".");
 		}
+		Map<Long, TranscripcionDeEvidencia> transcripciones = analisis.buscarVigentesPorIncidente(incidenteId).stream()
+				.collect(Collectors.toMap(uno -> uno.getEvidencia().getId(), this::transcripcionDe));
 		return new ResumenConEvidencias(resumenes.findFirstByIncidenteIdOrderByVersionDesc(incidenteId).orElse(null),
-				evidencias.buscarSubidasPorIncidente(incidenteId));
+				evidencias.buscarSubidasPorIncidente(incidenteId), transcripciones);
+	}
+
+	/**
+	 * Saca {@code transcript} y {@code timeline} del JSON guardado. Un texto vacío o una lista sin momentos cuentan
+	 * como ausentes. Si el JSON no se puede leer, la evidencia se muestra igual, sin esas partes.
+	 */
+	private TranscripcionDeEvidencia transcripcionDe(AnalisisEvidencia uno) {
+		JsonNode raiz;
+		try {
+			raiz = json.readTree(uno.getAnalisis());
+		} catch (JacksonException e) {
+			log.warn("No se pudo leer el análisis de la evidencia {}: se muestra sin transcripción.",
+					uno.getEvidencia().getId());
+			return TranscripcionDeEvidencia.VACIA;
+		}
+		JsonNode transcript = raiz.path("transcript");
+		String transcripcion = transcript.isString() && !transcript.asString().isBlank() ? transcript.asString()
+				: null;
+		List<TranscripcionDeEvidencia.Momento> momentos = new ArrayList<>();
+		for (JsonNode momento : raiz.path("timeline")) {
+			JsonNode segundo = momento.path("startSecond");
+			JsonNode texto = momento.path("text");
+			if (segundo.isNumber() && texto.isString() && !texto.asString().isBlank()) {
+				momentos.add(new TranscripcionDeEvidencia.Momento(segundo.asDouble(), texto.asString()));
+			}
+		}
+		return new TranscripcionDeEvidencia(transcripcion, momentos.isEmpty() ? null : List.copyOf(momentos));
 	}
 
 	/**
