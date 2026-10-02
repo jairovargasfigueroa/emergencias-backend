@@ -52,7 +52,8 @@ services:
       SGA_EVIDENCIAS_S3_BUCKET: ${S3_BUCKET_EVIDENCIAS}
       SGA_EVIDENCIAS_S3_REGION: ${S3_REGION_EVIDENCIAS}
       # Servicio de análisis por la red interna. El token es el mismo que recibe mia.
-      SGA_IA_HABILITADO: "true"
+      # Apagado mientras no se ponga IA_HABILITADA=true: encendido sin token, el backend no arranca.
+      SGA_IA_HABILITADO: ${IA_HABILITADA:-false}
       SGA_IA_URL: http://mia:8000
       SGA_IA_TOKEN: ${AI_SERVICE_TOKEN}
     volumes:
