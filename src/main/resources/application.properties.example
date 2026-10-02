@@ -89,6 +89,16 @@ sga.evidencias.mib-video=20
 sga.evidencias.minutos-subida=15
 sga.evidencias.minutos-lectura=10
 
+# Servicio de analisis de evidencias (emergencias-mia). Apagado, no corre ningun worker y los analisis esperan en la cola.
+sga.ia.habilitado=false
+# URL base del servicio, sin /v1. Ejemplo: http://127.0.0.1:8000
+sga.ia.url=
+# El mismo AI_SERVICE_TOKEN que tiene configurado el servicio. Nunca se versiona.
+sga.ia.token=
+# Segundos para conectar y para esperar la respuesta. La lectura tiene que pasar el peor caso del servicio (~225 s).
+sga.ia.segundos-conexion=10
+sga.ia.segundos-lectura=240
+
 # Cola de pedidos al servicio de analisis. Todos tienen valor por defecto.
 # Intentos por trabajo, y la espera entre intentos en segundos (se duplica en cada uno hasta la maxima).
 sga.ia.trabajos.maximo-intentos=5
