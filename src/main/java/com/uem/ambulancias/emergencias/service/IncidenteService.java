@@ -71,6 +71,10 @@ public class IncidenteService {
 
 		// Un incidente recién creado todavía no tiene unidad en camino: hay que avisar a las disponibles.
 		eventos.publishEvent(new IncidenteActualizado(incidente.getId(), nuevo));
+		if (!nuevo) {
+			// Una alerta más puede cambiar el resumen que arma la IA con las evidencias del incidente.
+			eventos.publishEvent(new IncidenteConDatosNuevos(incidente.getId()));
+		}
 		return incidente;
 	}
 
@@ -109,6 +113,7 @@ public class IncidenteService {
 		incidentes.save(incidente);
 
 		eventos.publishEvent(new IncidenteActualizado(incidenteId, false));
+		eventos.publishEvent(new IncidenteConDatosNuevos(incidenteId));
 		return alerta;
 	}
 
