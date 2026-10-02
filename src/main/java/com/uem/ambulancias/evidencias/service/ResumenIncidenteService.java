@@ -12,6 +12,7 @@ import com.uem.ambulancias.evidencias.domain.AnalisisEvidencia;
 import com.uem.ambulancias.evidencias.domain.ResumenIncidente;
 import com.uem.ambulancias.evidencias.domain.TrabajoIa;
 import com.uem.ambulancias.evidencias.repository.AnalisisEvidenciaRepository;
+import com.uem.ambulancias.evidencias.repository.EvidenciaRepository;
 import com.uem.ambulancias.evidencias.repository.ResumenIncidenteRepository;
 import com.uem.ambulancias.evidencias.repository.TrabajoIaRepository;
 
@@ -35,7 +36,18 @@ public class ResumenIncidenteService {
 	private final AlertaRepository alertas;
 	private final AnalisisEvidenciaRepository analisis;
 	private final ResumenIncidenteRepository resumenes;
+	private final EvidenciaRepository evidencias;
 	private final ApplicationEventPublisher eventos;
+
+	/** Lo que ve el personal: la versión vigente, si hay, y las evidencias subidas. 404 si el incidente no existe. */
+	@Transactional(readOnly = true)
+	public ResumenConEvidencias consultar(Long incidenteId) {
+		if (!incidentes.existsById(incidenteId)) {
+			throw new NoEncontradoException("No existe el incidente " + incidenteId + ".");
+		}
+		return new ResumenConEvidencias(resumenes.findFirstByIncidenteIdOrderByVersionDesc(incidenteId).orElse(null),
+				evidencias.buscarSubidasPorIncidente(incidenteId));
+	}
 
 	/**
 	 * Todas las alertas del incidente y todos sus análisis vigentes, con el JSON de cada análisis tal como se guardó.
@@ -57,12 +69,12 @@ public class ResumenIncidenteService {
 				.map(alerta -> new PedidoDeResumen.AlertaDelIncidente(alerta.getId(), alerta.getFechaHora(),
 						alerta.getDescripcion(), alerta.getCantidadAfectados(), alerta.getEmisorEsPaciente()))
 				.toList();
-		List<PedidoDeResumen.EvidenciaAnalizada> evidencias = vigentes.stream()
+		List<PedidoDeResumen.EvidenciaAnalizada> analizadas = vigentes.stream()
 				.map(uno -> new PedidoDeResumen.EvidenciaAnalizada(uno.getEvidencia().getId(),
 						uno.getEvidencia().getAlerta().getId(), uno.getModalidad(), uno.getEvidencia().getSubidaEn(),
 						uno.getAnalisis()))
 				.toList();
-		return Optional.of(new PedidoDeResumen(incidenteId, alertasDelIncidente, evidencias));
+		return Optional.of(new PedidoDeResumen(incidenteId, alertasDelIncidente, analizadas));
 	}
 
 	/**

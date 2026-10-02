@@ -1,5 +1,6 @@
 package com.uem.ambulancias.evidencias.repository;
 
+import java.util.List;
 import java.util.Optional;
 
 import com.uem.ambulancias.evidencias.domain.Evidencia;
@@ -23,6 +24,14 @@ public interface EvidenciaRepository extends JpaRepository<Evidencia, Long> {
 			where e.id = :id
 			""")
 	Optional<Evidencia> buscarConAlerta(@Param("id") Long id);
+
+	/** Las evidencias del incidente cuyo archivo llegó al almacén, en el orden en que llegaron. */
+	@Query("""
+			select e from Evidencia e join fetch e.alerta a
+			where a.incidente.id = :incidenteId and e.estado in ('SUBIDA', 'ANALIZADA', 'FALLIDA')
+			order by e.subidaEn, e.id
+			""")
+	List<Evidencia> buscarSubidasPorIncidente(@Param("incidenteId") Long incidenteId);
 
 	/** Las que cuentan para el máximo por alerta: todas menos las descartadas. */
 	@Query("select count(e) from Evidencia e where e.alerta.id = :alertaId and e.estado <> 'DESCARTADA'")

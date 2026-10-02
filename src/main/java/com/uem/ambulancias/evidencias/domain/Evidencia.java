@@ -124,6 +124,12 @@ public class Evidencia {
 		return Base64.getEncoder().encodeToString(HexFormat.of().parseHex(sha256));
 	}
 
+	/** Si el archivo está en el almacén y se puede leer. */
+	public boolean tieneArchivo() {
+		return estado == EstadoEvidencia.SUBIDA || estado == EstadoEvidencia.ANALIZADA
+				|| estado == EstadoEvidencia.FALLIDA;
+	}
+
 	public boolean isPendienteDeSubida() {
 		return estado == EstadoEvidencia.PENDIENTE_SUBIDA;
 	}
