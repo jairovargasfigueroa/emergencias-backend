@@ -72,7 +72,8 @@ public class SecurityConfig {
 						.requestMatchers("/ciudadanos/actual/**").hasRole(CIUDADANO)
 						.requestMatchers("/alertas/**").hasRole(CIUDADANO)
 						// Las evidencias las sube el ciudadano dueño de la alerta.
-						.requestMatchers(HttpMethod.POST, "/evidencias/*/url-subida").hasRole(CIUDADANO)
+						.requestMatchers(HttpMethod.POST, "/evidencias/*/url-subida", "/evidencias/*/confirmacion")
+						.hasRole(CIUDADANO)
 						.requestMatchers("/personas/**").hasRole(CIUDADANO)
 						.requestMatchers(HttpMethod.POST, "/traslados", "/traslados/*/cancelar").hasRole(CIUDADANO)
 						.requestMatchers(HttpMethod.PUT, "/traslados/*", "/traslados/*/detalles").hasRole(CIUDADANO)

@@ -1,6 +1,7 @@
 package com.uem.ambulancias.evidencias.controller;
 
 import com.uem.ambulancias.comun.web.UsuarioActual;
+import com.uem.ambulancias.evidencias.dto.EvidenciaResponse;
 import com.uem.ambulancias.evidencias.dto.RegistrarEvidenciaRequest;
 import com.uem.ambulancias.evidencias.dto.SubidaEvidenciaResponse;
 import com.uem.ambulancias.evidencias.service.EvidenciaService;
@@ -30,6 +31,16 @@ public class EvidenciaController {
 			@Valid @RequestBody RegistrarEvidenciaRequest request) {
 		return SubidaEvidenciaResponse.de(evidenciaService.registrar(alertaId, usuarioId, request.mimeType(),
 				request.tamanoBytes(), request.sha256()));
+	}
+
+	/**
+	 * La app avisa que terminó de subir. 202 porque el análisis viene después y por su lado: la respuesta solo dice
+	 * que el archivo llegó bien.
+	 */
+	@PostMapping("/evidencias/{evidenciaId}/confirmacion")
+	@ResponseStatus(HttpStatus.ACCEPTED)
+	public EvidenciaResponse confirmar(@PathVariable Long evidenciaId, @UsuarioActual Long usuarioId) {
+		return EvidenciaResponse.de(evidenciaService.confirmar(evidenciaId, usuarioId));
 	}
 
 	/** Otra URL para la misma evidencia, si la anterior venció antes de terminar la subida. */

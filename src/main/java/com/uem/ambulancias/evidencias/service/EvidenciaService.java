@@ -80,6 +80,35 @@ public class EvidenciaService {
 		return new EvidenciaConSubida(evidencia, firmarSubida(evidencia));
 	}
 
+	/**
+	 * La app terminó de subir. Se pregunta al almacén si el archivo está y si es el que se firmó, sin descargarlo. Con
+	 * la fila bloqueada, y confirmar de nuevo una evidencia ya confirmada no hace nada: la app puede repetir el aviso
+	 * si se le cortó la respuesta.
+	 */
+	@Transactional
+	public Evidencia confirmar(Long evidenciaId, Long ciudadanoId) {
+		Evidencia evidencia = evidencias.buscarParaActualizar(evidenciaId)
+				.orElseThrow(() -> new NoEncontradoException("No existe la evidencia " + evidenciaId + "."));
+		exigirQueSeaSuya(evidencia, ciudadanoId);
+		if (!evidencia.isPendienteDeSubida()) {
+			return evidencia;
+		}
+
+		ObjetoAlmacenado objeto = almacen.verificarObjeto(evidencia.getClaveObjeto())
+				.orElseThrow(() -> new ConflictoException(CodigoError.EVIDENCIA_NO_SUBIDA,
+						"El archivo de la evidencia " + evidenciaId + " todavía no está subido."));
+		boolean mismoTamano = objeto.tamanoBytes() == evidencia.getTamanoBytes();
+		boolean mismoContenido = objeto.sha256Base64() == null
+				|| objeto.sha256Base64().equals(evidencia.getSha256Base64());
+		if (!mismoTamano || !mismoContenido) {
+			throw new ConflictoException(CodigoError.EVIDENCIA_NO_COINCIDE,
+					"El archivo subido no es el que se anunció para la evidencia " + evidenciaId + ".");
+		}
+
+		evidencia.confirmarSubida(Instant.now());
+		return evidencia;
+	}
+
 	private SubidaFirmada firmarSubida(Evidencia evidencia) {
 		return almacen.firmarSubida(evidencia.getClaveObjeto(), evidencia.getMimeType(), evidencia.getTamanoBytes(),
 				evidencia.getSha256Base64(), config.vigenciaSubida());
