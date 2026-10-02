@@ -4,13 +4,13 @@ import java.time.Instant;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonRawValue;
-import com.uem.ambulancias.evidencias.domain.Evidencia;
 import com.uem.ambulancias.evidencias.domain.ResumenIncidente;
+import com.uem.ambulancias.evidencias.service.ResumenConEvidencias;
 
 /**
  * El resumen preliminar vigente del incidente y las evidencias que tiene. Es apoyo para el personal: no es un
  * diagnóstico ni un triaje. Mientras no haya ningún resumen, {@code version} y {@code resumen} vienen nulos y las
- * evidencias se pueden ver igual.
+ * evidencias se pueden ver igual, con la transcripción y la línea de tiempo de las que ya se analizaron.
  *
  * @param resumen el objeto {@code summary} del servicio de análisis, sin cambios
  */
@@ -24,10 +24,14 @@ public record ResumenIncidenteResponse(
 		String modelo,
 		String versionPrompt,
 		Instant generadoEn,
-		List<EvidenciaResponse> evidencias) {
+		List<EvidenciaDelIncidenteResponse> evidencias) {
 
-	public static ResumenIncidenteResponse de(Long incidenteId, ResumenIncidente resumen, List<Evidencia> evidencias) {
-		List<EvidenciaResponse> archivos = evidencias.stream().map(EvidenciaResponse::de).toList();
+	public static ResumenIncidenteResponse de(Long incidenteId, ResumenConEvidencias consulta) {
+		List<EvidenciaDelIncidenteResponse> archivos = consulta.evidencias().stream()
+				.map(evidencia -> EvidenciaDelIncidenteResponse.de(evidencia,
+						consulta.transcripcionDe(evidencia.getId())))
+				.toList();
+		ResumenIncidente resumen = consulta.resumen();
 		if (resumen == null) {
 			return new ResumenIncidenteResponse(incidenteId, null, null, List.of(), List.of(), null, null, null, null,
 					archivos);
