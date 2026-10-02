@@ -8,8 +8,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.context.properties.bind.DefaultValue;
 
 /**
- * Parámetros de las evidencias ({@code sga.evidencias.*}). Los límites de tamaño son los mismos que aplica el servicio
- * de análisis: si acá se aceptara más, el archivo se subiría para que después el análisis lo rechace.
+ * Parámetros de las evidencias ({@code sga.evidencias.*}). Los límites de tamaño nunca pasan los del servicio de
+ * análisis: si acá se aceptara más, el archivo se subiría para que después el análisis lo rechace.
  */
 @ConfigurationProperties(prefix = "sga.evidencias")
 public record EvidenciaProperties(
