@@ -1,6 +1,8 @@
 package com.uem.ambulancias.evidencias.service;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Objects;
 
 import com.uem.ambulancias.comun.error.CodigoError;
 import com.uem.ambulancias.comun.error.ConflictoException;
@@ -129,6 +131,23 @@ public class EvidenciaService {
 				.orElseThrow(() -> new NoEncontradoException("No existe la evidencia " + evidenciaId + "."));
 		acceso.exigir(evidencia.getAlerta().getIncidente().getId(), usuarioId, rol);
 		return almacen.firmarLectura(evidencia.getClaveObjeto(), config.vigenciaLectura());
+	}
+
+	/**
+	 * Descarta las que se firmaron hace más de {@link EvidenciaProperties#abandono()} y nunca se confirmaron. Devuelve
+	 * sus claves para borrar después del commit lo que haya quedado a medio subir en el almacén.
+	 */
+	@Transactional
+	public List<String> descartarAbandonadas(Instant ahora) {
+		List<Evidencia> abandonadas = evidencias.buscarPendientesRegistradasAntesDe(ahora.minus(config.abandono()));
+		abandonadas.forEach(Evidencia::descartar);
+		return abandonadas.stream().map(Evidencia::getClaveObjeto).filter(Objects::nonNull).toList();
+	}
+
+	/** Descarta las registradas hace más de {@link EvidenciaProperties#retencion()}. Devuelve cuántas. */
+	@Transactional
+	public int descartarVencidas(Instant ahora) {
+		return evidencias.descartarRegistradasAntesDe(ahora.minus(config.retencion()));
 	}
 
 	private SubidaFirmada firmarSubida(Evidencia evidencia) {

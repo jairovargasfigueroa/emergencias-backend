@@ -151,6 +151,14 @@ public class Evidencia {
 		procesadaEn = ahora;
 	}
 
+	/**
+	 * Sale de circulación: deja de contar para los límites y de mostrarse. Desde cualquier estado, porque la
+	 * retención vence igual para todas; descartar una ya descartada no hace nada.
+	 */
+	public void descartar() {
+		estado = EstadoEvidencia.DESCARTADA;
+	}
+
 	private void pasarA(EstadoEvidencia nuevo, EstadoEvidencia desde) {
 		if (estado != desde) {
 			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
