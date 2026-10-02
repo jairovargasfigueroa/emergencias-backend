@@ -23,13 +23,13 @@ public class IaConfig {
 
 	/**
 	 * Las tareas programadas comparten un solo hilo por defecto, y un análisis puede tenerlo cuatro minutos: el
-	 * barrido de traslados se quedaría esperando. Con los workers encendidos, cada tarea tiene su hilo. Al llamarse
+	 * barrido de traslados se quedaría esperando. Con los workers encendidos, cada tarea tiene su hilo y sobran dos para las que se agreguen. Al llamarse
 	 * {@code taskScheduler}, reemplaza al de Spring para todas las {@code @Scheduled}.
 	 */
 	@Bean
 	ThreadPoolTaskScheduler taskScheduler() {
 		ThreadPoolTaskScheduler planificador = new ThreadPoolTaskScheduler();
-		planificador.setPoolSize(4);
+		planificador.setPoolSize(6);
 		planificador.setThreadNamePrefix("sga-tareas-");
 		return planificador;
 	}
