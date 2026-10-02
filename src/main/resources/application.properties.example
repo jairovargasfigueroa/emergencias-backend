@@ -88,3 +88,11 @@ sga.evidencias.mib-video=20
 # Minutos que sirve la URL con la que la app sube el archivo, y la URL con la que se lee (nunca menos de 5).
 sga.evidencias.minutos-subida=15
 sga.evidencias.minutos-lectura=10
+
+# Cola de pedidos al servicio de analisis. Todos tienen valor por defecto.
+# Intentos por trabajo, y la espera entre intentos en segundos (se duplica en cada uno hasta la maxima).
+sga.ia.trabajos.maximo-intentos=5
+sga.ia.trabajos.espera-inicial-seg=30
+sga.ia.trabajos.espera-maxima-seg=900
+# Minutos que un trabajo tomado es del worker. Mayor que la llamada mas larga al servicio (unos 4 minutos).
+sga.ia.trabajos.minutos-bloqueo=6

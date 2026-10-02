@@ -29,6 +29,7 @@ public class EvidenciaService {
 	private final IncidenteRepository incidentes;
 	private final AlmacenDeEvidencias almacen;
 	private final EvidenciaProperties config;
+	private final ColaDeTrabajosIa cola;
 
 	/**
 	 * Registra la evidencia y firma su subida. Se hace con el incidente bloqueado, igual que al completar los detalles
@@ -83,7 +84,8 @@ public class EvidenciaService {
 	/**
 	 * La app terminó de subir. Se pregunta al almacén si el archivo está y si es el que se firmó, sin descargarlo. Con
 	 * la fila bloqueada, y confirmar de nuevo una evidencia ya confirmada no hace nada: la app puede repetir el aviso
-	 * si se le cortó la respuesta.
+	 * si se le cortó la respuesta. El análisis se encola en la misma transacción: no hay evidencia subida sin su
+	 * trabajo, ni trabajo de una evidencia que no llegó.
 	 */
 	@Transactional
 	public Evidencia confirmar(Long evidenciaId, Long ciudadanoId) {
@@ -106,6 +108,7 @@ public class EvidenciaService {
 		}
 
 		evidencia.confirmarSubida(Instant.now());
+		cola.encolarAnalisis(evidencia);
 		return evidencia;
 	}
 
