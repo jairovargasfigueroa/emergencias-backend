@@ -18,6 +18,7 @@ import com.uem.ambulancias.evidencias.repository.AnalisisEvidenciaRepository;
 import com.uem.ambulancias.evidencias.repository.EvidenciaRepository;
 import com.uem.ambulancias.evidencias.repository.ResumenIncidenteRepository;
 import com.uem.ambulancias.evidencias.repository.TrabajoIaRepository;
+import com.uem.ambulancias.usuarios.domain.RolUsuario;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,18 +44,20 @@ public class ResumenIncidenteService {
 	private final AnalisisEvidenciaRepository analisis;
 	private final ResumenIncidenteRepository resumenes;
 	private final EvidenciaRepository evidencias;
+	private final AccesoAlIncidente acceso;
 	private final ApplicationEventPublisher eventos;
 	private final JsonMapper json;
 
 	/**
 	 * Lo que ve el personal: la versión vigente, si hay, las evidencias subidas y la transcripción y la línea de tiempo
-	 * de las que ya tienen análisis. 404 si el incidente no existe.
+	 * de las que ya tienen análisis. 404 si el incidente no existe; 403 si es un paramédico que no lo está atendiendo.
 	 */
 	@Transactional(readOnly = true)
-	public ResumenConEvidencias consultar(Long incidenteId) {
+	public ResumenConEvidencias consultar(Long incidenteId, Long usuarioId, RolUsuario rol) {
 		if (!incidentes.existsById(incidenteId)) {
 			throw new NoEncontradoException("No existe el incidente " + incidenteId + ".");
 		}
+		acceso.exigir(incidenteId, usuarioId, rol);
 		Map<Long, TranscripcionDeEvidencia> transcripciones = analisis.buscarVigentesPorIncidente(incidenteId).stream()
 				.collect(Collectors.toMap(uno -> uno.getEvidencia().getId(), this::transcripcionDe));
 		return new ResumenConEvidencias(resumenes.findFirstByIncidenteIdOrderByVersionDesc(incidenteId).orElse(null),
