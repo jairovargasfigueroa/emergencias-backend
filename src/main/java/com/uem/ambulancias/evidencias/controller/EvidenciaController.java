@@ -1,11 +1,13 @@
 package com.uem.ambulancias.evidencias.controller;
 
+import com.uem.ambulancias.comun.web.RolActual;
 import com.uem.ambulancias.comun.web.UsuarioActual;
 import com.uem.ambulancias.evidencias.dto.EvidenciaResponse;
 import com.uem.ambulancias.evidencias.dto.LecturaEvidenciaResponse;
 import com.uem.ambulancias.evidencias.dto.RegistrarEvidenciaRequest;
 import com.uem.ambulancias.evidencias.dto.SubidaEvidenciaResponse;
 import com.uem.ambulancias.evidencias.service.EvidenciaService;
+import com.uem.ambulancias.usuarios.domain.RolUsuario;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -52,10 +54,14 @@ public class EvidenciaController {
 		return SubidaEvidenciaResponse.de(evidenciaService.firmarDeNuevo(evidenciaId, usuarioId));
 	}
 
-	/** URL temporal para ver o escuchar el archivo desde el panel o la app del paramédico. */
+	/**
+	 * URL temporal para ver o escuchar el archivo desde el panel o desde la app del paramédico que atiende el
+	 * incidente.
+	 */
 	@GetMapping("/evidencias/{evidenciaId}/url")
-	public LecturaEvidenciaResponse url(@PathVariable Long evidenciaId) {
-		return LecturaEvidenciaResponse.de(evidenciaService.firmarLectura(evidenciaId));
+	public LecturaEvidenciaResponse url(@PathVariable Long evidenciaId, @UsuarioActual Long usuarioId,
+			@RolActual RolUsuario rol) {
+		return LecturaEvidenciaResponse.de(evidenciaService.firmarLectura(evidenciaId, usuarioId, rol));
 	}
 
 }

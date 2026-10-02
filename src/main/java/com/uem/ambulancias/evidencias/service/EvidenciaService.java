@@ -11,6 +11,7 @@ import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
 import com.uem.ambulancias.evidencias.domain.Evidencia;
 import com.uem.ambulancias.evidencias.domain.FormatoEvidencia;
 import com.uem.ambulancias.evidencias.repository.EvidenciaRepository;
+import com.uem.ambulancias.usuarios.domain.RolUsuario;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ public class EvidenciaService {
 	private final AlmacenDeEvidencias almacen;
 	private final EvidenciaProperties config;
 	private final ColaDeTrabajosIa cola;
+	private final AccesoAlIncidente acceso;
 
 	/**
 	 * Registra la evidencia y firma su subida. Se hace con el incidente bloqueado, igual que al completar los detalles
@@ -116,12 +118,16 @@ public class EvidenciaService {
 		return evidencia;
 	}
 
-	/** URL temporal para que el personal vea o escuche el archivo. Solo si el archivo ya llegó al almacén. */
+	/**
+	 * URL temporal para que el personal vea o escuche el archivo. Solo si el archivo ya llegó al almacén, y para un
+	 * paramédico solo si está atendiendo el incidente de la alerta.
+	 */
 	@Transactional(readOnly = true)
-	public LecturaFirmada firmarLectura(Long evidenciaId) {
-		Evidencia evidencia = evidencias.findById(evidenciaId)
+	public LecturaFirmada firmarLectura(Long evidenciaId, Long usuarioId, RolUsuario rol) {
+		Evidencia evidencia = evidencias.buscarConAlerta(evidenciaId)
 				.filter(Evidencia::tieneArchivo)
 				.orElseThrow(() -> new NoEncontradoException("No existe la evidencia " + evidenciaId + "."));
+		acceso.exigir(evidencia.getAlerta().getIncidente().getId(), usuarioId, rol);
 		return almacen.firmarLectura(evidencia.getClaveObjeto(), config.vigenciaLectura());
 	}
 
