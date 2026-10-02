@@ -112,6 +112,15 @@ public class EvidenciaService {
 		return evidencia;
 	}
 
+	/** URL temporal para que el personal vea o escuche el archivo. Solo si el archivo ya llegó al almacén. */
+	@Transactional(readOnly = true)
+	public LecturaFirmada firmarLectura(Long evidenciaId) {
+		Evidencia evidencia = evidencias.findById(evidenciaId)
+				.filter(Evidencia::tieneArchivo)
+				.orElseThrow(() -> new NoEncontradoException("No existe la evidencia " + evidenciaId + "."));
+		return almacen.firmarLectura(evidencia.getClaveObjeto(), config.vigenciaLectura());
+	}
+
 	private SubidaFirmada firmarSubida(Evidencia evidencia) {
 		return almacen.firmarSubida(evidencia.getClaveObjeto(), evidencia.getMimeType(), evidencia.getTamanoBytes(),
 				evidencia.getSha256Base64(), config.vigenciaSubida());
