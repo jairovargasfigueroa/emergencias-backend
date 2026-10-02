@@ -1,6 +1,6 @@
-# Producción en la EC2: base de datos con PostGIS, backend y Caddy (HTTPS).
+# Producción en la EC2: base de datos con PostGIS, backend, servicio de análisis (mia) y Caddy (HTTPS).
 # En el servidor, desde esta carpeta y con el .env al lado:  docker compose up -d
-# Solo Caddy publica puertos. La base y el backend quedan dentro de la red interna de Docker.
+# Solo Caddy publica puertos. La base, el backend y mia quedan dentro de la red interna de Docker.
 
 # Rotación de logs: sin esto crecen sin límite hasta llenar el disco.
 x-registros: &registros
@@ -48,8 +48,29 @@ services:
       SGA_SEGURIDAD_SECRETO: ${SGA_SEGURIDAD_SECRETO}
       SGA_ADMIN_CORREO: ${SGA_ADMIN_CORREO}
       SGA_ADMIN_CLAVE: ${SGA_ADMIN_CLAVE}
+      # Evidencias en S3. Las credenciales las da el rol de la instancia EC2; si no tiene rol, las claves del .env.
+      SGA_EVIDENCIAS_S3_BUCKET: ${S3_BUCKET_EVIDENCIAS}
+      SGA_EVIDENCIAS_S3_REGION: ${S3_REGION_EVIDENCIAS}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      # Servicio de análisis por la red interna. El token es el mismo que recibe mia.
+      # Apagado mientras no se ponga IA_HABILITADA=true: encendido sin token, el backend no arranca.
+      SGA_IA_HABILITADO: ${IA_HABILITADA:-false}
+      SGA_IA_URL: http://mia:8000
+      SGA_IA_TOKEN: ${AI_SERVICE_TOKEN}
     volumes:
       - ${RUTA_FIREBASE_JSON}:/app/firebase-credenciales.json:ro
+
+  # Analiza las evidencias y resume los incidentes. Sin puertos publicados ni ruta en Caddy: solo lo llama el backend.
+  # Necesita salida a internet para leer de S3 y llamar a OpenRouter.
+  mia:
+    image: ${IMAGEN_MIA}
+    <<: *registros
+    restart: unless-stopped
+    environment:
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN}
+      AI_OPENROUTER_API_KEY: ${AI_OPENROUTER_API_KEY}
+      AI_OPENROUTER_MODEL: ${AI_OPENROUTER_MODEL:-google/gemini-3.8-flash}
 
   caddy:
     image: caddy:2

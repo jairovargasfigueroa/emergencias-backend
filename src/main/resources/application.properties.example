@@ -77,3 +77,40 @@ sga.operacion.ventana-eventos-horas=12
 sga.operacion.maximo-eventos=40
 # Segundos sin reportar posicion a partir de los cuales la unidad se marca sin senal.
 sga.operacion.sin-senal-seg=60
+
+# Evidencias que el ciudadano adjunta a su alerta (foto, audio o video). Todos tienen valor por defecto.
+# Cuantas puede adjuntar a una misma alerta.
+sga.evidencias.maximo-por-alerta=5
+# Limite de tamano por modalidad, en MiB. Son los mismos del servicio de analisis: no subirlos sin subirlos alla.
+sga.evidencias.mib-imagen=10
+sga.evidencias.mib-audio=20
+sga.evidencias.mib-video=20
+# Minutos que sirve la URL con la que la app sube el archivo, y la URL con la que se lee (nunca menos de 5).
+sga.evidencias.minutos-subida=15
+sga.evidencias.minutos-lectura=10
+# Bucket de S3 donde se guardan los archivos, privado. Vacio, no se pueden adjuntar archivos y el servidor arranca igual.
+# Las credenciales no van aca: en el servidor las da el rol de la instancia EC2, y en local el entorno de AWS.
+# El rol necesita s3:PutObject, s3:GetObject y s3:DeleteObject sobre alertas/* del bucket.
+sga.evidencias.s3.bucket=
+# Region del bucket. Obligatoria si hay bucket. Ejemplo: us-east-1
+sga.evidencias.s3.region=
+
+# Servicio de analisis de evidencias (emergencias-mia). Apagado, no corre ningun worker y los analisis esperan en la cola.
+sga.ia.habilitado=false
+# URL base del servicio, sin /v1. Ejemplo: http://127.0.0.1:8000
+sga.ia.url=
+# El mismo AI_SERVICE_TOKEN que tiene configurado el servicio. Nunca se versiona.
+sga.ia.token=
+# Segundos para conectar y para esperar la respuesta. La lectura tiene que pasar el peor caso del servicio (~225 s).
+sga.ia.segundos-conexion=10
+sga.ia.segundos-lectura=240
+
+# Cola de pedidos al servicio de analisis. Todos tienen valor por defecto.
+# Intentos por trabajo, y la espera entre intentos en segundos (se duplica en cada uno hasta la maxima).
+sga.ia.trabajos.maximo-intentos=5
+sga.ia.trabajos.espera-inicial-seg=30
+sga.ia.trabajos.espera-maxima-seg=900
+# Minutos que un trabajo tomado es del worker. Mayor que la llamada mas larga al servicio (unos 4 minutos).
+sga.ia.trabajos.minutos-bloqueo=6
+# Cada cuantos segundos los workers miran si hay trabajos nuevos (solo con sga.ia.habilitado=true).
+sga.ia.trabajos.barrido-seg=10
