@@ -37,4 +37,8 @@ public interface EvidenciaRepository extends JpaRepository<Evidencia, Long> {
 	@Query("select count(e) from Evidencia e where e.alerta.id = :alertaId and e.estado <> 'DESCARTADA'")
 	long contarVigentesPorAlerta(@Param("alertaId") Long alertaId);
 
+	/** Las que cuentan para el máximo por incidente: las de todas sus alertas, menos las descartadas. */
+	@Query("select count(e) from Evidencia e where e.alerta.incidente.id = :incidenteId and e.estado <> 'DESCARTADA'")
+	long contarVigentesPorIncidente(@Param("incidenteId") Long incidenteId);
+
 }
