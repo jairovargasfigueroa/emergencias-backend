@@ -17,9 +17,15 @@ public record EvidenciaProperties(
 		/** Cuántas evidencias puede adjuntar un ciudadano a una misma alerta. */
 		@DefaultValue("5") int maximoPorAlerta,
 
-		/** Límites por modalidad, en MiB. */
+		/**
+		 * Cuántas evidencias puede juntar un incidente sumando todas sus alertas. Varios testigos del mismo hecho
+		 * agregan poco después de cierto punto, y cada archivo es un análisis más que pagar y esperar.
+		 */
+		@DefaultValue("15") int maximoPorIncidente,
+
+		/** Límites por modalidad, en MiB. Un audio de 5 MiB ya son varios minutos de grabación. */
 		@DefaultValue("10") int mibImagen,
-		@DefaultValue("20") int mibAudio,
+		@DefaultValue("5") int mibAudio,
 		@DefaultValue("20") int mibVideo,
 
 		/** Cuánto sirve la URL con la que la app sube el archivo. */

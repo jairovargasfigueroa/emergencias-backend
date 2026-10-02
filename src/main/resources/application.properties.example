@@ -81,9 +81,11 @@ sga.operacion.sin-senal-seg=60
 # Evidencias que el ciudadano adjunta a su alerta (foto, audio o video). Todos tienen valor por defecto.
 # Cuantas puede adjuntar a una misma alerta.
 sga.evidencias.maximo-por-alerta=5
-# Limite de tamano por modalidad, en MiB. Son los mismos del servicio de analisis: no subirlos sin subirlos alla.
+# Cuantas puede juntar un incidente sumando las alertas de todos los que avisaron.
+sga.evidencias.maximo-por-incidente=15
+# Limite de tamano por modalidad, en MiB. Nunca mas que los del servicio de analisis: no subirlos sin subirlos alla.
 sga.evidencias.mib-imagen=10
-sga.evidencias.mib-audio=20
+sga.evidencias.mib-audio=5
 sga.evidencias.mib-video=20
 # Minutos que sirve la URL con la que la app sube el archivo, y la URL con la que se lee (nunca menos de 5).
 sga.evidencias.minutos-subida=15

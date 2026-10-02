@@ -33,8 +33,8 @@ public class EvidenciaService {
 
 	/**
 	 * Registra la evidencia y firma su subida. Se hace con el incidente bloqueado, igual que al completar los detalles
-	 * de la alerta: dos pedidos simultáneos del mismo ciudadano no pueden pasarse juntos del máximo por alerta. Si la
-	 * firma falla, no queda nada guardado.
+	 * de la alerta: dos pedidos simultáneos no pueden pasarse juntos del máximo por alerta ni del máximo por incidente,
+	 * que suma las alertas de todos los que avisaron. Si la firma falla, no queda nada guardado.
 	 */
 	@Transactional
 	public EvidenciaConSubida registrar(Long alertaId, Long ciudadanoId, String mimeType, long tamanoBytes,
@@ -56,6 +56,10 @@ public class EvidenciaService {
 		if (evidencias.contarVigentesPorAlerta(alertaId) >= config.maximoPorAlerta()) {
 			throw new ConflictoException(CodigoError.LIMITE_DE_EVIDENCIAS,
 					"La alerta " + alertaId + " ya tiene " + config.maximoPorAlerta() + " evidencias.");
+		}
+		if (evidencias.contarVigentesPorIncidente(incidenteId) >= config.maximoPorIncidente()) {
+			throw new ConflictoException(CodigoError.LIMITE_DE_EVIDENCIAS_INCIDENTE,
+					"El incidente " + incidenteId + " ya tiene " + config.maximoPorIncidente() + " evidencias.");
 		}
 
 		Evidencia evidencia = evidencias.save(Evidencia.registrar(alerta, formato, tamanoBytes, sha256,
