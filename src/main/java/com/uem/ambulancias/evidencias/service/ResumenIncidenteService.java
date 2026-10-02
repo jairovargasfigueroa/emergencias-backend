@@ -17,6 +17,7 @@ import com.uem.ambulancias.evidencias.repository.TrabajoIaRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +35,7 @@ public class ResumenIncidenteService {
 	private final AlertaRepository alertas;
 	private final AnalisisEvidenciaRepository analisis;
 	private final ResumenIncidenteRepository resumenes;
+	private final ApplicationEventPublisher eventos;
 
 	/**
 	 * Todas las alertas del incidente y todos sus análisis vigentes, con el JSON de cada análisis tal como se guardó.
@@ -66,7 +68,8 @@ public class ResumenIncidenteService {
 	/**
 	 * Guarda la propuesta como versión nueva si mejora a la vigente ({@link ResumenIncidente#seReemplazaCon}) y cierra
 	 * el trabajo. Con el incidente bloqueado: dos resúmenes del mismo incidente que terminan a la vez se comparan de a
-	 * uno contra la versión que dejó el otro. Devuelve la versión guardada, o vacío si la propuesta no la mejoraba.
+	 * uno contra la versión que dejó el otro. Devuelve la versión guardada, o vacío si la propuesta no la mejoraba. La
+	 * versión nueva se avisa después del commit.
 	 */
 	@Transactional
 	public Optional<ResumenIncidente> guardar(Long trabajoId, ResumenRecibido recibido) {
@@ -88,8 +91,10 @@ public class ResumenIncidenteService {
 					vigente.getVersion(), incidenteId);
 			return Optional.empty();
 		}
-		return Optional.of(resumenes.save(
-				ResumenIncidente.nuevaVersion(incidente, vigente, trabajo.getReferencia(), recibido, ahora)));
+		ResumenIncidente nuevo = resumenes.save(
+				ResumenIncidente.nuevaVersion(incidente, vigente, trabajo.getReferencia(), recibido, ahora));
+		eventos.publishEvent(new ResumenActualizado(incidenteId, nuevo.getVersion()));
+		return Optional.of(nuevo);
 	}
 
 }

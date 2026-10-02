@@ -12,6 +12,7 @@ import com.uem.ambulancias.emergencias.service.PublicadorDeIncidentes;
 import com.uem.ambulancias.emergencias.service.PublicadorDeUnidades;
 import com.uem.ambulancias.emergencias.service.SeguimientoPublicado;
 import com.uem.ambulancias.emergencias.service.UnidadPublicada;
+import com.uem.ambulancias.evidencias.service.PublicadorDeResumenes;
 import com.uem.ambulancias.flota.service.PosicionActualizada;
 import com.uem.ambulancias.flota.service.PublicadorDePosiciones;
 
@@ -22,7 +23,8 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class PublicadorEnRegistro
-		implements PublicadorDeIncidentes, PublicadorDePosiciones, PublicadorDeUnidades, NotificadorPush {
+		implements PublicadorDeIncidentes, PublicadorDePosiciones, PublicadorDeUnidades, PublicadorDeResumenes,
+		NotificadorPush {
 
 	@Override
 	public void publicarIncidenteAbierto(IncidentePublicado incidente) {
@@ -60,6 +62,11 @@ public class PublicadorEnRegistro
 	public void publicarUnidad(UnidadPublicada unidad) {
 		log.debug("Firebase apagado: no se publica el estado de la ambulancia {} ({}).", unidad.ambulanciaId(),
 				unidad.estado());
+	}
+
+	@Override
+	public void publicarResumenNuevo(Long incidenteId, int version) {
+		log.info("Firebase apagado: no se avisa la versión {} del resumen del incidente {}.", version, incidenteId);
 	}
 
 	@Override

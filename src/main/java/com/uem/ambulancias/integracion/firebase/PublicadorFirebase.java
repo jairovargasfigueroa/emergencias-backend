@@ -11,6 +11,7 @@ import com.uem.ambulancias.emergencias.service.PublicadorDeIncidentes;
 import com.uem.ambulancias.emergencias.service.PublicadorDeUnidades;
 import com.uem.ambulancias.emergencias.service.SeguimientoPublicado;
 import com.uem.ambulancias.emergencias.service.UnidadPublicada;
+import com.uem.ambulancias.evidencias.service.PublicadorDeResumenes;
 import com.uem.ambulancias.flota.service.PosicionActualizada;
 import com.uem.ambulancias.flota.service.PublicadorDePosiciones;
 
@@ -22,7 +23,8 @@ import lombok.RequiredArgsConstructor;
  * {@code forEach} y no con {@code val()} del nodo padre, que puede convertirlos en arreglo.
  */
 @RequiredArgsConstructor
-public class PublicadorFirebase implements PublicadorDeIncidentes, PublicadorDePosiciones, PublicadorDeUnidades {
+public class PublicadorFirebase
+		implements PublicadorDeIncidentes, PublicadorDePosiciones, PublicadorDeUnidades, PublicadorDeResumenes {
 
 	/** Un hijo por incidente abierto, con su id como clave. Lo escuchan las apps del paramédico. */
 	static final String INCIDENTES_ABIERTOS = "incidentes-abiertos";
@@ -35,6 +37,12 @@ public class PublicadorFirebase implements PublicadorDeIncidentes, PublicadorDeP
 
 	/** Un hijo por unidad, con su id como clave. Lo escucha la app de la tripulación de esa unidad. */
 	static final String UNIDADES = "unidades";
+
+	/**
+	 * Un hijo por incidente con resumen, con su id como clave. Lo escuchan el panel y los paramédicos; no la app del
+	 * ciudadano, que solo escucha {@link #SEGUIMIENTO}. Lleva la versión y nada del contenido.
+	 */
+	static final String RESUMENES = "resumenes";
 
 	private final FirebaseDatabase baseDatos;
 
@@ -122,6 +130,16 @@ public class PublicadorFirebase implements PublicadorDeIncidentes, PublicadorDeP
 		valores.put("actualizadoEn", Instant.now().toString());
 		EscriturasFirebase.registrarFallo(nodo(UNIDADES, unidad.ambulanciaId()).setValueAsync(valores),
 				"publicar el estado de la ambulancia " + unidad.ambulanciaId());
+	}
+
+	@Override
+	public void publicarResumenNuevo(Long incidenteId, int version) {
+		Map<String, Object> valores = new HashMap<>();
+		valores.put("incidenteId", incidenteId);
+		valores.put("version", version);
+		valores.put("actualizadoEn", Instant.now().toString());
+		EscriturasFirebase.registrarFallo(nodo(RESUMENES, incidenteId).setValueAsync(valores),
+				"avisar la versión " + version + " del resumen del incidente " + incidenteId);
 	}
 
 	private DatabaseReference nodo(String raiz, Long id) {
