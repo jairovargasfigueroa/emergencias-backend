@@ -106,3 +106,5 @@ sga.ia.trabajos.espera-inicial-seg=30
 sga.ia.trabajos.espera-maxima-seg=900
 # Minutos que un trabajo tomado es del worker. Mayor que la llamada mas larga al servicio (unos 4 minutos).
 sga.ia.trabajos.minutos-bloqueo=6
+# Cada cuantos segundos los workers miran si hay trabajos nuevos (solo con sga.ia.habilitado=true).
+sga.ia.trabajos.barrido-seg=10
