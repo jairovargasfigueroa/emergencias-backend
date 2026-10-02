@@ -1,7 +1,6 @@
 package com.uem.ambulancias.evidencias.controller;
 
 import com.uem.ambulancias.evidencias.dto.ResumenIncidenteResponse;
-import com.uem.ambulancias.evidencias.service.ResumenConEvidencias;
 import com.uem.ambulancias.evidencias.service.ResumenIncidenteService;
 
 import lombok.RequiredArgsConstructor;
@@ -21,8 +20,7 @@ public class ResumenIncidenteController {
 
 	@GetMapping("/incidentes/{id}/resumen")
 	public ResumenIncidenteResponse resumen(@PathVariable("id") Long incidenteId) {
-		ResumenConEvidencias consulta = resumenService.consultar(incidenteId);
-		return ResumenIncidenteResponse.de(incidenteId, consulta.resumen(), consulta.evidencias());
+		return ResumenIncidenteResponse.de(incidenteId, resumenService.consultar(incidenteId));
 	}
 
 }
