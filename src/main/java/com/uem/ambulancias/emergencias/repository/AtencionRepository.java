@@ -52,6 +52,23 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 			@Param("incidenteId") Long incidenteId, @Param("activos") Collection<EstadoAtencion> activos,
 			@Param("resueltos") Collection<EstadoAtencion> resueltos);
 
+	/**
+	 * Las unidades que siguen tomadas por el incidente: trabajando, o ya resueltas y sin liberarse. Es a quiénes se
+	 * les avisa que hay información nueva del incidente, con el mismo criterio que decide quién puede verla.
+	 */
+	default List<Long> buscarAmbulanciasQueOcupanIncidente(Long incidenteId) {
+		return buscarAmbulanciasOcupandoIncidente(incidenteId, EstadoAtencion.ACTIVOS, EstadoAtencion.RESUELTOS);
+	}
+
+	@Query("""
+			select distinct a.ambulancia.id from Atencion a
+			where a.incidente.id = :incidenteId
+			  and (a.estado in :activos or (a.estado in :resueltos and a.horaLiberacion is null))
+			""")
+	List<Long> buscarAmbulanciasOcupandoIncidente(@Param("incidenteId") Long incidenteId,
+			@Param("activos") Collection<EstadoAtencion> activos,
+			@Param("resueltos") Collection<EstadoAtencion> resueltos);
+
 	/** Atenciones activas del incidente con su ambulancia, en orden de toma. */
 	default List<Atencion> buscarActivasPorIncidente(Long idIncidente) {
 		return buscarPorIncidenteYEstados(idIncidente, EstadoAtencion.ACTIVOS);
