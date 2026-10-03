@@ -81,13 +81,22 @@ sga.operacion.sin-senal-seg=60
 # Evidencias que el ciudadano adjunta a su alerta (foto, audio o video). Todos tienen valor por defecto.
 # Cuantas puede adjuntar a una misma alerta.
 sga.evidencias.maximo-por-alerta=5
-# Limite de tamano por modalidad, en MiB. Son los mismos del servicio de analisis: no subirlos sin subirlos alla.
+# Cuantas puede juntar un incidente sumando las alertas de todos los que avisaron.
+sga.evidencias.maximo-por-incidente=15
+# Limite de tamano por modalidad, en MiB. Nunca mas que los del servicio de analisis: no subirlos sin subirlos alla.
 sga.evidencias.mib-imagen=10
-sga.evidencias.mib-audio=20
+sga.evidencias.mib-audio=5
 sga.evidencias.mib-video=20
 # Minutos que sirve la URL con la que la app sube el archivo, y la URL con la que se lee (nunca menos de 5).
 sga.evidencias.minutos-subida=15
 sga.evidencias.minutos-lectura=10
+# Limpieza periodica (corre con la IA encendida o apagada): cada cuantos minutos, a las cuantas horas se descarta una
+# evidencia que nunca se subio (y se borra su archivo si quedo algo), y a los cuantos dias se descarta cualquiera.
+# Los archivos de mas de 90 dias los borra S3 con una regla de ciclo de vida sobre alertas/ configurada en la consola
+# de AWS: si se cambia dias-retencion, cambiar tambien esa regla.
+sga.evidencias.limpieza-cada-min=60
+sga.evidencias.horas-abandono=24
+sga.evidencias.dias-retencion=90
 # Bucket de S3 donde se guardan los archivos, privado. Vacio, no se pueden adjuntar archivos y el servidor arranca igual.
 # Las credenciales no van aca: en el servidor las da el rol de la instancia EC2, y en local el entorno de AWS.
 # El rol necesita s3:PutObject, s3:GetObject y s3:DeleteObject sobre alertas/* del bucket.
@@ -101,9 +110,9 @@ sga.ia.habilitado=false
 sga.ia.url=
 # El mismo AI_SERVICE_TOKEN que tiene configurado el servicio. Nunca se versiona.
 sga.ia.token=
-# Segundos para conectar y para esperar la respuesta. La lectura tiene que pasar el peor caso del servicio (~225 s).
+# Segundos para conectar y para esperar la respuesta. La lectura tiene que pasar el peor caso del servicio (~265 s con video).
 sga.ia.segundos-conexion=10
-sga.ia.segundos-lectura=240
+sga.ia.segundos-lectura=300
 
 # Cola de pedidos al servicio de analisis. Todos tienen valor por defecto.
 # Intentos por trabajo, y la espera entre intentos en segundos (se duplica en cada uno hasta la maxima).

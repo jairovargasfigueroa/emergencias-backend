@@ -36,6 +36,11 @@ public class ManejadorErrores {
 		return problema;
 	}
 
+	@ExceptionHandler(AccesoDenegadoException.class)
+	ProblemDetail accesoDenegado(AccesoDenegadoException e) {
+		return problema(HttpStatus.FORBIDDEN, e.getCodigo(), e.getMessage());
+	}
+
 	@ExceptionHandler(CredencialesInvalidasException.class)
 	ProblemDetail credenciales(CredencialesInvalidasException e) {
 		return problema(HttpStatus.UNAUTHORIZED, CodigoError.CREDENCIALES_INVALIDAS, e.getMessage());

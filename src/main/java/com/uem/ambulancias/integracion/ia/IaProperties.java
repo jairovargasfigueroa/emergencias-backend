@@ -23,10 +23,10 @@ public record IaProperties(
 		@DefaultValue("10") int segundosConexion,
 
 		/**
-		 * Cuánto se espera la respuesta. El peor caso del servicio ronda los 225 segundos, con sus propios reintentos;
+		 * Cuánto se espera la respuesta. El peor caso del servicio ronda los 265 segundos con un video (ffmpeg más sus propios reintentos);
 		 * cortar antes sería tirar un análisis que estaba por llegar.
 		 */
-		@DefaultValue("240") int segundosLectura) {
+		@DefaultValue("300") int segundosLectura) {
 
 	public Duration conexion() {
 		return Duration.ofSeconds(segundosConexion);

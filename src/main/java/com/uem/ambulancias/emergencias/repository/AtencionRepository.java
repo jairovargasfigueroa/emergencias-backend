@@ -32,6 +32,43 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 			""")
 	boolean existeLlegadaVigentePorIncidente(@Param("incidenteId") Long incidenteId);
 
+	/**
+	 * Si el paramédico está de turno en una unidad que sigue tomada por ese incidente: trabajando, o ya resuelta y sin
+	 * liberarse. Es el mismo criterio de "su atención actual" que usa la app, pero desde el turno: estar asignado a la
+	 * unidad no alcanza, el compañero que está en su casa no está atendiendo.
+	 */
+	default boolean paramedicoAtiendeIncidente(Long paramedicoId, Long incidenteId) {
+		return existeOcupandoIncidenteConParamedico(paramedicoId, incidenteId, EstadoAtencion.ACTIVOS,
+				EstadoAtencion.RESUELTOS);
+	}
+
+	@Query("""
+			select count(a) > 0 from Atencion a, Turno t
+			where a.incidente.id = :incidenteId and t.paramedico.id = :paramedicoId and t.fin is null
+			  and t.ambulancia = a.ambulancia
+			  and (a.estado in :activos or (a.estado in :resueltos and a.horaLiberacion is null))
+			""")
+	boolean existeOcupandoIncidenteConParamedico(@Param("paramedicoId") Long paramedicoId,
+			@Param("incidenteId") Long incidenteId, @Param("activos") Collection<EstadoAtencion> activos,
+			@Param("resueltos") Collection<EstadoAtencion> resueltos);
+
+	/**
+	 * Las unidades que siguen tomadas por el incidente: trabajando, o ya resueltas y sin liberarse. Es a quiénes se
+	 * les avisa que hay información nueva del incidente, con el mismo criterio que decide quién puede verla.
+	 */
+	default List<Long> buscarAmbulanciasQueOcupanIncidente(Long incidenteId) {
+		return buscarAmbulanciasOcupandoIncidente(incidenteId, EstadoAtencion.ACTIVOS, EstadoAtencion.RESUELTOS);
+	}
+
+	@Query("""
+			select distinct a.ambulancia.id from Atencion a
+			where a.incidente.id = :incidenteId
+			  and (a.estado in :activos or (a.estado in :resueltos and a.horaLiberacion is null))
+			""")
+	List<Long> buscarAmbulanciasOcupandoIncidente(@Param("incidenteId") Long incidenteId,
+			@Param("activos") Collection<EstadoAtencion> activos,
+			@Param("resueltos") Collection<EstadoAtencion> resueltos);
+
 	/** Atenciones activas del incidente con su ambulancia, en orden de toma. */
 	default List<Atencion> buscarActivasPorIncidente(Long idIncidente) {
 		return buscarPorIncidenteYEstados(idIncidente, EstadoAtencion.ACTIVOS);
