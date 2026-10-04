@@ -108,6 +108,10 @@ Cada decisión se revisa con tres preguntas:
 - **Por qué un estado nuevo y no `DESCARTADA`.** `DESCARTADA` significa que la evidencia se abandonó o venció. Tener dos estados permite darle al ciudadano un mensaje preciso y medir los rechazos.
 - **Lo que falta.** No hay un canal por evidencia hacia el ciudadano: hoy la app se queda en "Enviada". Hacen falta el push nuevo y su manejo en la app.
 - **Video.** Si se reactiva (B2), sigue este mismo flujo.
+- **Respuestas del 2026-10-04.**
+  - Canal hacia el ciudadano (push y endpoint nuevos): sí.
+  - De una evidencia rechazada se guardan solo el motivo y la fecha.
+  - `RECHAZADA` como estado nuevo o `DESCARTADA` con motivo: pospuesto, porque es lógica del backend y no se toca por ahora. Mientras no se decida, la parte del backend no se implementa.
 
 ## B6. Avisar al ciudadano qué se hace con lo que envía
 
