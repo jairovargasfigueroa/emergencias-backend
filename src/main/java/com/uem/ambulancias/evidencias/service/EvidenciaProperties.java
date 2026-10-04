@@ -47,7 +47,17 @@ public record EvidenciaProperties(
 		@DefaultValue("24") int horasAbandono,
 
 		/** Días que se conserva una evidencia. Después se descarta, y S3 borra el archivo con su propia regla. */
-		@DefaultValue("90") int diasRetencion) {
+		@DefaultValue("90") int diasRetencion,
+
+		/**
+		 * Si se aceptan videos. Por ahora no: la foto y el audio cubren lo que necesita la tripulación, y un video pesa
+		 * más, tarda más en analizarse y cuesta más. El análisis de video sigue disponible para volver a activarlo.
+		 */
+		@DefaultValue("false") boolean videoHabilitado) {
+
+	public boolean admite(Modalidad modalidad) {
+		return modalidad != Modalidad.VIDEO || videoHabilitado;
+	}
 
 	public long limiteBytes(Modalidad modalidad) {
 		int mib = switch (modalidad) {
