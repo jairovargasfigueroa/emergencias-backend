@@ -97,6 +97,8 @@ sga.evidencias.minutos-lectura=10
 sga.evidencias.limpieza-cada-min=60
 sga.evidencias.horas-abandono=24
 sga.evidencias.dias-retencion=90
+# Videos: apagados por ahora; la app ofrece solo foto y audio. En true vuelven a aceptarse.
+sga.evidencias.video-habilitado=false
 # Bucket de S3 donde se guardan los archivos, privado. Vacio, no se pueden adjuntar archivos y el servidor arranca igual.
 # Las credenciales no van aca (el SDK de AWS no lee este archivo): en el servidor las da el rol de la instancia EC2
 # o AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY del deploy/.env; en local, el archivo ~/.aws/credentials con un perfil
