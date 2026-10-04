@@ -5,6 +5,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 
 import com.uem.ambulancias.comun.error.NoEncontradoException;
@@ -12,6 +14,7 @@ import com.uem.ambulancias.emergencias.domain.Incidente;
 import com.uem.ambulancias.emergencias.repository.AlertaRepository;
 import com.uem.ambulancias.emergencias.repository.IncidenteRepository;
 import com.uem.ambulancias.evidencias.domain.AnalisisEvidencia;
+import com.uem.ambulancias.evidencias.domain.DatosClaveDelResumen;
 import com.uem.ambulancias.evidencias.domain.ResumenIncidente;
 import com.uem.ambulancias.evidencias.domain.TrabajoIa;
 import com.uem.ambulancias.evidencias.repository.AnalisisEvidenciaRepository;
@@ -128,7 +131,8 @@ public class ResumenIncidenteService {
 	 * Guarda la propuesta como versión nueva si mejora a la vigente ({@link ResumenIncidente#seReemplazaCon}) y cierra
 	 * el trabajo. Con el incidente bloqueado: dos resúmenes del mismo incidente que terminan a la vez se comparan de a
 	 * uno contra la versión que dejó el otro. Devuelve la versión guardada, o vacío si la propuesta no la mejoraba. La
-	 * versión nueva se avisa después del commit.
+	 * versión nueva se avisa después del commit, marcada como importante si cambió algo que la tripulación tiene que
+	 * saber ({@link DatosClaveDelResumen}).
 	 */
 	@Transactional
 	public Optional<ResumenIncidente> guardar(Long trabajoId, ResumenRecibido recibido) {
@@ -152,8 +156,47 @@ public class ResumenIncidenteService {
 		}
 		ResumenIncidente nuevo = resumenes.save(
 				ResumenIncidente.nuevaVersion(incidente, vigente, trabajo.getReferencia(), recibido, ahora));
-		eventos.publishEvent(new ResumenActualizado(incidenteId, nuevo.getVersion()));
+		boolean importante = vigente == null || cambioImportante(nuevo, vigente);
+		eventos.publishEvent(new ResumenActualizado(incidenteId, nuevo.getVersion(), importante));
 		return Optional.of(nuevo);
+	}
+
+	/** Si alguna de las dos versiones no se puede leer, se toma como importante: ante la duda, se avisa. */
+	private boolean cambioImportante(ResumenIncidente nuevo, ResumenIncidente anterior) {
+		Optional<DatosClaveDelResumen> datosNuevos = datosClaveDe(nuevo);
+		Optional<DatosClaveDelResumen> datosAnteriores = datosClaveDe(anterior);
+		if (datosNuevos.isEmpty() || datosAnteriores.isEmpty()) {
+			return true;
+		}
+		return datosNuevos.get().cambioImportanteRespectoDe(datosAnteriores.get());
+	}
+
+	private Optional<DatosClaveDelResumen> datosClaveDe(ResumenIncidente version) {
+		JsonNode raiz;
+		try {
+			raiz = json.readTree(version.getResumen());
+		} catch (JacksonException e) {
+			log.warn("No se pudo leer la versión {} del resumen del incidente {}.", version.getVersion(),
+					version.getIncidente().getId());
+			return Optional.empty();
+		}
+		Set<String> peligros = new TreeSet<>();
+		for (JsonNode peligro : raiz.path("hazards")) {
+			if (peligro.isString()) {
+				peligros.add(peligro.asString());
+			}
+		}
+		JsonNode personas = raiz.path("people");
+		return Optional.of(new DatosClaveDelResumen(texto(raiz.path("severity").path("level")),
+				texto(raiz.path("eventType")), entero(personas.path("min")), entero(personas.path("max")), peligros));
+	}
+
+	private static String texto(JsonNode nodo) {
+		return nodo.isString() ? nodo.asString() : null;
+	}
+
+	private static Integer entero(JsonNode nodo) {
+		return nodo.isIntegralNumber() ? nodo.asInt() : null;
 	}
 
 }
