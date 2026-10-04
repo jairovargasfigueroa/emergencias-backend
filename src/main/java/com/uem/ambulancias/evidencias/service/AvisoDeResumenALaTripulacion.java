@@ -17,8 +17,11 @@ import org.springframework.transaction.event.TransactionPhase;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Le avisa por push a la tripulación que está atendiendo el incidente que hay una versión nueva del resumen. La señal
+ * Le avisa por push a la tripulación que va en camino al incidente que el resumen cambió en algo importante. La señal
  * de Firebase solo la oye la app abierta; el push es para cuando van manejando con el teléfono en el bolsillo.
+ *
+ * <p>Solo se avisa un cambio importante (gravedad, tipo de suceso, personas o peligros) y solo a las unidades en
+ * camino: un aviso que suena por todo deja de escucharse. Las demás versiones igual llegan a la pantalla por Firebase.
  *
  * <p>El push no lleva nada de lo que dice el resumen: la notificación se ve en la pantalla bloqueada. La app lo pide
  * a la API, que es la que decide quién puede verlo.
@@ -37,10 +40,13 @@ public class AvisoDeResumenALaTripulacion {
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	@Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
 	public void avisar(ResumenActualizado evento) {
+		if (!evento.importante()) {
+			return;
+		}
 		try {
-			List<Long> ambulancias = atenciones.buscarAmbulanciasQueOcupanIncidente(evento.incidenteId());
+			List<Long> ambulancias = atenciones.buscarAmbulanciasEnCaminoAlIncidente(evento.incidenteId());
 			if (ambulancias.isEmpty()) {
-				// Todavía no salió nadie: quien tome el incidente lo verá al abrirlo.
+				// Nadie va en camino: quien tome el incidente lo verá al abrirlo, y quien ya llegó ve la escena.
 				return;
 			}
 			Map<String, String> datos = Map.of("tipo", TIPO, "incidenteId", String.valueOf(evento.incidenteId()));
