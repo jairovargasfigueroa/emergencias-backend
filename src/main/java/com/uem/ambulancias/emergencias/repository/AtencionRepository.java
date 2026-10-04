@@ -53,21 +53,19 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 			@Param("resueltos") Collection<EstadoAtencion> resueltos);
 
 	/**
-	 * Las unidades que siguen tomadas por el incidente: trabajando, o ya resueltas y sin liberarse. Es a quiénes se
-	 * les avisa que hay información nueva del incidente, con el mismo criterio que decide quién puede verla.
+	 * Las unidades que todavía van en camino al incidente. Son las únicas a las que les sirve enterarse de un cambio
+	 * del resumen: en el lugar la tripulación ya ve la escena, y en el hospital el aviso ya no aporta.
 	 */
-	default List<Long> buscarAmbulanciasQueOcupanIncidente(Long incidenteId) {
-		return buscarAmbulanciasOcupandoIncidente(incidenteId, EstadoAtencion.ACTIVOS, EstadoAtencion.RESUELTOS);
+	default List<Long> buscarAmbulanciasEnCaminoAlIncidente(Long incidenteId) {
+		return buscarAmbulanciasPorIncidenteYEstado(incidenteId, EstadoAtencion.EN_CAMINO);
 	}
 
 	@Query("""
 			select distinct a.ambulancia.id from Atencion a
-			where a.incidente.id = :incidenteId
-			  and (a.estado in :activos or (a.estado in :resueltos and a.horaLiberacion is null))
+			where a.incidente.id = :incidenteId and a.estado = :estado
 			""")
-	List<Long> buscarAmbulanciasOcupandoIncidente(@Param("incidenteId") Long incidenteId,
-			@Param("activos") Collection<EstadoAtencion> activos,
-			@Param("resueltos") Collection<EstadoAtencion> resueltos);
+	List<Long> buscarAmbulanciasPorIncidenteYEstado(@Param("incidenteId") Long incidenteId,
+			@Param("estado") EstadoAtencion estado);
 
 	/** Atenciones activas del incidente con su ambulancia, en orden de toma. */
 	default List<Atencion> buscarActivasPorIncidente(Long idIncidente) {
