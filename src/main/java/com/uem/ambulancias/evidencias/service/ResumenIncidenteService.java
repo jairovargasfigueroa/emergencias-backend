@@ -94,6 +94,10 @@ public class ResumenIncidenteService {
 	/**
 	 * Todas las alertas del incidente y todos sus análisis vigentes, con el JSON de cada análisis tal como se guardó.
 	 * Vacío si todavía no hay ningún análisis: el trabajo se cierra sin llamar al servicio, que no tendría qué resumir.
+	 *
+	 * <p>Una alerta retirada o descartada va sin su descripción ni su cantidad de afectados: ese texto ya no describe
+	 * el incidente. La alerta sigue en el pedido porque sus evidencias, si las tiene, siguen siendo lo que se vio, y
+	 * porque la regla de versiones exige que una propuesta conserve las fuentes de la vigente.
 	 */
 	@Transactional
 	public Optional<PedidoDeResumen> prepararPedido(Long trabajoId) {
@@ -109,7 +113,8 @@ public class ResumenIncidenteService {
 		}
 		List<PedidoDeResumen.AlertaDelIncidente> alertasDelIncidente = alertas.buscarPorIncidente(incidenteId).stream()
 				.map(alerta -> new PedidoDeResumen.AlertaDelIncidente(alerta.getId(), alerta.getFechaHora(),
-						alerta.getDescripcion(), alerta.getCantidadAfectados(), alerta.getEmisorEsPaciente()))
+						alerta.sigueEnPie() ? alerta.getDescripcion() : null,
+						alerta.sigueEnPie() ? alerta.getCantidadAfectados() : null, alerta.getEmisorEsPaciente()))
 				.toList();
 		List<PedidoDeResumen.EvidenciaAnalizada> analizadas = vigentes.stream()
 				.map(uno -> new PedidoDeResumen.EvidenciaAnalizada(uno.getEvidencia().getId(),

@@ -120,6 +120,14 @@ public class Alerta {
 	}
 
 	/**
+	 * Si lo que escribió el emisor sigue valiendo como reporte: no retiró su pedido y la alerta no se descartó. Una
+	 * alerta retirada pudo ser un error o una falsa alarma, así que su texto ya no describe el incidente.
+	 */
+	public boolean sigueEnPie() {
+		return estado != EstadoAlerta.CANCELADA && estado != EstadoAlerta.DESCARTADA;
+	}
+
+	/**
 	 * Datos opcionales que la app pregunta después de emitir, porque no bloquean la emisión (PB-02 R3). Solo se
 	 * aplican los campos que llegan: uno {@code null} deja el valor anterior sin tocar.
 	 */
