@@ -57,6 +57,9 @@ public class EvidenciaService {
 		FormatoEvidencia formato = FormatoEvidencia.deMime(mimeType)
 				.orElseThrow(() -> new ConflictoException(CodigoError.FORMATO_NO_ADMITIDO,
 						"No se aceptan archivos de tipo " + mimeType + "."));
+		if (!config.admite(formato.modalidad())) {
+			throw new ConflictoException(CodigoError.FORMATO_NO_ADMITIDO, "Por ahora no se aceptan videos.");
+		}
 		if (evidencias.contarVigentesPorAlerta(alertaId) >= config.maximoPorAlerta()) {
 			throw new ConflictoException(CodigoError.LIMITE_DE_EVIDENCIAS,
 					"La alerta " + alertaId + " ya tiene " + config.maximoPorAlerta() + " evidencias.");
