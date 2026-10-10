@@ -17,7 +17,8 @@ import com.uem.ambulancias.seguridad.service.TokenService;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 
 /**
- * Base de las pruebas de integración ({@code ...IT}): la app entera, con PostGIS en Docker y Firebase reemplazado.
+ * Base de las pruebas de integración ({@code ...IT}): la app entera, con PostGIS en Docker y Firebase, S3 y la IA
+ * reemplazados.
  * Todas comparten el mismo contexto y la misma base, que se vacía antes de cada prueba: ninguna depende de otra.
  */
 @SpringBootTest
@@ -33,6 +34,12 @@ public abstract class PruebaIT {
 
 	@Autowired
 	protected JdbcTemplate jdbc;
+
+	@Autowired
+	protected AlmacenEnMemoria almacen;
+
+	@Autowired
+	protected ServicioIaFalso ia;
 
 	@Autowired
 	private UsuarioRepository usuarios;
@@ -51,6 +58,8 @@ public abstract class PruebaIT {
 			jdbc.execute("truncate table " + String.join(", ", tablas) + " restart identity cascade");
 		}
 		publicaciones.olvidar();
+		almacen.olvidar();
+		ia.olvidar();
 		escenario = new Escenario(mvc, usuarios, tokens, jdbc);
 	}
 
