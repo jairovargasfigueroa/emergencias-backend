@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.uem.ambulancias.emergencias.service.AvisoParaCiudadano;
+import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
+import com.uem.ambulancias.emergencias.service.AvisoDeTraslado;
 import com.uem.ambulancias.emergencias.service.AvisoParaParamedico;
 import com.uem.ambulancias.emergencias.service.IncidentePublicado;
 import com.uem.ambulancias.emergencias.service.SeguimientoPublicado;
@@ -25,6 +27,7 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 	private final List<AvisoParaCiudadano> avisosACiudadanos = new CopyOnWriteArrayList<>();
 	private final List<AvisoDeAsignacion> avisosDeIncidenteAsignado = new CopyOnWriteArrayList<>();
 	private final List<VersionDeResumen> versionesDeResumen = new CopyOnWriteArrayList<>();
+	private final List<AvisoATripulacion> avisosDeTraslado = new CopyOnWriteArrayList<>();
 	private final List<AvisoParaParamedico> avisosAParamedicos = new CopyOnWriteArrayList<>();
 	private final List<UnidadPublicada> unidades = new CopyOnWriteArrayList<>();
 	private final List<PosicionActualizada> posiciones = new CopyOnWriteArrayList<>();
@@ -58,6 +61,28 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 	@Override
 	public void notificarCiudadanos(List<AvisoParaCiudadano> avisos) {
 		avisosACiudadanos.addAll(avisos);
+	}
+
+	@Override
+	public void notificarTrasladoAsignado(List<String> tokens, AvisoDeTraslado aviso) {
+		avisosDeTraslado.add(new AvisoATripulacion(aviso.trasladoId(), "ASIGNADO", List.copyOf(tokens)));
+	}
+
+	@Override
+	public void notificarTrasladoRetirado(List<String> tokens, AvisoDeTraslado aviso,
+			MotivoCancelacionAtencion motivo) {
+		avisosDeTraslado.add(new AvisoATripulacion(aviso.trasladoId(), "RETIRADO_" + motivo, List.copyOf(tokens)));
+	}
+
+	/**
+	 * Lo que se le avisó a la tripulación de ese traslado, en orden: {@code ASIGNADO} o {@code RETIRADO_<motivo>},
+	 * con los teléfonos a los que llegó.
+	 */
+	public List<String> avisosDeTrasladoA(String tokenPush, Long trasladoId) {
+		return avisosDeTraslado.stream()
+				.filter(aviso -> aviso.trasladoId().equals(trasladoId) && aviso.tokens().contains(tokenPush))
+				.map(AvisoATripulacion::tipo)
+				.toList();
 	}
 
 	@Override
@@ -186,6 +211,7 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 		avisosACiudadanos.clear();
 		avisosDeIncidenteAsignado.clear();
 		versionesDeResumen.clear();
+		avisosDeTraslado.clear();
 		avisosAParamedicos.clear();
 		unidades.clear();
 		posiciones.clear();
@@ -199,6 +225,9 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 	}
 
 	private record VersionDeResumen(Long incidenteId, int version) {
+	}
+
+	private record AvisoATripulacion(Long trasladoId, String tipo, List<String> tokens) {
 	}
 
 }
