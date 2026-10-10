@@ -5,6 +5,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.http.MediaType;
@@ -63,8 +65,14 @@ public class Escenario {
 	}
 
 	public long ambulancia() {
+		return ambulancia("II");
+	}
+
+	/** Una ambulancia de ese tipo: IA, II o III. */
+	public long ambulancia(String tipoUnidad) {
 		String placa = "PRB" + SECUENCIA.getAndIncrement();
-		String respuesta = enviar(post("/ambulancias"), admin(), Json.objeto("placa", placa, "tipoUnidad", "II"), 201);
+		String respuesta = enviar(post("/ambulancias"), admin(),
+				Json.objeto("placa", placa, "tipoUnidad", tipoUnidad), 201);
 		return Json.numero(respuesta, "$.id");
 	}
 
@@ -108,11 +116,26 @@ public class Escenario {
 
 	/** Activado, asignado a una ambulancia nueva y con el turno abierto: su unidad queda DISPONIBLE. */
 	public Paramedico paramedicoEnTurno() {
+		return paramedicoEnTurno("II");
+	}
+
+	/** En turno en una ambulancia nueva de ese tipo. */
+	public Paramedico paramedicoEnTurno(String tipoUnidad) {
 		Paramedico paramedico = paramedicoActivado();
-		long ambulanciaId = ambulancia();
+		long ambulanciaId = ambulancia(tipoUnidad);
 		asignar(paramedico.id(), ambulanciaId);
 		iniciarTurno(paramedico);
 		return paramedico.conAmbulancia(ambulanciaId);
+	}
+
+	/**
+	 * Lista para que el sistema le asigne traslados: en turno, de ese tipo y con una posición recién reportada a esa
+	 * distancia al norte del centro. Sin posición reciente la búsqueda automática no la elige.
+	 */
+	public Paramedico unidadParaTraslados(String tipoUnidad, double alNorte) {
+		Paramedico paramedico = paramedicoEnTurno(tipoUnidad);
+		reportarPosicion(paramedico, LATITUD + alNorte, LONGITUD);
+		return paramedico;
 	}
 
 	public void asignar(long paramedicoId, long ambulanciaId) {
@@ -218,6 +241,36 @@ public class Escenario {
 		subir(evidencia);
 		enviar(post("/evidencias/" + evidencia.id() + "/confirmacion"), ciudadano.token(), null, 202);
 		return evidencia;
+	}
+
+	/** Una persona que el ciudadano agrega a su agenda para pedirle traslados. */
+	public long persona(Ciudadano ciudadano, String nombreCompleto) {
+		String respuesta = enviar(post("/personas"), ciudadano.token(),
+				Json.objeto("nombreCompleto", nombreCompleto, "telefono", nuevoTelefono()), 201);
+		return Json.numero(respuesta, "$.id");
+	}
+
+	/**
+	 * Lo mínimo de un pedido de traslado: camina con ayuda, sale del centro y va a unos 2 km al norte, sin cita (o
+	 * sea, para ahora). Cada prueba cambia o agrega los campos que le importan.
+	 */
+	public static Map<String, Object> pedidoDeTraslado() {
+		Map<String, Object> pedido = new LinkedHashMap<>();
+		pedido.put("movilidad", "CAMINA_CON_AYUDA");
+		pedido.put("oxigeno", false);
+		pedido.put("equipo", false);
+		pedido.put("aislamiento", false);
+		pedido.put("acompanantes", 0);
+		pedido.put("origenLatitud", LATITUD);
+		pedido.put("origenLongitud", LONGITUD);
+		pedido.put("destinoLatitud", LATITUD + 0.018);
+		pedido.put("destinoLongitud", LONGITUD);
+		return pedido;
+	}
+
+	/** El ciudadano pide el traslado y queda registrado. Devuelve su id. */
+	public long pedirTraslado(Ciudadano ciudadano, Map<String, Object> pedido) {
+		return Json.numero(enviar(post("/traslados"), ciudadano.token(), Json.objeto(pedido), 201), "$.id");
 	}
 
 	public static String nuevoTelefono() {

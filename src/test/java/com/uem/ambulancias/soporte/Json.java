@@ -1,6 +1,8 @@
 package com.uem.ambulancias.soporte;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
+import java.util.stream.Stream;
 
 import com.jayway.jsonpath.JsonPath;
 
@@ -23,6 +25,13 @@ public final class Json {
 			json.append(valor(clavesYValores[i])).append(':').append(valor(clavesYValores[i + 1]));
 		}
 		return json.append('}').toString();
+	}
+
+	/** El mismo objeto armado desde un mapa, para cuerpos largos que cada prueba ajusta campo por campo. */
+	public static String objeto(Map<String, ?> campos) {
+		return objeto(campos.entrySet().stream()
+				.flatMap(campo -> Stream.of(campo.getKey(), campo.getValue()))
+				.toArray());
 	}
 
 	public static long numero(String json, String ruta) {
