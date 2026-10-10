@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.uem.ambulancias.emergencias.service.AvisoParaCiudadano;
+import com.uem.ambulancias.emergencias.service.AvisoParaParamedico;
 import com.uem.ambulancias.emergencias.service.IncidentePublicado;
 import com.uem.ambulancias.emergencias.service.SeguimientoPublicado;
 import com.uem.ambulancias.emergencias.service.UnidadPublicada;
@@ -23,6 +24,8 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 	private final List<PosicionEnSeguimiento> posicionesEnSeguimiento = new CopyOnWriteArrayList<>();
 	private final List<AvisoParaCiudadano> avisosACiudadanos = new CopyOnWriteArrayList<>();
 	private final List<AvisoDeAsignacion> avisosDeIncidenteAsignado = new CopyOnWriteArrayList<>();
+	private final List<VersionDeResumen> versionesDeResumen = new CopyOnWriteArrayList<>();
+	private final List<AvisoParaParamedico> avisosAParamedicos = new CopyOnWriteArrayList<>();
 	private final List<UnidadPublicada> unidades = new CopyOnWriteArrayList<>();
 	private final List<PosicionActualizada> posiciones = new CopyOnWriteArrayList<>();
 	private final List<Long> posicionesRetiradas = new CopyOnWriteArrayList<>();
@@ -55,6 +58,29 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 	@Override
 	public void notificarCiudadanos(List<AvisoParaCiudadano> avisos) {
 		avisosACiudadanos.addAll(avisos);
+	}
+
+	@Override
+	public void publicarResumenNuevo(Long incidenteId, int version) {
+		versionesDeResumen.add(new VersionDeResumen(incidenteId, version));
+	}
+
+	@Override
+	public void notificarParamedicos(List<AvisoParaParamedico> avisos) {
+		avisosAParamedicos.addAll(avisos);
+	}
+
+	/** Las versiones del resumen de ese incidente que se avisaron por el canal en vivo, en orden. */
+	public List<Integer> versionesDeResumenPublicadas(Long incidenteId) {
+		return versionesDeResumen.stream()
+				.filter(publicada -> publicada.incidenteId().equals(incidenteId))
+				.map(VersionDeResumen::version)
+				.toList();
+	}
+
+	/** Los push que recibió ese teléfono de paramédico, en orden. */
+	public List<AvisoParaParamedico> avisosAlParamedico(String tokenPush) {
+		return avisosAParamedicos.stream().filter(aviso -> aviso.tokenPush().equals(tokenPush)).toList();
 	}
 
 	@Override
@@ -159,6 +185,8 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 		posicionesEnSeguimiento.clear();
 		avisosACiudadanos.clear();
 		avisosDeIncidenteAsignado.clear();
+		versionesDeResumen.clear();
+		avisosAParamedicos.clear();
 		unidades.clear();
 		posiciones.clear();
 		posicionesRetiradas.clear();
@@ -168,6 +196,9 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 	}
 
 	private record AvisoDeAsignacion(Long incidenteId, List<String> tokens) {
+	}
+
+	private record VersionDeResumen(Long incidenteId, int version) {
 	}
 
 }
