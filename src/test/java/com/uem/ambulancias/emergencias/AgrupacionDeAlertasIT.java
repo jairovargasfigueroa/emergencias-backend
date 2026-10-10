@@ -33,7 +33,7 @@ import com.uem.ambulancias.soporte.PruebaIT;
 class AgrupacionDeAlertasIT extends PruebaIT {
 
 	@Test
-	@DisplayName("PB-05 · CP-05-06 · dos personas que avisan a 100 m quedan en el mismo incidente, con el mayor número de afectados")
+	@DisplayName("PB-05 · CP-05-05 · dos personas que avisan a 100 m quedan en el mismo incidente, con el mayor número de afectados")
 	void mismoSuceso() throws Exception {
 		Alerta primera = alertar(escenario.ciudadano(), Escenario.LATITUD, 2);
 		Alerta segunda = alertar(escenario.ciudadano(), Escenario.LATITUD + Escenario.CIEN_METROS, 4);
@@ -46,7 +46,7 @@ class AgrupacionDeAlertasIT extends PruebaIT {
 	}
 
 	@Test
-	@DisplayName("PB-05 · CP-05-06 · un aviso a 200 m es otro incidente")
+	@DisplayName("PB-05 · CP-05-05 · un aviso a 200 m es otro incidente")
 	void fueraDelRadio() {
 		Alerta primera = escenario.alertar(escenario.ciudadano());
 		Alerta lejos = escenario.alertar(escenario.ciudadano(), Escenario.LATITUD + 2 * Escenario.CIEN_METROS,
@@ -56,7 +56,7 @@ class AgrupacionDeAlertasIT extends PruebaIT {
 	}
 
 	@Test
-	@DisplayName("PB-05 · CP-05-06 · un aviso en el mismo lugar después de 30 minutos es otro incidente")
+	@DisplayName("PB-05 · CP-05-05 · un aviso en el mismo lugar después de 30 minutos es otro incidente")
 	void fueraDeLaVentana() {
 		Alerta vieja = escenario.alertar(escenario.ciudadano());
 		jdbc.update("update incidente set fecha_hora_creacion = now() - interval '31 minutes' where id = ?",
@@ -68,7 +68,7 @@ class AgrupacionDeAlertasIT extends PruebaIT {
 	}
 
 	@Test
-	@DisplayName("PB-05 · CP-05-06 · un aviso junto a un incidente ya cerrado abre uno nuevo")
+	@DisplayName("PB-05 · CP-05-05 · un aviso junto a un incidente ya cerrado abre uno nuevo")
 	void incidenteCerrado() throws Exception {
 		Ciudadano ciudadano = escenario.ciudadano();
 		Alerta cerrada = escenario.alertar(ciudadano);
@@ -82,7 +82,7 @@ class AgrupacionDeAlertasIT extends PruebaIT {
 	}
 
 	@Test
-	@DisplayName("PB-05 · CP-05-06 · un aviso junto a un incidente que ya está en atención se suma a ese incidente")
+	@DisplayName("PB-05 · CP-05-05 · un aviso junto a un incidente que ya está en atención se suma a ese incidente")
 	void incidenteEnAtencion() {
 		Alerta primera = escenario.alertar(escenario.ciudadano());
 		escenario.tomar(escenario.paramedicoEnTurno(), primera.incidenteId());
@@ -93,7 +93,7 @@ class AgrupacionDeAlertasIT extends PruebaIT {
 	}
 
 	@Test
-	@DisplayName("PB-05 · CP-05-07 · ocho avisos simultáneos del mismo lugar abren un solo incidente")
+	@DisplayName("PB-05 · CP-05-06 · ocho avisos simultáneos del mismo lugar abren un solo incidente")
 	void avisosSimultaneos() throws Exception {
 		int cantidad = 8;
 		List<Ciudadano> ciudadanos = new ArrayList<>();

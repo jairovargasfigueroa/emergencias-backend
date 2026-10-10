@@ -48,8 +48,8 @@ class AlertaTest {
 	}
 
 	@Test
-	@Tag("PB-05")
-	@DisplayName("PB-05 · retirar el pedido guarda el motivo y no se puede retirar dos veces")
+	@Tag("PB-11")
+	@DisplayName("PB-11 · retirar el pedido guarda el motivo y no se puede retirar dos veces")
 	void cancelar() {
 		Alerta alerta = nueva(null, null);
 
