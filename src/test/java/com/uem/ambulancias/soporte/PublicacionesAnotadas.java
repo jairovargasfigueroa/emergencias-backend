@@ -22,6 +22,7 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 	private final List<List<String>> avisosDeIncidenteNuevo = new CopyOnWriteArrayList<>();
 	private final List<PosicionEnSeguimiento> posicionesEnSeguimiento = new CopyOnWriteArrayList<>();
 	private final List<AvisoParaCiudadano> avisosACiudadanos = new CopyOnWriteArrayList<>();
+	private final List<AvisoDeAsignacion> avisosDeIncidenteAsignado = new CopyOnWriteArrayList<>();
 	private final List<UnidadPublicada> unidades = new CopyOnWriteArrayList<>();
 	private final List<PosicionActualizada> posiciones = new CopyOnWriteArrayList<>();
 	private final List<Long> posicionesRetiradas = new CopyOnWriteArrayList<>();
@@ -54,6 +55,19 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 	@Override
 	public void notificarCiudadanos(List<AvisoParaCiudadano> avisos) {
 		avisosACiudadanos.addAll(avisos);
+	}
+
+	@Override
+	public void notificarIncidenteAsignado(List<String> tokens, IncidentePublicado incidente) {
+		avisosDeIncidenteAsignado.add(new AvisoDeAsignacion(incidente.id(), List.copyOf(tokens)));
+	}
+
+	/** Los teléfonos de la tripulación avisados de que la central les mandó ese incidente. */
+	public List<String> avisadosDelDespacho(Long incidenteId) {
+		return avisosDeIncidenteAsignado.stream()
+				.filter(aviso -> aviso.incidenteId().equals(incidenteId))
+				.flatMap(aviso -> aviso.tokens().stream())
+				.toList();
 	}
 
 	@Override
@@ -144,12 +158,16 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 		avisosDeIncidenteNuevo.clear();
 		posicionesEnSeguimiento.clear();
 		avisosACiudadanos.clear();
+		avisosDeIncidenteAsignado.clear();
 		unidades.clear();
 		posiciones.clear();
 		posicionesRetiradas.clear();
 	}
 
 	private record PosicionEnSeguimiento(Long incidenteId, PosicionActualizada posicion) {
+	}
+
+	private record AvisoDeAsignacion(Long incidenteId, List<String> tokens) {
 	}
 
 }
