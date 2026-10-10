@@ -3,8 +3,10 @@ package com.uem.ambulancias.soporte;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.uem.ambulancias.emergencias.service.AvisoParaCiudadano;
 import com.uem.ambulancias.emergencias.service.IncidentePublicado;
 import com.uem.ambulancias.emergencias.service.SeguimientoPublicado;
+import com.uem.ambulancias.flota.service.PosicionActualizada;
 import com.uem.ambulancias.integracion.firebase.PublicadorEnRegistro;
 
 /**
@@ -17,6 +19,8 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 	private final List<Long> incidentesRetirados = new CopyOnWriteArrayList<>();
 	private final List<SeguimientoPublicado> seguimientos = new CopyOnWriteArrayList<>();
 	private final List<List<String>> avisosDeIncidenteNuevo = new CopyOnWriteArrayList<>();
+	private final List<PosicionEnSeguimiento> posicionesEnSeguimiento = new CopyOnWriteArrayList<>();
+	private final List<AvisoParaCiudadano> avisosACiudadanos = new CopyOnWriteArrayList<>();
 
 	@Override
 	public void publicarIncidenteAbierto(IncidentePublicado incidente) {
@@ -36,6 +40,34 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 	@Override
 	public void notificarNuevoIncidente(List<String> tokensPorCercania, IncidentePublicado incidente) {
 		avisosDeIncidenteNuevo.add(List.copyOf(tokensPorCercania));
+	}
+
+	@Override
+	public void publicarPosicionEnSeguimiento(Long incidenteId, PosicionActualizada posicion) {
+		posicionesEnSeguimiento.add(new PosicionEnSeguimiento(incidenteId, posicion));
+	}
+
+	@Override
+	public void notificarCiudadanos(List<AvisoParaCiudadano> avisos) {
+		avisosACiudadanos.addAll(avisos);
+	}
+
+	/** Las posiciones en vivo que se copiaron al seguimiento de ese incidente, en orden. */
+	public List<PosicionActualizada> posicionesEnSeguimiento(Long incidenteId) {
+		return posicionesEnSeguimiento.stream()
+				.filter(copia -> copia.incidenteId().equals(incidenteId))
+				.map(PosicionEnSeguimiento::posicion)
+				.toList();
+	}
+
+	/** Las posiciones en vivo copiadas a cualquier seguimiento. */
+	public int cantidadDePosicionesEnSeguimiento() {
+		return posicionesEnSeguimiento.size();
+	}
+
+	/** Los push que recibió ese teléfono de ciudadano, en orden. */
+	public List<AvisoParaCiudadano> avisosAlCiudadano(String tokenPush) {
+		return avisosACiudadanos.stream().filter(aviso -> aviso.tokenPush().equals(tokenPush)).toList();
 	}
 
 	public List<IncidentePublicado> incidentesAbiertos(Long incidenteId) {
@@ -73,6 +105,11 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 		incidentesRetirados.clear();
 		seguimientos.clear();
 		avisosDeIncidenteNuevo.clear();
+		posicionesEnSeguimiento.clear();
+		avisosACiudadanos.clear();
+	}
+
+	private record PosicionEnSeguimiento(Long incidenteId, PosicionActualizada posicion) {
 	}
 
 }
