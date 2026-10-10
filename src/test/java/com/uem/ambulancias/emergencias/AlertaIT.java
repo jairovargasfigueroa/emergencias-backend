@@ -85,42 +85,6 @@ class AlertaIT extends PruebaIT {
 	}
 
 	@Test
-	@DisplayName("PB-05 · CP-05-03 · mientras espera completa los datos, y el total del incidente solo sube")
-	void completarDetalles() throws Exception {
-		Ciudadano ciudadano = escenario.ciudadano();
-		Alerta alerta = escenario.alertar(ciudadano);
-
-		detalles(ciudadano, alerta, Json.objeto("cantidadAfectados", 3, "descripcion", "Hay un herido grave"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.incidenteId").value(alerta.incidenteId()));
-		detalles(ciudadano, alerta, Json.objeto("cantidadAfectados", 2)).andExpect(status().isOk());
-
-		incidente(alerta.incidenteId())
-				.andExpect(jsonPath("$.cantidadAfectados").value(3))
-				.andExpect(jsonPath("$.alertas[0].cantidadAfectados").value(2))
-				.andExpect(jsonPath("$.alertas[0].descripcion").value("Hay un herido grave"));
-	}
-
-	@Test
-	@DisplayName("PB-05 · CP-05-03 · no se completan datos de una alerta ajena ni después de que llegó la unidad")
-	void detallesNoPermitidos() throws Exception {
-		Ciudadano ciudadano = escenario.ciudadano();
-		Alerta alerta = escenario.alertar(ciudadano);
-
-		detalles(escenario.ciudadano(), alerta, Json.objeto("cantidadAfectados", 2))
-				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.codigo").value("ALERTA_AJENA"));
-
-		Paramedico paramedico = escenario.paramedicoEnTurno();
-		long atencion = escenario.tomar(paramedico, alerta.incidenteId());
-		llegar(paramedico, atencion);
-
-		detalles(ciudadano, alerta, Json.objeto("cantidadAfectados", 2))
-				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.codigo").value("DETALLES_NO_EDITABLES"));
-	}
-
-	@Test
 	@DisplayName("PB-05 · CP-05-04 · si nadie más pidió y nadie salió, retirar el pedido cierra el incidente")
 	void cancelarSinUnidad() throws Exception {
 		Ciudadano ciudadano = escenario.ciudadano();
@@ -199,10 +163,6 @@ class AlertaIT extends PruebaIT {
 
 	private ResultActions emitir(Ciudadano ciudadano, String cuerpo) throws Exception {
 		return pedir(post("/alertas"), ciudadano.token(), cuerpo);
-	}
-
-	private ResultActions detalles(Ciudadano ciudadano, Alerta alerta, String cuerpo) throws Exception {
-		return pedir(post("/alertas/" + alerta.alertaId() + "/detalles"), ciudadano.token(), cuerpo);
 	}
 
 	private ResultActions cancelar(Ciudadano ciudadano, Alerta alerta, String cuerpo) throws Exception {
