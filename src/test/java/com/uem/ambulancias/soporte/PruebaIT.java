@@ -51,7 +51,7 @@ public abstract class PruebaIT {
 			jdbc.execute("truncate table " + String.join(", ", tablas) + " restart identity cascade");
 		}
 		publicaciones.olvidar();
-		escenario = new Escenario(mvc, usuarios, tokens);
+		escenario = new Escenario(mvc, usuarios, tokens, jdbc);
 	}
 
 	/** Hace la petición con la sesión de ese token (o sin sesión, si es null) y el cuerpo dado (o ninguno). */
