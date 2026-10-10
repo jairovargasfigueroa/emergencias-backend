@@ -62,6 +62,11 @@ public class PublicacionesAnotadas extends PublicadorEnRegistro {
 		return avisosDeIncidenteNuevo.getLast();
 	}
 
+	/** Cuántas veces se avisó por push de un incidente nuevo, desde que empezó la prueba. */
+	public int cantidadDeAvisosDeIncidenteNuevo() {
+		return avisosDeIncidenteNuevo.size();
+	}
+
 	/** Cada prueba empieza sin nada anotado. */
 	public void olvidar() {
 		incidentesAbiertos.clear();
