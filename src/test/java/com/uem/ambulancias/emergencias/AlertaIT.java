@@ -11,9 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.test.web.servlet.ResultActions;
 
 import com.uem.ambulancias.soporte.Escenario;
-import com.uem.ambulancias.soporte.Escenario.Alerta;
 import com.uem.ambulancias.soporte.Escenario.Ciudadano;
-import com.uem.ambulancias.soporte.Escenario.Paramedico;
 import com.uem.ambulancias.soporte.Json;
 import com.uem.ambulancias.soporte.PruebaIT;
 
@@ -85,109 +83,7 @@ class AlertaIT extends PruebaIT {
 	}
 
 	@Test
-	@DisplayName("PB-05 · CP-05-03 · mientras espera completa los datos, y el total del incidente solo sube")
-	void completarDetalles() throws Exception {
-		Ciudadano ciudadano = escenario.ciudadano();
-		Alerta alerta = escenario.alertar(ciudadano);
-
-		detalles(ciudadano, alerta, Json.objeto("cantidadAfectados", 3, "descripcion", "Hay un herido grave"))
-				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.incidenteId").value(alerta.incidenteId()));
-		detalles(ciudadano, alerta, Json.objeto("cantidadAfectados", 2)).andExpect(status().isOk());
-
-		incidente(alerta.incidenteId())
-				.andExpect(jsonPath("$.cantidadAfectados").value(3))
-				.andExpect(jsonPath("$.alertas[0].cantidadAfectados").value(2))
-				.andExpect(jsonPath("$.alertas[0].descripcion").value("Hay un herido grave"));
-	}
-
-	@Test
-	@DisplayName("PB-05 · CP-05-03 · no se completan datos de una alerta ajena ni después de que llegó la unidad")
-	void detallesNoPermitidos() throws Exception {
-		Ciudadano ciudadano = escenario.ciudadano();
-		Alerta alerta = escenario.alertar(ciudadano);
-
-		detalles(escenario.ciudadano(), alerta, Json.objeto("cantidadAfectados", 2))
-				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.codigo").value("ALERTA_AJENA"));
-
-		Paramedico paramedico = escenario.paramedicoEnTurno();
-		long atencion = escenario.tomar(paramedico, alerta.incidenteId());
-		llegar(paramedico, atencion);
-
-		detalles(ciudadano, alerta, Json.objeto("cantidadAfectados", 2))
-				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.codigo").value("DETALLES_NO_EDITABLES"));
-	}
-
-	@Test
-	@DisplayName("PB-05 · CP-05-04 · si nadie más pidió y nadie salió, retirar el pedido cierra el incidente")
-	void cancelarSinUnidad() throws Exception {
-		Ciudadano ciudadano = escenario.ciudadano();
-		Alerta alerta = escenario.alertar(ciudadano);
-
-		cancelar(ciudadano, alerta, Json.objeto("motivo", "FALSA_ALARMA", "emisorEsPaciente", true))
-				.andExpect(status().isOk());
-
-		incidente(alerta.incidenteId())
-				.andExpect(jsonPath("$.estado").value("CANCELADO"))
-				.andExpect(jsonPath("$.fechaHoraCierre").isNotEmpty())
-				.andExpect(jsonPath("$.alertas[0].estado").value("CANCELADA"))
-				.andExpect(jsonPath("$.alertas[0].motivoCancelacion").value("FALSA_ALARMA"))
-				.andExpect(jsonPath("$.alertas[0].emisorEsPaciente").value(true));
-		cancelar(ciudadano, alerta, Json.objeto("motivo", "ERROR"))
-				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.codigo").value("TRANSICION_INVALIDA"));
-	}
-
-	@Test
-	@DisplayName("PB-05 · CP-05-04 · con una unidad en camino, retirar el pedido no cierra el incidente")
-	void cancelarConUnidadEnCamino() throws Exception {
-		Ciudadano ciudadano = escenario.ciudadano();
-		Alerta alerta = escenario.alertar(ciudadano);
-		escenario.tomar(escenario.paramedicoEnTurno(), alerta.incidenteId());
-
-		cancelar(ciudadano, alerta, Json.objeto("motivo", "YA_FUE_ATENDIDO")).andExpect(status().isOk());
-
-		incidente(alerta.incidenteId())
-				.andExpect(jsonPath("$.estado").value("EN_ATENCION"))
-				.andExpect(jsonPath("$.alertas[0].estado").value("CANCELADA"));
-	}
-
-	@Test
-	@DisplayName("PB-05 · CP-05-04 · si otra persona también pidió, el incidente sigue abierto")
-	void cancelarConOtroPedido() throws Exception {
-		Ciudadano primero = escenario.ciudadano();
-		Alerta alerta = escenario.alertar(primero);
-		escenario.alertar(escenario.ciudadano());
-
-		cancelar(primero, alerta, Json.objeto("motivo", "ERROR")).andExpect(status().isOk());
-
-		incidente(alerta.incidenteId()).andExpect(jsonPath("$.estado").value("ACTIVO"));
-	}
-
-	@Test
-	@DisplayName("PB-05 · CP-05-04 · no se retira un pedido ajeno, ni uno cuya unidad ya llegó, ni sin motivo")
-	void cancelarNoPermitido() throws Exception {
-		Ciudadano ciudadano = escenario.ciudadano();
-		Alerta alerta = escenario.alertar(ciudadano);
-
-		cancelar(ciudadano, alerta, Json.objeto("emisorEsPaciente", true))
-				.andExpect(status().isBadRequest());
-		cancelar(escenario.ciudadano(), alerta, Json.objeto("motivo", "ERROR"))
-				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.codigo").value("ALERTA_AJENA"));
-
-		Paramedico paramedico = escenario.paramedicoEnTurno();
-		llegar(paramedico, escenario.tomar(paramedico, alerta.incidenteId()));
-
-		cancelar(ciudadano, alerta, Json.objeto("motivo", "YA_FUE_ATENDIDO"))
-				.andExpect(status().isConflict())
-				.andExpect(jsonPath("$.codigo").value("TRANSICION_INVALIDA"));
-	}
-
-	@Test
-	@DisplayName("PB-05 · CP-05-05 · solo un ciudadano con sesión puede pedir una ambulancia")
+	@DisplayName("PB-05 · CP-05-04 · solo un ciudadano con sesión puede pedir una ambulancia")
 	void soloCiudadanos() throws Exception {
 		String cuerpo = Json.objeto("latitud", Escenario.LATITUD, "longitud", Escenario.LONGITUD,
 				"origenUbicacion", "GPS");
@@ -199,20 +95,6 @@ class AlertaIT extends PruebaIT {
 
 	private ResultActions emitir(Ciudadano ciudadano, String cuerpo) throws Exception {
 		return pedir(post("/alertas"), ciudadano.token(), cuerpo);
-	}
-
-	private ResultActions detalles(Ciudadano ciudadano, Alerta alerta, String cuerpo) throws Exception {
-		return pedir(post("/alertas/" + alerta.alertaId() + "/detalles"), ciudadano.token(), cuerpo);
-	}
-
-	private ResultActions cancelar(Ciudadano ciudadano, Alerta alerta, String cuerpo) throws Exception {
-		return pedir(post("/alertas/" + alerta.alertaId() + "/cancelacion"), ciudadano.token(), cuerpo);
-	}
-
-	private void llegar(Paramedico paramedico, long atencion) throws Exception {
-		pedir(post("/atenciones/" + atencion + "/llegada"), paramedico.token(),
-				Json.objeto("latitud", Escenario.LATITUD, "longitud", Escenario.LONGITUD))
-				.andExpect(status().isOk());
 	}
 
 	/** El incidente como lo ve la central. */

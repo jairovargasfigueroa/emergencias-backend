@@ -13,12 +13,12 @@ import com.uem.ambulancias.comun.error.CodigoError;
 import com.uem.ambulancias.comun.geo.Geo;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 
-@Tag("PB-05")
 class AlertaTest {
 
 	private static final Instant AHORA = Instant.parse("2026-10-09T15:00:00Z");
 
 	@Test
+	@Tag("PB-05")
 	@DisplayName("PB-05 · la alerta nace recibida y queda vinculada al sumarse a un incidente")
 	void emitirYVincular() {
 		Alerta alerta = nueva(null, null);
@@ -33,7 +33,8 @@ class AlertaTest {
 	}
 
 	@Test
-	@DisplayName("PB-05 · completar los datos después solo cambia los que llegan")
+	@Tag("PB-10")
+	@DisplayName("PB-10 · completar los datos después solo cambia los que llegan")
 	void completarDetalles() {
 		Alerta alerta = nueva(2, "Choque de moto");
 
@@ -47,7 +48,8 @@ class AlertaTest {
 	}
 
 	@Test
-	@DisplayName("PB-05 · retirar el pedido guarda el motivo y no se puede retirar dos veces")
+	@Tag("PB-11")
+	@DisplayName("PB-11 · retirar el pedido guarda el motivo y no se puede retirar dos veces")
 	void cancelar() {
 		Alerta alerta = nueva(null, null);
 
