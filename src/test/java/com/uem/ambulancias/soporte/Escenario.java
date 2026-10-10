@@ -136,6 +136,11 @@ public class Escenario {
 		return new Ciudadano(Json.numero(respuesta, "$.ciudadano.id"), telefono, Json.texto(respuesta, "$.token"));
 	}
 
+	/** El teléfono del ciudadano queda registrado para recibir los push de su pedido, con ese token de FCM. */
+	public void recibirAvisos(Ciudadano ciudadano, String tokenPush) {
+		enviar(post("/ciudadanos/actual/dispositivo"), ciudadano.token(), Json.objeto("tokenPush", tokenPush), 204);
+	}
+
 	public Alerta alertar(Ciudadano ciudadano, double latitud, double longitud) {
 		String respuesta = enviar(post("/alertas"), ciudadano.token(),
 				Json.objeto("latitud", latitud, "longitud", longitud, "origenUbicacion", "GPS"), 201);
