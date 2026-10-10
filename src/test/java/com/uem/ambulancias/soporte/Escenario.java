@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.http.MediaType;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
@@ -16,7 +17,7 @@ import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 /**
  * Arma los datos de cada prueba por la misma API que usan las apps y el panel, así lo que se prueba parte de un
  * estado real: un paramédico activado con su PIN y en turno, un ciudadano verificado, una alerta. Solo el
- * administrador se crea directo en la base, porque no hay ninguna API para crearlo.
+ * administrador y los centros de salud se crean directo en la base, porque no hay ninguna API para crearlos.
  */
 public class Escenario {
 
@@ -35,12 +36,14 @@ public class Escenario {
 	private final MockMvc mvc;
 	private final UsuarioRepository usuarios;
 	private final TokenService tokens;
+	private final JdbcTemplate jdbc;
 	private String tokenAdmin;
 
-	public Escenario(MockMvc mvc, UsuarioRepository usuarios, TokenService tokens) {
+	public Escenario(MockMvc mvc, UsuarioRepository usuarios, TokenService tokens, JdbcTemplate jdbc) {
 		this.mvc = mvc;
 		this.usuarios = usuarios;
 		this.tokens = tokens;
+		this.jdbc = jdbc;
 	}
 
 	/** La sesión del panel de un administrador; se crea la primera vez que se pide. */
@@ -154,6 +157,36 @@ public class Escenario {
 	/** Toma el incidente con la unidad en turno del paramédico. Devuelve el id de la atención. */
 	public long tomar(Paramedico paramedico, long incidenteId) {
 		return Json.numero(enviar(post("/incidentes/" + incidenteId + "/tomar"), paramedico.token(), null, 201), "$.id");
+	}
+
+	/**
+	 * Marca un hito de la atención en el lugar del incidente: {@code llegada}, {@code recogida} u {@code hospital}.
+	 */
+	public void marcar(Paramedico paramedico, long atencionId, String hito) {
+		enviar(post("/atenciones/" + atencionId + "/" + hito), paramedico.token(),
+				Json.objeto("latitud", LATITUD, "longitud", LONGITUD), 200);
+	}
+
+	/** Llega, sube al paciente y llega al hospital: la atención queda lista para la entrega. */
+	public void hastaElHospital(Paramedico paramedico, long atencionId) {
+		marcar(paramedico, atencionId, "llegada");
+		marcar(paramedico, atencionId, "recogida");
+		marcar(paramedico, atencionId, "hospital");
+	}
+
+	public void liberar(Paramedico paramedico, long atencionId) {
+		enviar(post("/atenciones/" + atencionId + "/liberacion"), paramedico.token(), null, 200);
+	}
+
+	/**
+	 * Un centro de salud del catálogo, cargado directo en la base: no hay API para crearlos y en producción también
+	 * se cargan así.
+	 */
+	public long centroDeSalud(String nombre, boolean activo) {
+		return jdbc.queryForObject("""
+				insert into centro_salud (nombre, direccion, ubicacion, activo)
+				values (?, ?, ST_SetSRID(ST_MakePoint(?, ?), 4326), ?) returning id
+				""", Long.class, nombre, "Av. Cañoto " + SECUENCIA.getAndIncrement(), LONGITUD + 0.01, LATITUD, activo);
 	}
 
 	/** Teléfonos de 8 dígitos que empiezan con 7, como los de Bolivia, y que nunca contienen el PIN de prueba. */
