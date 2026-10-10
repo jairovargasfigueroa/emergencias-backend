@@ -67,8 +67,24 @@ public class Escenario {
 		return Json.numero(respuesta, "$.id");
 	}
 
+	/**
+	 * Genera el código y espera al segundo siguiente, como pasa en la vida real mientras la persona lo escribe. Los
+	 * tokens guardan su hora al segundo y el cierre de sesiones que hace el código la guarda con milésimas: activar en
+	 * el mismo segundo deja un token que el servidor toma por anterior al cierre (ver el resumen de las pruebas).
+	 */
 	public String codigoDeActivacion(long paramedicoId) {
-		return Json.texto(enviar(post("/paramedicos/" + paramedicoId + "/activacion"), admin(), null, 201), "$.codigo");
+		String codigo = Json.texto(enviar(post("/paramedicos/" + paramedicoId + "/activacion"), admin(), null, 201),
+				"$.codigo");
+		esperarAlSiguienteSegundo();
+		return codigo;
+	}
+
+	public static void esperarAlSiguienteSegundo() {
+		try {
+			Thread.sleep(1005 - System.currentTimeMillis() % 1000);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
 	}
 
 	/** Registrado, con su código usado: ya creó su PIN y tiene el teléfono vinculado. */
