@@ -3,6 +3,8 @@ package com.uem.ambulancias.soporte;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.Base64;
+import java.util.HexFormat;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.springframework.http.MediaType;
@@ -37,13 +39,16 @@ public class Escenario {
 	private final UsuarioRepository usuarios;
 	private final TokenService tokens;
 	private final JdbcTemplate jdbc;
+	private final AlmacenEnMemoria almacen;
 	private String tokenAdmin;
 
-	public Escenario(MockMvc mvc, UsuarioRepository usuarios, TokenService tokens, JdbcTemplate jdbc) {
+	public Escenario(MockMvc mvc, UsuarioRepository usuarios, TokenService tokens, JdbcTemplate jdbc,
+			AlmacenEnMemoria almacen) {
 		this.mvc = mvc;
 		this.usuarios = usuarios;
 		this.tokens = tokens;
 		this.jdbc = jdbc;
+		this.almacen = almacen;
 	}
 
 	/** La sesión del panel de un administrador; se crea la primera vez que se pide. */
@@ -190,6 +195,31 @@ public class Escenario {
 	}
 
 	/** Teléfonos de 8 dígitos que empiezan con 7, como los de Bolivia, y que nunca contienen el PIN de prueba. */
+	/**
+	 * El ciudadano anuncia un archivo para su alerta y recibe dónde subirlo. El contenido es inventado: alcanza con
+	 * un SHA-256 distinto por archivo.
+	 */
+	public Evidencia anunciarEvidencia(Ciudadano ciudadano, long alertaId, String mimeType, long tamanoBytes) {
+		String sha256 = String.format("%064x", SECUENCIA.getAndIncrement());
+		String respuesta = enviar(post("/alertas/" + alertaId + "/evidencias"), ciudadano.token(),
+				Json.objeto("mimeType", mimeType, "tamanoBytes", tamanoBytes, "sha256", sha256), 201);
+		return new Evidencia(Json.numero(respuesta, "$.evidenciaId"), Json.texto(respuesta, "$.urlSubida"),
+				tamanoBytes, sha256);
+	}
+
+	/** Sube al almacén el archivo anunciado, tal cual se anunció. */
+	public void subir(Evidencia evidencia) {
+		almacen.subir(evidencia.urlSubida(), evidencia.tamanoBytes(), evidencia.sha256Base64());
+	}
+
+	/** Anuncia, sube y confirma: el archivo queda recibido y esperando su análisis. */
+	public Evidencia evidenciaSubida(Ciudadano ciudadano, long alertaId, String mimeType) {
+		Evidencia evidencia = anunciarEvidencia(ciudadano, alertaId, mimeType, 250_000);
+		subir(evidencia);
+		enviar(post("/evidencias/" + evidencia.id() + "/confirmacion"), ciudadano.token(), null, 202);
+		return evidencia;
+	}
+
 	public static String nuevoTelefono() {
 		return "7" + String.format("%07d", SECUENCIA.getAndIncrement());
 	}
@@ -224,6 +254,15 @@ public class Escenario {
 	}
 
 	public record Alerta(long alertaId, long incidenteId) {
+	}
+
+	public record Evidencia(long id, String urlSubida, long tamanoBytes, String sha256) {
+
+		/** El mismo SHA-256 en base64, que es como lo devuelve el almacén. */
+		public String sha256Base64() {
+			return Base64.getEncoder().encodeToString(HexFormat.of().parseHex(sha256));
+		}
+
 	}
 
 }

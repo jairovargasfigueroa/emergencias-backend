@@ -60,7 +60,7 @@ public abstract class PruebaIT {
 		publicaciones.olvidar();
 		almacen.olvidar();
 		ia.olvidar();
-		escenario = new Escenario(mvc, usuarios, tokens, jdbc);
+		escenario = new Escenario(mvc, usuarios, tokens, jdbc, almacen);
 	}
 
 	/** Hace la petición con la sesión de ese token (o sin sesión, si es null) y el cuerpo dado (o ninguno). */
