@@ -207,8 +207,8 @@ public class Escenario {
 	}
 
 	/**
-	 * Un centro de salud del catálogo, cargado directo en la base: no hay API para crearlos y en producción también
-	 * se cargan así.
+	 * Un centro de salud del catálogo, cargado directo en la base para que cada prueba arranque con los que necesita.
+	 * La central los administra con {@code /centros-salud} (PB-24).
 	 */
 	public long centroDeSalud(String nombre, boolean activo) {
 		return jdbc.queryForObject("""
