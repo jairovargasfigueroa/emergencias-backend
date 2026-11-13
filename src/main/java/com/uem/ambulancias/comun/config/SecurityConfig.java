@@ -95,6 +95,7 @@ public class SecurityConfig {
 								"/traslados/*/devolver", "/traslados/*/familia-avisada")
 						.hasRole(ADMIN)
 						.requestMatchers("/operacion/**", "/operacion").hasRole(ADMIN)
+						.requestMatchers("/reportes/**").hasRole(ADMIN)
 						.requestMatchers("/ambulancias/**", "/asignaciones/**", "/paramedicos/**").hasRole(ADMIN)
 						.anyRequest().authenticated())
 				.oauth2ResourceServer(recurso -> recurso.jwt(jwt -> jwt.jwtAuthenticationConverter(convertidor)))

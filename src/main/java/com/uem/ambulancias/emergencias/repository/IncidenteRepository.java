@@ -64,6 +64,10 @@ public interface IncidenteRepository extends JpaRepository<Incidente, Long> {
 	 * pero se pregunta igual por las atenciones: si alguna vez el estado quedara desfasado, el error sería mandar
 	 * otra unidad a un incidente ya cubierto, y eso se paga con una ambulancia menos en la calle.
 	 */
+	/** PB-22: los incidentes que se abrieron en el período. */
+	@Query("select i from Incidente i where i.fechaHoraCreacion >= :desde and i.fechaHoraCreacion < :hasta")
+	List<Incidente> buscarCreadosEntre(@Param("desde") Instant desde, @Param("hasta") Instant hasta);
+
 	default List<Incidente> buscarSinCubrir() {
 		return buscarActivosSinAtencionEn(EstadoAtencion.ACTIVOS);
 	}

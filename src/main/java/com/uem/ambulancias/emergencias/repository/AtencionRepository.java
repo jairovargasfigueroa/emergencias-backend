@@ -114,6 +114,17 @@ public interface AtencionRepository extends JpaRepository<Atencion, Long> {
 			@Param("resueltos") Collection<EstadoAtencion> resueltos);
 
 	/** Cómo terminaron las salidas del incidente que no trasladaron a nadie: de ahí sale el desenlace del incidente. */
+	/**
+	 * PB-22: las atenciones de los servicios del período, con su unidad: las de los incidentes abiertos en él y las
+	 * de los traslados que salían en él. Así los totales por unidad cuadran con los de servicios.
+	 */
+	@Query("""
+			select a from Atencion a join fetch a.ambulancia left join fetch a.incidente i left join fetch a.traslado t
+			where (i.fechaHoraCreacion >= :desde and i.fechaHoraCreacion < :hasta)
+			   or (t.horaSalidaEstimada >= :desde and t.horaSalidaEstimada < :hasta)
+			""")
+	List<Atencion> buscarDeServiciosEntre(@Param("desde") Instant desde, @Param("hasta") Instant hasta);
+
 	@Query("select a.motivoSinTraslado from Atencion a where a.incidente.id = :incidenteId and a.estado = 'SIN_TRASLADO'")
 	List<MotivoSinTraslado> buscarMotivosSinTraslado(@Param("incidenteId") Long incidenteId);
 
