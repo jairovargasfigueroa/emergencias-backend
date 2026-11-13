@@ -104,7 +104,9 @@ class EvidenciaYResumenIT extends PruebaIT {
 
 		// Vuelve la IA: en el reintento la foto se analiza; el audio inutilizable no se vuelve a intentar.
 		ia.olvidar();
-		jdbc.update("update trabajo_ia set proximo_intento = now() where estado = 'PENDIENTE'");
+		// Vencido hace un minuto y no "ahora": el barrido compara con la hora de la app, y el reloj del PostGIS de
+		// prueba (en Docker) puede ir unos milisegundos adelantado.
+		jdbc.update("update trabajo_ia set proximo_intento = now() - interval '1 minute' where estado = 'PENDIENTE'");
 		analizador.barrer();
 		resumidor.barrer();
 
