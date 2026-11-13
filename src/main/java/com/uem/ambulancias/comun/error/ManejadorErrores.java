@@ -77,6 +77,11 @@ public class ManejadorErrores {
 		return problema(HttpStatus.BAD_REQUEST, CodigoError.VALIDACION, "Falta la cabecera " + e.getHeaderName() + ".");
 	}
 
+	@ExceptionHandler(SolicitudInvalidaException.class)
+	ProblemDetail solicitudInvalida(SolicitudInvalidaException e) {
+		return problema(HttpStatus.BAD_REQUEST, CodigoError.VALIDACION, e.getMessage());
+	}
+
 	@ExceptionHandler(MethodArgumentTypeMismatchException.class)
 	ProblemDetail tipoInvalido(MethodArgumentTypeMismatchException e) {
 		return problema(HttpStatus.BAD_REQUEST, CodigoError.VALIDACION, "El valor de " + e.getName() + " no es válido.");
