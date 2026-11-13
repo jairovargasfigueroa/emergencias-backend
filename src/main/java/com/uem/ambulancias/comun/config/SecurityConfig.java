@@ -66,6 +66,8 @@ public class SecurityConfig {
 						// El ciudadano también los consulta: es de donde elige el destino de un traslado. Y el panel, al dar
 						// por entregada una atención que la tripulación no pudo cerrar.
 						.requestMatchers(HttpMethod.GET, "/centros-salud").hasAnyRole(PARAMEDICO, CIUDADANO, ADMIN)
+						// El catálogo lo leen todos, pero solo la central lo mantiene.
+						.requestMatchers("/centros-salud", "/centros-salud/**").hasRole(ADMIN)
 						// ME-1 M5: la ambulancia vuelve de una avería desde la app (PB-05 R11) o desde el panel.
 						.requestMatchers(HttpMethod.POST, "/ambulancias/*/reactivar").hasAnyRole(PARAMEDICO, ADMIN)
 						// El resumen de la IA y los archivos que lo respaldan: el panel y la app del paramédico.

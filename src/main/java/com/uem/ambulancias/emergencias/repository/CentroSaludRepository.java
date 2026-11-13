@@ -11,6 +11,8 @@ public interface CentroSaludRepository extends JpaRepository<CentroSalud, Long> 
 
 	List<CentroSalud> findByActivoTrueOrderByNombreAsc();
 
+	List<CentroSalud> findAllByOrderByActivoDescNombreAsc();
+
 	Optional<CentroSalud> findByIdAndActivoTrue(Long id);
 
 }
