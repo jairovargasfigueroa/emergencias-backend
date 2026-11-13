@@ -36,7 +36,7 @@ class HistorialDeIncidentesIT extends PruebaIT {
 		long cancelado = incidenteRetirado(0.03);
 		long falsaAlarma = incidenteEn(0.04);
 		pedir(post("/incidentes/" + falsaAlarma + "/cierre"), escenario.admin(),
-				Json.objeto("motivo", "FALSA_ALARMA_VERIFICADA"))
+				Json.objeto("motivo", "FALSA_ALARMA_VERIFICADA", "detalle", "Nadie en el lugar al devolver la llamada."))
 				.andExpect(status().isNoContent());
 
 		listar("ABIERTOS")
