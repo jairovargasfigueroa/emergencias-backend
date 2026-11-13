@@ -28,7 +28,9 @@ public record IncidenteDetalleResponse(
 		List<AlertaDeIncidenteResponse> alertas,
 		List<AtencionDeIncidenteResponse> atenciones,
 		/** El administrador que lo cerró a mano. Nulo si se cerró solo, por lo que pasó con sus unidades o alertas. */
-		String cerradoPor) {
+		String cerradoPor,
+		/** Lo que escribió al cerrarlo; en una falsa alarma, cómo se verificó. */
+		String detalleCierre) {
 
 	/**
 	 * {@code alertas} con su emisor y {@code atenciones} con su ambulancia, su paramédico responsable y su centro de
@@ -50,7 +52,8 @@ public record IncidenteDetalleResponse(
 				resumen.unidadesAcudiendo(),
 				alertas.stream().map(AlertaDeIncidenteResponse::de).toList(),
 				atenciones.stream().map(AtencionDeIncidenteResponse::de).toList(),
-				incidente.getCerradoPor() == null ? null : incidente.getCerradoPor().getNombreCompleto());
+				incidente.getCerradoPor() == null ? null : incidente.getCerradoPor().getNombreCompleto(),
+				incidente.getDetalleCierre());
 	}
 
 }

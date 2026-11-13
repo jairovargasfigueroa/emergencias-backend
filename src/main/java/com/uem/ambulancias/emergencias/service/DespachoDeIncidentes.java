@@ -71,7 +71,7 @@ public class DespachoDeIncidentes {
 	 * encuentre. Queda registrado quién lo cerró, y el incidente sale del mapa de las unidades.
 	 */
 	@Transactional
-	public void cerrar(Long incidenteId, Long administradorId, MotivoCierreIncidente motivo) {
+	public void cerrar(Long incidenteId, Long administradorId, MotivoCierreIncidente motivo, String detalle) {
 		Usuario administrador = usuarios.findByIdAndRol(administradorId, RolUsuario.ADMIN)
 				.orElseThrow(() -> new NoEncontradoException("No existe el administrador " + administradorId + "."));
 		Incidente incidente = incidentes.buscarParaActualizar(incidenteId)
@@ -83,7 +83,8 @@ public class DespachoDeIncidentes {
 			throw new ConflictoException(CodigoError.TRANSICION_INVALIDA,
 					"Hay unidades trabajando en este incidente: lo cierran ellas, o cierra primero sus atenciones.");
 		}
-		incidente.cerrar(estadoPara(motivo), motivo, administrador);
+		incidente.cerrar(estadoPara(motivo), motivo, administrador,
+				detalle == null || detalle.isBlank() ? null : detalle.trim());
 		incidentes.save(incidente);
 		eventos.publishEvent(new IncidenteActualizado(incidenteId, false));
 		eventos.publishEvent(new NovedadDelIncidente(incidenteId, NovedadDelIncidente.Tipo.CERRADO_POR_LA_CENTRAL));

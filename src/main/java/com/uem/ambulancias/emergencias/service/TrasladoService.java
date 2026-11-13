@@ -5,6 +5,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import com.uem.ambulancias.comun.error.CodigoError;
@@ -17,6 +18,7 @@ import com.uem.ambulancias.emergencias.domain.Horario;
 import com.uem.ambulancias.emergencias.domain.MotivoCancelacionAtencion;
 import com.uem.ambulancias.emergencias.domain.Necesidades;
 import com.uem.ambulancias.emergencias.domain.Traslado;
+import com.uem.ambulancias.emergencias.dto.RegistrarTrasladoCentralRequest;
 import com.uem.ambulancias.emergencias.dto.RegistrarTrasladoRequest;
 import com.uem.ambulancias.emergencias.repository.AtencionRepository;
 import com.uem.ambulancias.emergencias.repository.CentroSaludRepository;
@@ -25,6 +27,7 @@ import com.uem.ambulancias.flota.domain.EstadoAmbulancia;
 import com.uem.ambulancias.flota.domain.TipoUnidad;
 import com.uem.ambulancias.flota.repository.AmbulanciaRepository;
 import com.uem.ambulancias.flota.service.UnidadActualizada;
+import com.uem.ambulancias.usuarios.domain.RolUsuario;
 import com.uem.ambulancias.usuarios.domain.Usuario;
 import com.uem.ambulancias.usuarios.repository.UsuarioRepository;
 import com.uem.ambulancias.usuarios.service.CiudadanoService;
@@ -64,6 +67,68 @@ public class TrasladoService {
 		return traslados.save(Traslado.registrar(solicitante, pasajero, pedido.necesidades(), pedido.origen(),
 				pedido.origenReferencia(), pedido.contactoNombre(), pedido.contactoTelefono(), pedido.centro(),
 				pedido.destino(), pedido.destinoDetalle(), pedido.horario(), pedido.tipoUnidad(), Instant.now()));
+	}
+
+	/**
+	 * Un pedido que llegó por teléfono. Entra a la misma agenda y a la misma búsqueda de unidad que los de la app;
+	 * quien lo pide queda como el administrador que lo cargó, así se sabe de dónde salió. Quien viaja no tiene
+	 * cuenta: se lo registra como una persona de la central, o se reusa si ya se la había cargado con el mismo
+	 * nombre y teléfono.
+	 *
+	 * <p>Si ese teléfono ya tiene un traslado vigente para el mismo día, puede ser la misma familia llamando dos
+	 * veces o alguien que ya lo pidió por la app: se avisa y la central confirma si es otro viaje.
+	 */
+	@Transactional
+	public Traslado registrarDesdeLaCentral(Long administradorId, RegistrarTrasladoCentralRequest datos) {
+		Usuario administrador = usuarios.findByIdAndRol(administradorId, RolUsuario.ADMIN)
+				.orElseThrow(() -> new NoEncontradoException("No existe el administrador " + administradorId + "."));
+		Pedido pedido = resolver(datos.pedido());
+		String nombre = datos.pasajeroNombre().trim();
+		String telefono = datos.pasajeroTelefono().trim();
+		if (!datos.confirmarDuplicado()) {
+			exigirQueNoSeRepita(telefono, pedido.horario());
+		}
+		Usuario pasajero = usuarios
+				.findFirstByTelefonoAndNombreCompletoIgnoreCaseAndRegistradoPorRolAndActivoTrue(telefono, nombre,
+						RolUsuario.ADMIN)
+				.orElseGet(() -> usuarios.save(Usuario.registrarDependiente(nombre, telefono, administrador)));
+
+		return traslados.save(Traslado.registrar(administrador, pasajero, pedido.necesidades(), pedido.origen(),
+				pedido.origenReferencia(), pedido.contactoNombre(), pedido.contactoTelefono(), pedido.centro(),
+				pedido.destino(), pedido.destinoDetalle(), pedido.horario(), pedido.tipoUnidad(), Instant.now()));
+	}
+
+	/** Los vigentes de ese día en los que el teléfono aparece como pasajero, solicitante o contacto. */
+	private void exigirQueNoSeRepita(String telefono, Horario horario) {
+		ZoneId zona = ZoneId.of(config.zona());
+		LocalDate dia = horario.salidaEstimada().atZone(zona).toLocalDate();
+		String buscado = numeroNacional(telefono);
+		List<Traslado> parecidos = traslados
+				.buscarEntre(dia.atStartOfDay(zona).toInstant(), dia.plusDays(1).atStartOfDay(zona).toInstant())
+				.stream()
+				.filter(t -> t.getEstado().isVigente())
+				.filter(t -> Objects.equals(buscado, numeroNacional(t.getPasajero().getTelefono()))
+						|| Objects.equals(buscado, numeroNacional(t.getSolicitante().getTelefono()))
+						|| Objects.equals(buscado, numeroNacional(t.getContactoTelefono())))
+				.toList();
+		if (!parecidos.isEmpty()) {
+			String numeros = parecidos.stream().map(t -> "N.º " + t.getId()).collect(Collectors.joining(", "));
+			throw new ConflictoException(CodigoError.TRASLADO_POSIBLE_DUPLICADO,
+					"Ese teléfono ya tiene un traslado para el mismo día (" + numeros
+							+ "). Revísalo antes de cargar otro; si es un viaje distinto, confírmalo.");
+		}
+	}
+
+	/** Los últimos 8 dígitos: así coinciden 71234567, 712-34567 y +591 71234567. Nulo si no hay número. */
+	private static String numeroNacional(String telefono) {
+		if (telefono == null) {
+			return null;
+		}
+		String digitos = telefono.replaceAll("\\D", "");
+		if (digitos.isEmpty()) {
+			return null;
+		}
+		return digitos.length() > 8 ? digitos.substring(digitos.length() - 8) : digitos;
 	}
 
 	/**

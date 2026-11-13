@@ -143,7 +143,9 @@ class CierreDeIncidenteIT extends PruebaIT {
 	}
 
 	private ResultActions cerrar(long incidente, String motivo) throws Exception {
-		return pedir(post("/incidentes/" + incidente + "/cierre"), escenario.admin(), Json.objeto("motivo", motivo));
+		// Una falsa alarma lleva cómo se verificó (PB-23); los demás motivos no lo piden.
+		return pedir(post("/incidentes/" + incidente + "/cierre"), escenario.admin(),
+				Json.objeto("motivo", motivo, "detalle", "Se llamó al número del ciudadano y no había ninguna emergencia."));
 	}
 
 }

@@ -34,6 +34,7 @@ public class CiudadanoService {
 		Instant ahora = Instant.now();
 		Optional<Usuario> existente = usuarios.buscarCiudadanoPorTelefonoNacional(telefono);
 		if (existente.isPresent()) {
+			exigirCuentaActiva(existente.get());
 			existente.get().marcarTelefonoVerificado(ahora);
 			return existente.get();
 		}
@@ -77,11 +78,28 @@ public class CiudadanoService {
 				.quitarTokenPush();
 	}
 
-	/** Emisor de una alerta: un ciudadano activo. */
+	/** Emisor de una alerta: un ciudadano activo. Una cuenta desactivada por la central no puede pedir nada. */
 	public Usuario buscarCiudadanoActivo(Long id) {
-		return usuarios.findByIdAndRol(id, RolUsuario.CIUDADANO)
-				.filter(Usuario::isActivo)
+		Usuario ciudadano = usuarios.findByIdAndRol(id, RolUsuario.CIUDADANO)
 				.orElseThrow(() -> new NoEncontradoException("No existe el ciudadano " + id + "."));
+		exigirCuentaActiva(ciudadano);
+		return ciudadano;
+	}
+
+	/**
+	 * Una cuenta propia desactivada fue la central, por mal uso: se dice así, para que la persona sepa a quién
+	 * acudir. Una persona a cargo dada de baja simplemente ya no existe para quien la busca.
+	 */
+	private static void exigirCuentaActiva(Usuario ciudadano) {
+		if (ciudadano.isActivo()) {
+			return;
+		}
+		if (ciudadano.esCuentaPropia()) {
+			throw new ConflictoException(CodigoError.CUENTA_DESACTIVADA,
+					"Tu cuenta fue desactivada por la central. Si es un error, comunícate con la central."
+							+ " Ante una emergencia, llama al 160.");
+		}
+		throw new NoEncontradoException("No existe el ciudadano " + ciudadano.getId() + ".");
 	}
 
 	/** Las personas que este ciudadano cargó: a quienes traslada y sus contactos de confianza. */

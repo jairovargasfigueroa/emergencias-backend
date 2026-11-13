@@ -58,6 +58,10 @@ public class Incidente {
 	@JoinColumn(name = "cerrado_por_id")
 	private Usuario cerradoPor;
 
+	/** Lo que la central escribió al cerrarlo a mano: en una falsa alarma, cómo se verificó. */
+	@Column(length = 1000)
+	private String detalleCierre;
+
 	/** ME-1 I0: nace ACTIVO con la ubicación efectiva y los afectados de su primera alerta. */
 	public static Incidente crear(Point ubicacion, Integer cantidadAfectados, Instant fechaHoraCreacion) {
 		Incidente incidente = new Incidente();
@@ -88,9 +92,15 @@ public class Incidente {
 
 	/** Cierre con su porqué: el motivo y, cuando lo cierra una persona, quién fue. */
 	public void cerrar(EstadoIncidente nuevo, MotivoCierreIncidente motivo, Usuario cerradoPor) {
+		cerrar(nuevo, motivo, cerradoPor, null);
+	}
+
+	/** Lo mismo con lo que escribió quien lo cerró. */
+	public void cerrar(EstadoIncidente nuevo, MotivoCierreIncidente motivo, Usuario cerradoPor, String detalle) {
 		cambiarEstado(nuevo);
 		this.motivoCierre = motivo;
 		this.cerradoPor = cerradoPor;
+		this.detalleCierre = detalle;
 	}
 
 	/**

@@ -77,6 +77,10 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
 	/** Para que nadie use como pasajero a una persona que registró otro. */
 	boolean existsByIdAndRegistradoPorId(Long id, Long registradoPorId);
 
+	/** Una persona sin cuenta que la central ya cargó al tomar otro pedido por teléfono. */
+	Optional<Usuario> findFirstByTelefonoAndNombreCompletoIgnoreCaseAndRegistradoPorRolAndActivoTrue(String telefono,
+			String nombreCompleto, RolUsuario rol);
+
 	/**
 	 * Desde cuándo valen las sesiones de ese usuario, o vacío si nunca se le cerraron. Se pregunta en cada petición,
 	 * así que trae ese dato y nada más.

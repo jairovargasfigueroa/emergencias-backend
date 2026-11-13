@@ -149,6 +149,16 @@ public class Usuario {
 		return usuario;
 	}
 
+	/**
+	 * La central desactiva la cuenta de un ciudadano por mal uso. Se le cierran las sesiones y deja de recibir
+	 * avisos en el acto; su historial se conserva.
+	 */
+	public void desactivarCuenta(Instant ahora) {
+		activo = false;
+		tokenPush = null;
+		sesionesCerradasEn = ahora;
+	}
+
 	/** Si esta persona entra a la app por su cuenta o es solo una entrada en la agenda de otro. */
 	public boolean esCuentaPropia() {
 		return registradoPor == null;
