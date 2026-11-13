@@ -6,6 +6,7 @@ import java.util.List;
 import com.uem.ambulancias.comun.web.UsuarioActual;
 import com.uem.ambulancias.emergencias.domain.Atencion;
 import com.uem.ambulancias.emergencias.dto.AsignarTrasladoRequest;
+import com.uem.ambulancias.emergencias.dto.RegistrarTrasladoCentralRequest;
 import com.uem.ambulancias.emergencias.dto.TrasladoDelPanelResponse;
 import com.uem.ambulancias.emergencias.dto.UnidadCandidataResponse;
 import com.uem.ambulancias.emergencias.service.AsignadorDeTraslados;
@@ -15,12 +16,14 @@ import com.uem.ambulancias.emergencias.service.TrasladoService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
@@ -34,6 +37,14 @@ public class TrasladoPanelController {
 
 	private final TrasladoService trasladoService;
 	private final AsignadorDeTraslados asignador;
+
+	/** PB-26: un traslado pedido por teléfono. Responde con su número y su estado. */
+	@PostMapping("/central")
+	@ResponseStatus(HttpStatus.CREATED)
+	public TrasladoDelPanelResponse registrarDesdeLaCentral(@UsuarioActual Long administradorId,
+			@Valid @RequestBody RegistrarTrasladoCentralRequest request) {
+		return TrasladoDelPanelResponse.de(trasladoService.registrarDesdeLaCentral(administradorId, request), null);
+	}
 
 	/** Sin fecha devuelve el día de hoy, en la zona de la empresa. */
 	@GetMapping
