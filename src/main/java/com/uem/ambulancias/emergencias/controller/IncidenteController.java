@@ -93,7 +93,7 @@ public class IncidenteController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void cerrar(@PathVariable("id") Long idIncidente, @UsuarioActual Long administradorId,
 			@Valid @RequestBody CerrarIncidenteRequest request) {
-		despacho.cerrar(idIncidente, administradorId, request.motivo());
+		despacho.cerrar(idIncidente, administradorId, request.motivo(), request.detalle());
 	}
 
 	@PostMapping("/{id}/tomar")
