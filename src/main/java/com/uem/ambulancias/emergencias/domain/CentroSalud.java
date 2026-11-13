@@ -14,7 +14,8 @@ import lombok.NoArgsConstructor;
 import org.locationtech.jts.geom.Point;
 
 /**
- * Catálogo de clínicas, hospitales y postas donde se entrega al paciente. Baja lógica con {@code activo}.
+ * Catálogo de clínicas, hospitales y postas donde se entrega al paciente. Baja lógica con {@code activo}: un centro
+ * dado de baja deja de ofrecerse, pero las atenciones y los traslados que ya lo usaron siguen apuntándolo.
  */
 @Entity
 @Table(name = "centro_salud")
@@ -36,5 +37,33 @@ public class CentroSalud {
 
 	@Column(nullable = false)
 	private boolean activo;
+
+
+	public static CentroSalud registrar(String nombre, Point ubicacion, String direccion) {
+		CentroSalud centro = new CentroSalud();
+		centro.nombre = nombre;
+		centro.ubicacion = ubicacion;
+		centro.direccion = direccion;
+		centro.activo = true;
+		return centro;
+	}
+
+	/**
+	 * Corrige los datos del centro. Las atenciones y los traslados guardan el centro por referencia y copian su
+	 * punto al registrarse, así que una corrección no cambia dónde se entregó a nadie.
+	 */
+	public void corregir(String nombre, Point ubicacion, String direccion) {
+		this.nombre = nombre;
+		this.ubicacion = ubicacion;
+		this.direccion = direccion;
+	}
+
+	public void desactivar() {
+		this.activo = false;
+	}
+
+	public void activar() {
+		this.activo = true;
+	}
 
 }
