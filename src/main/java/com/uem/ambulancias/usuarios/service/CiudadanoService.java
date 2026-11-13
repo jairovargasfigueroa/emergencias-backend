@@ -97,7 +97,7 @@ public class CiudadanoService {
 		if (ciudadano.esCuentaPropia()) {
 			throw new ConflictoException(CodigoError.CUENTA_DESACTIVADA,
 					"Tu cuenta fue desactivada por la central. Si es un error, comunícate con la central."
-							+ " Ante una emergencia, llama al 165.");
+							+ " Ante una emergencia, llama al 160.");
 		}
 		throw new NoEncontradoException("No existe el ciudadano " + ciudadano.getId() + ".");
 	}
