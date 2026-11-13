@@ -75,6 +75,7 @@ public class SecurityConfig {
 						.hasAnyRole(PARAMEDICO, ADMIN)
 						// Lo que usa la app del ciudadano.
 						.requestMatchers("/ciudadanos/actual/**").hasRole(CIUDADANO)
+						.requestMatchers("/ciudadanos/**").hasRole(ADMIN)
 						.requestMatchers("/alertas/**").hasRole(CIUDADANO)
 						// Las evidencias las sube el ciudadano dueño de la alerta.
 						.requestMatchers(HttpMethod.POST, "/evidencias/*/url-subida", "/evidencias/*/confirmacion")

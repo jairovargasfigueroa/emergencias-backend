@@ -12,6 +12,37 @@ import org.springframework.data.repository.query.Param;
 
 public interface AlertaRepository extends JpaRepository<Alerta, Long> {
 
+	/**
+	 * PB-23: cuántas alertas de cada ciudadano terminaron en un incidente que la central cerró como falsa alarma,
+	 * y la última. Solo los cierres de la central, que llevan el fundamento escrito.
+	 */
+	@Query("""
+			select new com.uem.ambulancias.emergencias.repository.FalsasAlarmasDeCiudadano(e.id, count(a),
+			       max(a.fechaHora))
+			from Alerta a join a.emisor e join a.incidente i
+			where i.motivoCierre = com.uem.ambulancias.emergencias.domain.MotivoCierreIncidente.FALSA_ALARMA_VERIFICADA
+			  and i.cerradoPor is not null and e.registradoPor is null
+			group by e.id
+			""")
+	List<FalsasAlarmasDeCiudadano> contarFalsasAlarmasPorCiudadano();
+
+	/** Las alertas de un ciudadano que la central dio por falsa alarma, con el incidente y quién lo cerró. */
+	@Query("""
+			select a from Alerta a join fetch a.incidente i join fetch i.cerradoPor
+			where a.emisor.id = :ciudadanoId
+			  and i.motivoCierre = com.uem.ambulancias.emergencias.domain.MotivoCierreIncidente.FALSA_ALARMA_VERIFICADA
+			order by a.fechaHora desc, a.id desc
+			""")
+	List<Alerta> buscarFalsasAlarmas(@Param("ciudadanoId") Long ciudadanoId);
+
+	/** Todas las alertas de un ciudadano, lo más reciente primero, para ver el resto de su historial. */
+	@Query("""
+			select a from Alerta a join fetch a.incidente
+			where a.emisor.id = :ciudadanoId
+			order by a.fechaHora desc, a.id desc
+			""")
+	List<Alerta> buscarPorEmisor(@Param("ciudadanoId") Long ciudadanoId);
+
 	/** Incidente al que está vinculada la alerta: se bloquea antes de tocar nada. */
 	@Query("select a.incidente.id from Alerta a where a.id = :id")
 	Optional<Long> buscarIncidenteId(@Param("id") Long id);
