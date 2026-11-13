@@ -90,8 +90,8 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.GET, "/traslados", "/traslados/problemas", "/traslados/*",
 								"/traslados/*/unidades")
 						.hasRole(ADMIN)
-						.requestMatchers(HttpMethod.POST, "/traslados/*/asignar", "/traslados/*/devolver",
-								"/traslados/*/familia-avisada")
+						.requestMatchers(HttpMethod.POST, "/traslados/central", "/traslados/*/asignar",
+								"/traslados/*/devolver", "/traslados/*/familia-avisada")
 						.hasRole(ADMIN)
 						.requestMatchers("/operacion/**", "/operacion").hasRole(ADMIN)
 						.requestMatchers("/ambulancias/**", "/asignaciones/**", "/paramedicos/**").hasRole(ADMIN)
